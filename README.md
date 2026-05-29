@@ -62,8 +62,9 @@ nginx -s reload
 Blog/
 ├── index.html                       # 唯一入口 — 标签页切换所有功能
 ├── config.json                      # 服务导航配置
-├── dashboard.json                   # 仪表盘 JSON（corn.sh 定时写入）
-├── corn.sh                          # 系统资源采集脚本
+├── corn.sh                          # 系统资源采集脚本（零 root）
+├── .gitignore                       # 忽略运行时产物
+├── LICENSE                          # MIT 许可证
 ├── favicon.ico
 │
 ├── css/
@@ -217,12 +218,25 @@ Html/                                       /api/html/
 
 | 卡片 | 内容 | 进度条 |
 |------|------|--------|
-| 📱 设备 | 品牌+型号 · Android 版本 · 内核版本 | — |
+| 📱 设备 | 品牌+型号 · Android · 内核 · 局域网IP · IPv6 | — |
 | 🧠 CPU | 使用率% · 核心数 · 处理器型号 | 蓝色 |
 | 💾 内存 | used / total (GB/MB) | 蓝色 |
 | 🗄️ 储存 | used / total (GB) | 蓝色 |
 | ⏱️ 运行时间 | 如 "3d 12h 30m" | — |
 | 🔋 电池 | 电量% · 充电状态 · 温度 | 绿色 (仅 termux-api 装好后显示) |
+
+`dashboard.json` 格式（由 corn.sh 生成）：
+```json
+{
+  "device": {"model": "Xiaomi 14", "android": "14", "kernel": "6.1"},
+  "network": {"ip": "192.168.1.5", "ipv6": "", "iface": "wlan0"},
+  "cpu": {"usage": 12.3, "cores": 8, "model": "ARM"},
+  "memory": {"used": 3.2, "total": 7.5, "unit": "GB"},
+  "disk": {"used": 45.2, "total": 128, "unit": "GB"},
+  "uptime": "3 days, 2h",
+  "battery": {"level": 85, "status": "CHARGING", "temp": 36.5}
+}
+```
 
 ---
 
@@ -542,11 +556,12 @@ pkg install termux-api
 |------|----------|
 | 零后端 | nginx autoindex 生成目录列表，`DOMParser` 解析 |
 | 零外部依赖 | 所有库本地化在 `lib/` |
-| 无 root | `corn.sh` 全部使用 `/proc` 和 `getprop` |
+| 无 root | `corn.sh` 全用 `top`/`free`/`uptime`/`getprop`/`ifconfig`（不读 `/proc`） |
 | 安全 | 文件名 `escapeHtml` 转义防 XSS |
 | 主题 | CSS 变量 + `body.dark` 切换 |
 | 响应式 | 3 个断点 (1200/640/400px) |
 | 懒加载 | 非当前标签不请求数据，KaTeX 按需加载 |
+| 缓存策略 | JS/CSS 使用 `?v=N` 版本号 + nginx `no-cache` 响应头 |
 | 兼容性 | `backdrop-filter` 回退纯色，`-webkit-` 前缀 |
 
 ---
