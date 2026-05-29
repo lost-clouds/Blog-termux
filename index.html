@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f5f5f7">
+    <title>控制台 · 控制台</title>
+
+    <!-- ============================================================
+         模块：apple-theme.css
+         作用：提供全站基础 CSS 变量、磨砂玻璃效果、深色模式变量
+    ============================================================ -->
+    <link rel="stylesheet" href="lib/apple-theme.css">
+
+    <!-- ============================================================
+         模块：main.css
+         作用：首页专用样式 —— 顶栏、仪表盘卡片、Homer iframe 容器
+    ============================================================ -->
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+    <!-- ============================================================
+         整体容器：app
+         作用：限制最大宽度并居中，定义内边距
+    ============================================================ -->
+    <div class="app">
+
+        <!-- ============================================================
+             顶部导航栏
+             包含：品牌标题、博客/图库快捷入口、主题切换按钮
+        ============================================================ -->
+        <header class="top-bar">
+            <h1>🏠 控制台</h1>
+            <div class="header-links">
+                <!-- 跳转到博客列表页 -->
+                <a href="/blog" class="nav-btn">📝 博客</a>
+                <!-- 跳转到图片画廊页 -->
+                <a href="/images" class="nav-btn">🖼️ 图库</a>
+                <!-- 主题切换按钮（图标由 theme.js 动态更新） -->
+                <button class="theme-toggle-btn" id="themeToggleBtn" title="切换主题">🌙</button>
+            </div>
+        </header>
+
+        <!-- ============================================================
+             系统资源仪表盘
+             由模块 js/dashboard.js 动态填充数据
+             卡片结构：CPU、内存、磁盘、运行时间
+        ============================================================ -->
+        <section class="dashboard" id="dashboard">
+            <!-- CPU 卡片 -->
+            <div class="card cpu-card">
+                <div class="card-icon">🧠</div>
+                <div class="card-info">
+                    <div class="card-label">CPU</div>
+                    <div class="card-value" id="cpuValue">--</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cpuFill"></div>
+                </div>
+            </div>
+            <!-- 内存卡片 -->
+            <div class="card memory-card">
+                <div class="card-icon">💾</div>
+                <div class="card-info">
+                    <div class="card-label">内存</div>
+                    <div class="card-value" id="memValue">--</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="memFill"></div>
+                </div>
+            </div>
+            <!-- 磁盘卡片 -->
+            <div class="card disk-card">
+                <div class="card-icon">🗄️</div>
+                <div class="card-info">
+                    <div class="card-label">磁盘</div>
+                    <div class="card-value" id="diskValue">--</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="diskFill"></div>
+                </div>
+            </div>
+            <!-- 运行时间卡片 -->
+            <div class="card uptime-card">
+                <div class="card-icon">⏱️</div>
+                <div class="card-info">
+                    <div class="card-label">运行时间</div>
+                    <div class="card-value" id="uptimeValue">--</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             Homer 服务导航 (iframe)
+             作用：嵌入 Homer 仪表盘，提供所有服务的快速入口
+             通过 postMessage 与父页面同步主题
+        ============================================================ -->
+        <section class="homer-section">
+            <div class="iframe-container">
+                <iframe src="/homer/" loading="lazy" title="服务导航"></iframe>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================================
+         脚本区：按顺序加载共享模块和页面专用模块
+    ============================================================ -->
+
+    <!-- 模块：js/theme.js —— 主题管理（读写 localStorage，切换深色/浅色） -->
+    <script src="js/theme.js"></script>
+
+    <!-- 模块：js/utils.js —— 工具函数（HTML 转义、Blob 下载，全局使用） -->
+    <script src="js/utils.js"></script>
+
+    <!-- 模块：js/dashboard.js —— 仪表盘逻辑（请求 /api/dashboard 并渲染） -->
+    <script src="js/dashboard.js"></script>
+
+    <!-- 页面初始化脚本（内联） -->
+    <script>
+        // 绑定主题切换按钮
+        document.getElementById('themeToggleBtn').addEventListener('click', function() {
+            // 调用 theme.js 提供的全局切换方法
+            Theme.toggleTheme();
+
+            // 将主题同步到 Homer iframe（iframe 监听 message）
+            var iframe = document.querySelector('.iframe-container iframe');
+            if (iframe) {
+                var theme = document.body.classList.contains('dark') ? 'dark' : 'light';
+                iframe.contentWindow.postMessage({ type: 'themeChange', theme: theme }, '*');
+            }
+        });
+
+        // 初始化：应用之前保存的主题
+        Theme.initTheme();
+
+        // 启动仪表盘数据获取与自动刷新
+        Dashboard.init();
+    </script>
+
+</body>
+</html>

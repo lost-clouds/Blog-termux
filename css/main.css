@@ -1,0 +1,197 @@
+/* 首页专用样式，依赖 lib/apple-theme.css */
+:root {
+    --card-radius: 20px;
+}
+
+body {
+    background: #d4d4d8 !important;
+    min-height: 100vh;
+}
+body.dark {
+    background: radial-gradient(circle at 10% 20%, #1c1c1e, #0d0d0f) !important;
+}
+
+.app {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 1.25rem 1rem 2rem;
+}
+
+/* 顶栏 */
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+.top-bar h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+.header-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.nav-btn {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border-strong);
+    border-radius: 980px;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
+}
+.nav-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    transform: scale(1.05);
+}
+.theme-toggle-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--glass-border-strong);
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    color: var(--text-primary);
+}
+.theme-toggle-btn:hover {
+    transform: scale(1.08);
+    box-shadow: var(--shadow-md);
+}
+
+/* 仪表盘 */
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-radius: var(--card-radius);
+    padding: 1rem 1.2rem;
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.card-icon {
+    font-size: 2rem;
+    width: 44px;
+    text-align: center;
+}
+.card-info {
+    flex: 1;
+    min-width: 0;
+}
+.card-label {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    margin-bottom: 0.15rem;
+}
+.card-value {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.progress-bar {
+    flex-basis: 100%;
+    height: 6px;
+    background: var(--border-light);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.5s ease;
+    border-radius: 3px;
+}
+
+/* Homer iframe */
+.homer-section {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-md);
+    height: calc(100vh - 280px);
+    min-height: 500px;
+}
+.iframe-container {
+    width: 100%;
+    height: 100%;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+}
+.iframe-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+}
+
+/* 深色模式 */
+body.dark .nav-btn {
+    background: rgba(40,40,44,0.9);
+    border-color: rgba(255,255,255,0.18);
+    color: #eee;
+}
+body.dark .nav-btn:hover {
+    background: #0a84ff;
+}
+body.dark .card {
+    background: rgba(44,44,48,0.9);
+    border-color: rgba(255,255,255,0.2);
+}
+body.dark .card-value { color: #fff; }
+body.dark .theme-toggle-btn {
+    background: rgba(44,44,48,0.9);
+    border-color: rgba(255,255,255,0.22);
+    color: #fff;
+}
+
+/* 响应式 */
+@media (max-width: 640px) {
+    .top-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+    .homer-section {
+        height: calc(100vh - 360px);
+        min-height: 400px;
+    }
+}

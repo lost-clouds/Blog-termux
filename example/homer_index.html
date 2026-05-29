@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="assets/icons/favicon.ico" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" sizes="180x180">
+    <link rel="mask-icon" href="assets/icons/logo.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Homer</title>
+    <script type="module" crossorigin src="./resources/index-BF4DSS10.js"></script>
+    <link rel="stylesheet" crossorigin href="./resources/index-BUSrgv1m.css">
+    <link rel="manifest" href="./assets/manifest.json" crossorigin="use-credentials">
+    <script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script>
+    <style>
+      /* ===== RESET & GLASS THEME (Apple style) ===== */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: transparent !important;
+      }
+
+      /* Light mode (daily) — soft gray, not blinding */
+      body {
+        background: transparent !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        transition: background 0.2s ease, color 0.2s ease;
+        height: 100%;
+      }
+
+      /* Dark mode */
+      body.dark {
+        background: transparent !important;
+      }
+
+      /* Dark mode enhancements for better contrast and readability */
+      body.dark .card,
+      body.dark [class*="card"],
+      body.dark [class*="panel"],
+      body.dark [class*="widget"],
+      body.dark .container,
+      body.dark .box,
+      body.dark .main {
+        background: rgba(28, 28, 30, 0.85) !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      }
+
+      body.dark button,
+      body.dark .button,
+      body.dark .btn,
+      body.dark [role="button"],
+      body.dark input[type="button"],
+      body.dark input[type="submit"] {
+        background: #0a84ff !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      }
+
+      body.dark button:hover,
+      body.dark .button:hover,
+      body.dark .btn:hover {
+        background: #409cff !important;
+      }
+
+      body.dark a,
+      body.dark .button-link {
+        color: #0a84ff !important;
+      }
+
+      body.dark .text-secondary,
+      body.dark .subtitle {
+        color: #98989e !important;
+      }
+
+      /* Make the main app container fully transparent so parent glass shows through */
+      #app-mount,
+      .app,
+      .App,
+      [data-reactroot] {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 100%;
+      }
+
+      /* Force all cards, panels, containers to be transparent/glass-like */
+      .card, [class*="card"], [class*="panel"], [class*="widget"],
+      .container, .columns, .column, section, .box,
+      .main, .content, .page, .view {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      /* Hide any large blue headers, hero sections, or anything that says "ApingHub" */
+      .navbar, .hero, .header, [class*="navbar"], [class*="hero"], [class*="header"],
+      .bg-primary, .bg-blue, [style*="background-color: #0366d6"], [style*="background-color: #007aff"],
+      [class*="ApingHub"], [class*="apinghub"],
+      .logo, .brand, .title-bar, .top-bar {
+        display: none !important;
+      }
+
+      /* Ensure text has good contrast — use CSS variables that adapt to parent's theme */
+      body, body.dark {
+        color-scheme: light dark;
+      }
+
+      /* Typography adjustments for better readability inside iframe */
+      h1, h2, h3, .title, .subtitle, p, span, a, div {
+        color: var(--text-primary, #1c1c1e) !important;
+        background: none !important;
+      }
+
+      body.dark h1, body.dark h2, body.dark h3, body.dark .title,
+      body.dark p, body.dark span, body.dark a, body.dark div {
+        color: var(--text-primary, #f5f5f7) !important;
+      }
+
+      a, .button, .btn {
+        color: #007aff !important;
+        text-decoration: none;
+      }
+
+      body.dark a, body.dark .button, body.dark .btn {
+        color: #0a84ff !important;
+      }
+
+      /* Remove any fixed positioning that might cause scroll issues */
+      .fixed, [style*="position: fixed"] {
+        position: relative !important;
+      }
+
+      /* Force button visibility — blue background, white text */
+      button, .button, .btn, [role="button"], input[type="button"], input[type="submit"] {
+        background: var(--accent, #007aff) !important;
+        color: white !important;
+        border: none !important;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+      }
+      button:hover, .button:hover, .btn:hover {
+        background: var(--accent-hover, #005fc1) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-mount"></div>
+
+    <script>
+      // Theme management synced with global theme (if parent exists, else standalone)
+      function getStoredTheme() {
+        return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      }
+
+      function applyTheme(theme) {
+        if (theme === 'dark') {
+          document.body.classList.add('dark');
+        } else {
+          document.body.classList.remove('dark');
+        }
+        localStorage.setItem('theme', theme);
+        // Notify parent iframe if needed
+        window.parent.postMessage({ type: 'themeChange', theme: theme }, '*');
+      }
+
+      // Initialize
+      const saved = getStoredTheme();
+      applyTheme(saved);
+
+      // Listen for theme changes from parent (if embedded)
+      window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'themeChange') {
+          applyTheme(e.data.theme);
+        }
+      });
+    </script>
+  </body>
+</html>

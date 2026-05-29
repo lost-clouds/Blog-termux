@@ -1,0 +1,72 @@
+body { background: #d4d4d8 !important; }
+body.dark { background: radial-gradient(circle at 10% 20%, #1c1c1e, #0d0d0f) !important; }
+.app { max-width: 1440px; margin: 0 auto; padding: 1.5rem 1rem; }
+.top-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    padding: 0.8rem 1.2rem;
+    border: 1px solid var(--glass-border);
+    flex-wrap: wrap;
+}
+.back-btn {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border-strong);
+    border-radius: 980px;
+    padding: 0.4rem 1rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: var(--transition);
+    font-size: 0.9rem;
+}
+.back-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.search-wrap { flex: 1; min-width: 180px; }
+.search-input {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border-radius: 980px;
+    border: 1px solid var(--glass-border-strong);
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    outline: none;
+}
+.search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+.image-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: var(--transition);
+}
+.image-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.image-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    display: block;
+}
+.image-card .info {
+    padding: 0.5rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+/* 灯箱复用 main.css 中定义，此处略 */
+.lightbox { /* 同 main.css */ }

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=yes">
+    <meta name="theme-color" content="#f5f5f7">
+    <title>Markdown 渲染器 - 控制台</title>
+    <link rel="stylesheet" href="lib/apple-theme.css">
+    <link rel="stylesheet" href="lib/github-markdown.min.css">
+    <link rel="stylesheet" href="lib/katex.min.css">
+    <link rel="stylesheet" href="css/md-viewer.css">
+</head>
+<body>
+<div class="app">
+    <div class="toc-overlay" id="tocOverlay" onclick="closeToc()"></div>
+    <div class="toc-sidebar" id="tocSidebar">
+        <div class="toc-header">
+            <span>📑 目录</span>
+            <button class="toc-close" onclick="closeToc()" aria-label="关闭">✕</button>
+        </div>
+        <div class="toc-nav" id="tocNav">
+            <div style="text-align: center; color: var(--text-secondary); padding: 1rem;">加载中...</div>
+        </div>
+    </div>
+
+    <div class="main-content" id="mainContent">
+        <div class="top-bar">
+            <div class="left-controls">
+                <button class="toc-toggle" onclick="toggleToc()" aria-label="目录">
+                    <span class="icon">☰</span>
+                    <span>目录</span>
+                </button>
+                <div class="title" id="pageTitle">加载中...</div>
+            </div>
+            <div class="right-controls">
+                <button class="theme-toggle" id="themeToggleBtn" aria-label="主题">
+                    <span>🌙</span><span>夜间</span>
+                </button>
+                <a href="/" class="back-btn" aria-label="返回">
+                    <span>←</span><span>返回</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="content-container">
+            <div id="content" class="markdown-body">
+                <div class="loading">⏳ 加载中...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="reading-progress" id="readingProgress"></div>
+
+<!-- 图片灯箱 -->
+<div class="md-lightbox" id="mdLightbox">
+    <button class="md-lightbox-close" aria-label="关闭">✕</button>
+    <img src="" alt="" id="mdLightboxImg">
+    <div class="md-lightbox-name" id="mdLightboxName"></div>
+</div>
+
+<!-- KaTeX 懒加载 -->
+<script>
+    let _katexReady = false;
+    let _katexPromise = null;
+    function ensureKatex() {
+        if (_katexReady) return Promise.resolve();
+        if (_katexPromise) return _katexPromise;
+        if (typeof renderMathInElement !== 'undefined') { _katexReady = true; return Promise.resolve(); }
+        _katexPromise = new Promise(function(resolve, reject) {
+            var s1 = document.createElement('script');
+            s1.src = 'lib/katex.min.js';
+            s1.onload = function() {
+                var s2 = document.createElement('script');
+                s2.src = 'lib/auto-render.min.js';
+                s2.onload = function() { _katexReady = true; resolve(); };
+                s2.onerror = function() { reject(new Error('KaTeX auto-render 加载失败')); };
+                document.head.appendChild(s2);
+            };
+            s1.onerror = function() { reject(new Error('KaTeX 核心库加载失败')); };
+            document.head.appendChild(s1);
+        });
+        return _katexPromise;
+    }
+</script>
+
+<!-- 模块脚本：顺序加载 -->
+<script src="lib/marked.min.js" defer></script>
+<script src="js/theme.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/lightbox.js"></script>
+<script src="js/md-viewer.js"></script>
+</body>
+</html>
