@@ -62,14 +62,26 @@
 
             <!-- 仪表盘卡片网格：由 dashboard.js 动态填充 -->
             <div class="dashboard-grid" id="dashboardGrid">
+                <!-- 设备信息卡片 -->
+                <div class="dash-card">
+                    <div class="dash-icon">📱</div>
+                    <div class="dash-info">
+                        <div class="dash-label">设备</div>
+                        <div class="dash-value" id="deviceValue">--</div>
+                        <div class="dash-sub" id="deviceSub"></div>
+                    </div>
+                </div>
+                <!-- CPU 卡片 -->
                 <div class="dash-card">
                     <div class="dash-icon">🧠</div>
                     <div class="dash-info">
                         <div class="dash-label">CPU</div>
                         <div class="dash-value" id="cpuValue">--</div>
+                        <div class="dash-sub" id="cpuSub"></div>
                     </div>
                     <div class="dash-bar"><div class="dash-fill" id="cpuFill"></div></div>
                 </div>
+                <!-- 内存卡片 -->
                 <div class="dash-card">
                     <div class="dash-icon">💾</div>
                     <div class="dash-info">
@@ -78,20 +90,32 @@
                     </div>
                     <div class="dash-bar"><div class="dash-fill" id="memFill"></div></div>
                 </div>
+                <!-- 储存卡片 -->
                 <div class="dash-card">
                     <div class="dash-icon">🗄️</div>
                     <div class="dash-info">
-                        <div class="dash-label">磁盘</div>
+                        <div class="dash-label">储存</div>
                         <div class="dash-value" id="diskValue">--</div>
                     </div>
                     <div class="dash-bar"><div class="dash-fill" id="diskFill"></div></div>
                 </div>
+                <!-- 运行时间卡片 -->
                 <div class="dash-card">
                     <div class="dash-icon">⏱️</div>
                     <div class="dash-info">
                         <div class="dash-label">运行时间</div>
                         <div class="dash-value" id="uptimeValue">--</div>
                     </div>
+                </div>
+                <!-- 电池卡片（由 dashboard.js 按需显示） -->
+                <div class="dash-card dash-battery" id="batteryCard" style="display:none;">
+                    <div class="dash-icon">🔋</div>
+                    <div class="dash-info">
+                        <div class="dash-label">电池</div>
+                        <div class="dash-value" id="batteryValue">--</div>
+                        <div class="dash-sub" id="batterySub"></div>
+                    </div>
+                    <div class="dash-bar"><div class="dash-fill dash-fill-battery" id="batteryFill"></div></div>
                 </div>
             </div>
         </section>
