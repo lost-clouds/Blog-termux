@@ -1,0 +1,102 @@
+{
+  "title": "控制台",
+  "subtitle": "服务导航",
+  "services": [
+    {
+      "name": "Server",
+      "icon": "🖥️",
+      "items": [
+        {
+          "name": "llama.cpp-OT",
+          "icon": "🤖",
+          "subtitle": "自部署的AI对话",
+          "tag": "AI",
+          "url": "https://your-server.local:8443/llm/"
+        },
+        {
+          "name": "llama.cpp-Embedding",
+          "icon": "🧩",
+          "subtitle": "自部署的AI分词",
+          "tag": "AI",
+          "url": "https://your-server.local:8443/embd/"
+        },
+        {
+          "name": "CouchDB",
+          "icon": "🗄️",
+          "subtitle": "自部署的CouchDB数据库",
+          "tag": "DB",
+          "url": "https://your-server.local:8443/couchdb/_utils/"
+        },
+        {
+          "name": "Vaultwarden",
+          "icon": "🔐",
+          "subtitle": "自部署的Bitwarden密码管理",
+          "tag": "安全",
+          "url": "https://your-server.local:8443/vaultwarden"
+        },
+        {
+          "name": "SE-CouchDB-WebUI",
+          "icon": "🗄️",
+          "subtitle": "CouchDB数据库Web管理",
+          "tag": "DB",
+          "url": "https://your-server.local:8877"
+        },
+        {
+          "name": "S-UI",
+          "icon": "🔗",
+          "subtitle": "代理管理页面",
+          "tag": "代理",
+          "url": "http://your-server-ip:2095/app/login"
+        },
+        {
+          "name": "CloudCone ZeroClaw",
+          "icon": "☁️",
+          "subtitle": "部署在CloudCone的ZeroClaw",
+          "tag": "VPS",
+          "url": "http://your-server-ip:8077"
+        },
+        {
+          "name": "LiteLLM-WebUI",
+          "icon": "🌐",
+          "subtitle": "LiteLLM的Web管理页面",
+          "tag": "AI",
+          "url": "https://your-server.local:8443/litellm/"
+        },
+        {
+          "name": "Code-Server",
+          "icon": "💻",
+          "subtitle": "VSCode-Server的Web端",
+          "tag": "开发",
+          "url": "https://your-server.local:8443/vscode/"
+        }
+      ]
+    },
+    {
+      "name": "Game",
+      "icon": "🎮",
+      "items": [
+        {
+          "name": "SillyTavern",
+          "icon": "🎭",
+          "subtitle": "自部署的酒馆",
+          "tag": "AI游戏",
+          "url": "https://your-server.local:8443/st/"
+        },
+        {
+          "name": "ComfyUI",
+          "icon": "🎨",
+          "subtitle": "自部署的AI绘图",
+          "tag": "AI绘图",
+          "url": "http://your-server.local:8005"
+        },
+        {
+          "name": "DeepSeek平台",
+          "icon": "🧠",
+          "subtitle": "DeepSeek的API管理平台",
+          "tag": "API",
+          "url": "https://platform.deepseek.com/usage"
+        }
+      ]
+    }
+  ]
+}

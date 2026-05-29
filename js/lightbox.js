@@ -1,69 +1,60 @@
 /* ============================================================
-   lightbox.js —— 图片灯箱（被 index.html 和 md-viewer.html 共享）
-   通过事件委托自动绑定，无需手动初始化
+   lightbox.js —— 图片灯箱模块
+   ────────────────────────────────────────────────────────────
+   生命周期：
+     [加载] 脚本加载时执行 IIFE，在 window 上挂载 Lightbox API
+     [初始化] 外部调用 Lightbox.init() → 绑定关闭事件
+     [运行] Lightbox.open(src, name) → 展示图片
+           Lightbox.close() → 关闭灯箱
+   ────────────────────────────────────────────────────────────
+   事件：背景点击关闭、关闭按钮、ESC 键关闭
+   依赖：无（直接操作 DOM 元素 #lightbox, #lightboxImg, #lightboxName）
+   使用：Lightbox.init() / Lightbox.open(src) / Lightbox.close()
    ============================================================ */
 
 (function(global) {
     'use strict';
 
-    let $lightbox = null;
-    let $lbImg = null;
-    let $lbName = null;
-
-    /**
-     * 查找最近的 lightbox 容器（支持多灯箱实例）
-     */
-    function findLightboxElements(root) {
-        return {
-            lb: root.querySelector('.lightbox') || document.getElementById('lightbox'),
-            img: root.querySelector('.lightbox img') || document.getElementById('lightboxImg'),
-            name: root.querySelector('.lightbox-name') || document.getElementById('lightboxName')
-        };
-    }
-
-    function openLightbox(src, name) {
-        const els = findLightboxElements(document);
-        if (!els.lb || !els.img) return;
-        els.img.src = src;
-        els.img.alt = name || '';
-        if (els.name) els.name.textContent = name || '';
-        els.lb.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeLightbox() {
-        const els = findLightboxElements(document);
-        if (els.lb) {
-            els.lb.classList.remove('active');
-        }
+    /* ---- 关闭灯箱 ---- */
+    function close() {
+        const lb = document.getElementById('lightbox');
+        if (lb) lb.classList.remove('active');
         document.body.style.overflow = '';
     }
 
-    /**
-     * 初始化灯箱事件（页面加载后调用一次）
-     */
-    function initLightbox() {
-        // 关闭按钮 & 背景点击
+    /* ---- 打开灯箱 ---- */
+    function open(src, name) {
+        const lb = document.getElementById('lightbox');
+        const img = document.getElementById('lightboxImg');
+        const lbl = document.getElementById('lightboxName');
+        if (!lb || !img) return;
+        img.src = src;
+        img.alt = name || '';
+        if (lbl) lbl.textContent = name || '';
+        lb.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    /* ---- 初始化事件绑定 ---- */
+    function init() {
+        // 背景点击或关闭按钮点击 → 关闭
         document.addEventListener('click', function(e) {
-            const lb = document.querySelector('.lightbox.active');
-            if (!lb) return;
+            const lb = document.getElementById('lightbox');
+            if (!lb || !lb.classList.contains('active')) return;
             if (e.target === lb || e.target.classList.contains('lightbox-close')) {
-                closeLightbox();
+                close();
             }
         });
 
-        // ESC 关闭
+        // ESC 键 → 关闭
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && document.querySelector('.lightbox.active')) {
-                closeLightbox();
+            const lb = document.getElementById('lightbox');
+            if (e.key === 'Escape' && lb && lb.classList.contains('active')) {
+                close();
             }
         });
     }
 
-    global.Lightbox = {
-        open: openLightbox,
-        close: closeLightbox,
-        init: initLightbox
-    };
+    global.Lightbox = { open: open, close: close, init: init };
 
 })(window);

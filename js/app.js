@@ -1,230 +1,118 @@
 /* ============================================================
-   app.js —— 首页控制台业务逻辑
-   依赖：theme.js, utils.js, lightbox.js（需先于本脚本加载）
+   app.js —— 主控制器模块
+   ────────────────────────────────────────────────────────────
+   生命周期：
+     [加载] DOMContentLoaded 后初始化所有子模块
+     [初始化] 按依赖序启动 Theme → Lightbox → MdViewer →
+              Dashboard → 标签页路由
+     [运行] 管理 4 个标签页切换，响应窗口变化
+   ────────────────────────────────────────────────────────────
+   依赖：Theme, Utils, Lightbox, Dashboard, Navigation, Blog,
+         Gallery, MdViewer（均由前置 <script> 保证加载）
    ============================================================ */
 
 (function() {
     'use strict';
 
-    const IMG_EXTS = ['.png','.jpg','.jpeg','.gif','.svg','.webp','.bmp','.ico'];
-    const TABS = ['homer','html','md','image'];
-    let allFiles = { html: [], md: [], image: [] };
-    let activeTab = 'homer';
+    var TABS = ['dashboard', 'nav', 'blog', 'gallery'];
+    var _currentTab = 'dashboard';
 
-    // DOM 引用
-    const $search   = document.getElementById('searchInput');
-    const $tabBar   = document.getElementById('tabBar');
-    const $lightbox = document.getElementById('lightbox');
-    const $lbImg    = document.getElementById('lightboxImg');
-    const $lbName   = document.getElementById('lightboxName');
+    var $tabBar, $sections, $bottomNav;
 
-    // ── 工具：扩展名匹配 ──
-    function extMatch(name, exts) {
-        const lower = name.toLowerCase();
-        return exts.some(e => lower.endsWith(e));
-    }
+    /* ---- 标签页切换 ---- */
+    function switchTab(tabId) {
+        if (tabId === _currentTab) return;
 
-    // ── 获取文件列表 ──
-    async function fetchFiles(apiUrl, exts, cat) {
-        const grid = document.getElementById(cat + 'Grid');
-        const countEl = document.getElementById('count-' + cat);
-        try {
-            const resp = await fetch(apiUrl);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const html = await resp.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const links = doc.querySelectorAll('a');
-            const files = [];
-            for (const link of links) {
-                const href = link.getAttribute('href');
-                if (!href || href === '../' || href === '/') continue;
-                let decoded;
-                try { decoded = decodeURIComponent(href); } catch(e) { decoded = href; }
-                if (!extMatch(decoded, exts)) continue;
-                let size = '?', modified = '?';
-                const parent = link.parentElement;
-                if (parent) {
-                    const txt = parent.textContent || '';
-                    const dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
-                    if (dm) modified = dm[1];
-                    const sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
-                    if (sm) size = sm[1] + ' ' + sm[2];
-                }
-                files.push({ name: decoded, size, modified });
-            }
-            // 去重
-            const seen = new Set();
-            const unique = files.filter(f => {
-                const k = f.name;
-                if (seen.has(k)) return false;
-                seen.add(k);
-                return true;
+        // 顶部标签栏
+        if ($tabBar) {
+            $tabBar.querySelectorAll('.tab-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
             });
-            unique.sort((a,b) => a.name.localeCompare(b.name));
-            allFiles[cat] = unique;
-            renderCategory(cat);
-        } catch (err) {
-            console.error('Fetch ' + cat + ' error:', err);
-            grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">无法加载文件列表</div><div class="empty-hint">请检查 nginx 配置</div></div>';
-            if (countEl) countEl.textContent = '';
         }
-    }
-
-    // ── 渲染分类 ──
-    function renderCategory(cat) {
-        const grid = document.getElementById(cat + 'Grid');
-        const countEl = document.getElementById('count-' + cat);
-        const files = allFiles[cat] || [];
-        const query = $search.value.trim().toLowerCase();
-        const filtered = query ? files.filter(f => f.name.toLowerCase().includes(query)) : files;
-
-        if (countEl) {
-            countEl.textContent = query
-                ? `找到 ${filtered.length} 个结果（共 ${files.length} 个）`
-                : `共 ${files.length} 个文件`;
+        // 底部导航栏（移动端）
+        if ($bottomNav) {
+            $bottomNav.querySelectorAll('.tab-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+            });
+        }
+        // 内容区
+        if ($sections) {
+            $sections.forEach(function(sec) {
+                sec.classList.toggle('active', sec.id === 'sec-' + tabId);
+            });
         }
 
-        if (filtered.length === 0) {
-            grid.innerHTML = `<div class="empty-state">
-                <div class="empty-icon">📭</div>
-                <div class="empty-text">${query ? '没有匹配的文件' : '暂无文件'}</div>
-                <div class="empty-hint">${query ? '尝试其他关键词' : '请添加文件到服务器目录'}</div>
-            </div>`;
-            return;
+        _currentTab = tabId;
+
+        // 切到博客/图库时刷新数据
+        if (tabId === 'blog' && typeof Blog !== 'undefined') {
+            if (!Blog._articles || !Blog._articles.length) Blog.fetchArticles();
+        } else if (tabId === 'gallery' && typeof Gallery !== 'undefined') {
+            if (!Gallery._images || !Gallery._images.length) Gallery.fetchImages();
         }
 
-        grid.innerHTML = (cat === 'image')
-            ? filtered.map(f => imageCard(f)).join('')
-            : filtered.map(f => fileCard(f, cat)).join('');
+        window.location.hash = tabId;
     }
 
-    function fileCard(f, cat) {
-        const icon = cat === 'html' ? '📄' : '📘';
-        const viewHref = cat === 'md'
-            ? '/md-viewer.html?file=' + encodeURIComponent(f.name)
-            : '/Html/' + encodeURIComponent(f.name);
-        const dlHref = cat === 'md'
-            ? '/Markdown/' + encodeURIComponent(f.name)
-            : '/Html/' + encodeURIComponent(f.name);
-        const safe = Utils.escapeHtml(f.name).replace(/"/g, '&quot;');
-        return `
-            <div class="file-card" data-name="${Utils.escapeHtml(f.name)}">
-                <div class="card-icon">${icon}</div>
-                <div class="card-info">
-                    <div class="card-name" title="${Utils.escapeHtml(f.name)}">${Utils.escapeHtml(f.name)}</div>
-                    <div class="card-meta">${Utils.escapeHtml(f.size)} &middot; ${Utils.escapeHtml(f.modified)}</div>
-                </div>
-                <div class="card-actions">
-                    <a href="${viewHref}" class="card-btn primary" target="_blank" title="预览">👁 查看</a>
-                    <button class="card-btn" onclick="downloadFile('${dlHref}','${safe}')" title="下载" aria-label="下载">⬇</button>
-                </div>
-            </div>`;
-    }
-
-    function imageCard(f) {
-        const imgUrl = '/api/images/' + encodeURIComponent(f.name);
-        const safe = Utils.escapeHtml(f.name).replace(/"/g, '&quot;');
-        return `
-            <div class="image-card" data-name="${Utils.escapeHtml(f.name)}" data-src="${imgUrl}">
-                <div class="thumb-wrap">
-                    <img src="${imgUrl}" alt="${Utils.escapeHtml(f.name)}" loading="lazy"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
-                         onload="this.nextElementSibling.style.display='none';">
-                    <span class="thumb-fallback" style="display:none;">🖼️</span>
-                </div>
-                <div class="card-body">
-                    <div class="card-info">
-                        <div class="card-name" title="${Utils.escapeHtml(f.name)}">${Utils.escapeHtml(f.name)}</div>
-                        <div class="card-meta">${Utils.escapeHtml(f.size)} &middot; ${Utils.escapeHtml(f.modified)}</div>
-                    </div>
-                    <button class="card-btn" onclick="event.stopPropagation();downloadFile('${imgUrl}','${safe}')" title="下载" aria-label="下载">⬇</button>
-                </div>
-            </div>`;
-    }
-
-    function renderActiveTab() {
-        if (activeTab === 'homer') return;
-        renderCategory(activeTab);
-    }
-
-    // ── 搜索 ──
-    $search.addEventListener('input', function() {
-        renderActiveTab();
-    });
-
-    // ── 标签切换 ──
-    $tabBar.addEventListener('click', function(e) {
-        const btn = e.target.closest('.tab-btn');
+    /* ---- 标签栏点击 ---- */
+    function onTabClick(e) {
+        var btn = e.target.closest('.tab-btn');
         if (!btn) return;
-        const tab = btn.getAttribute('data-tab');
-        if (tab === activeTab) return;
-
-        $tabBar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        const page = document.getElementById('page-' + tab);
-        if (page) page.classList.add('active');
-
-        activeTab = tab;
-        if (tab !== 'homer') {
-            renderCategory(tab);
-            $search.focus();
-        }
-        syncIframeTheme();
-        window.location.hash = tab;
-    });
-
-    // ── 图片卡片点击 → 灯箱 ──
-    document.addEventListener('click', function(e) {
-        const card = e.target.closest('.image-card');
-        if (!card) return;
-        if (e.target.closest('.card-btn')) return;
-        const src = card.getAttribute('data-src');
-        const name = card.getAttribute('data-name');
-        if ($lbImg && $lightbox) {
-            $lbImg.src = src;
-            $lbImg.alt = name || '';
-            if ($lbName) $lbName.textContent = name || '';
-            $lightbox.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    });
-
-    // ── iframe 主题同步 ──
-    function syncIframeTheme() {
-        const iframe = document.querySelector('.iframe-container iframe');
-        if (iframe && iframe.contentWindow) {
-            const theme = document.body.classList.contains('dark') ? 'dark' : 'light';
-            iframe.contentWindow.postMessage({ type: 'themeChange', theme: theme }, '*');
-        }
+        var tabId = btn.getAttribute('data-tab');
+        if (tabId) switchTab(tabId);
     }
 
-    // ── 主题切换按钮 ──
-    document.getElementById('themeToggleBtn').addEventListener('click', function() {
-        Theme.toggleTheme();
-        syncIframeTheme();
-    });
+    /* ---- 主题切换 ---- */
+    function onThemeToggle() {
+        if (typeof Theme !== 'undefined') Theme.toggleTheme();
+    }
 
-    // ── 初始化 ──
+    /* ---- 响应式 ---- */
+    function handleResize() {
+        var isMobile = window.innerWidth < 640;
+        document.body.classList.toggle('is-mobile', isMobile);
+        if ($bottomNav) $bottomNav.style.display = isMobile ? 'flex' : 'none';
+    }
+
+    /* ---- 初始化 ---- */
     function init() {
-        Theme.initTheme();
-        Lightbox.init();
+        $tabBar  = document.getElementById('tabBar');
+        $sections = document.querySelectorAll('.content-section');
+        $bottomNav = document.getElementById('bottomNav');
 
-        // 从 URL hash 恢复标签
-        const hash = window.location.hash.replace('#', '');
-        if (hash && TABS.includes(hash)) {
-            const btn = $tabBar.querySelector('[data-tab="' + hash + '"]');
-            if (btn) btn.click();
-        }
+        // 1. 主题
+        if (typeof Theme !== 'undefined') Theme.initTheme();
 
-        // 预加载所有文件列表
-        fetchFiles('/api/html/',  ['.html','.htm'], 'html');
-        fetchFiles('/api/md/',    ['.md','.markdown'], 'md');
-        fetchFiles('/api/images/', IMG_EXTS, 'image');
+        // 2. 灯箱
+        if (typeof Lightbox !== 'undefined') Lightbox.init();
+
+        // 3. Markdown 阅读器（预绑定事件）
+        if (typeof MdViewer !== 'undefined') MdViewer.init();
+
+        // 4. 仪表盘（开始轮询）
+        if (typeof Dashboard !== 'undefined') Dashboard.init();
+
+        // 5. 标签栏事件
+        if ($tabBar) $tabBar.addEventListener('click', onTabClick);
+        if ($bottomNav) $bottomNav.addEventListener('click', onTabClick);
+
+        // 6. 主题按钮
+        var themeBtn = document.getElementById('themeToggleBtn');
+        if (themeBtn) themeBtn.addEventListener('click', onThemeToggle);
+
+        // 7. URL hash 恢复
+        var hash = window.location.hash.replace('#', '');
+        if (hash && TABS.indexOf(hash) !== -1) switchTab(hash);
+
+        // 8. 响应式
+        handleResize();
+        window.addEventListener('resize', handleResize);
     }
 
-    init();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 
 })();
