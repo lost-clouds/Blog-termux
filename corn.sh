@@ -125,9 +125,9 @@ BAT_TEMP=""
 if command -v termux-battery-status &>/dev/null; then
     BAT_JSON=$(termux-battery-status 2>/dev/null || echo "")
     if [ -n "$BAT_JSON" ]; then
-        BAT_LEVEL=$(echo "$BAT_JSON"    | grep -o '"percentage":[0-9]*' | cut -d: -f2)
-        BAT_STATUS=$(echo "$BAT_JSON"   | grep -o '"status":"[^"]*"' | cut -d: -f2 | tr -d '"')
-        BAT_TEMP_RAW=$(echo "$BAT_JSON" | grep -o '"temperature":[0-9.]*' | cut -d: -f2)
+        BAT_LEVEL=$(echo "$BAT_JSON"    | grep -oE '"percentage": *[0-9]+' | cut -d: -f2 | xargs)
+        BAT_STATUS=$(echo "$BAT_JSON"   | grep -oE '"status": *"[^"]*"' | cut -d: -f2 | xargs | tr -d '"')
+        BAT_TEMP_RAW=$(echo "$BAT_JSON" | grep -oE '"temperature": *[0-9.]+' | cut -d: -f2 | xargs)
         [ -n "$BAT_TEMP_RAW" ] && BAT_TEMP=$(fval "$BAT_TEMP_RAW / 10" "0")
     fi
 fi
