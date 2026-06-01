@@ -142,18 +142,20 @@ SVC_COUNT=0
 check_svc() {
     local bin="$1" label="$2"
     if command -v pgrep &>/dev/null; then
-        if pgrep -x "$bin" >/dev/null 2>&1; then
-            [ -n "$SVC_ARRAY" ] && SVC_ARRAY="${SVC_ARRAY},"
-            SVC_ARRAY="${SVC_ARRAY}\"${label}\""
-            SVC_COUNT=$((SVC_COUNT + 1))
-        fi
+        # 1. 先尝试精确进程名匹配
+        pgrep -x "$bin" >/dev/null 2>&1 && { add_svc "$label"; return; }
+        # 2. 再尝试全命令行匹配（如 couchdb→beam.smp, code-server 等）
+        pgrep -f "$bin" >/dev/null 2>&1 && { add_svc "$label"; return; }
     elif command -v ps &>/dev/null; then
-        if ps -e 2>/dev/null | grep -qw "$bin"; then
-            [ -n "$SVC_ARRAY" ] && SVC_ARRAY="${SVC_ARRAY},"
-            SVC_ARRAY="${SVC_ARRAY}\"${label}\""
-            SVC_COUNT=$((SVC_COUNT + 1))
-        fi
+        # 3. pgrep 不可用时用 ps 回退
+        ps -e 2>/dev/null | grep -qw "$bin" && { add_svc "$label"; return; }
     fi
+}
+
+add_svc() {
+    [ -n "$SVC_ARRAY" ] && SVC_ARRAY="${SVC_ARRAY},"
+    SVC_ARRAY="${SVC_ARRAY}\"${1}\""
+    SVC_COUNT=$((SVC_COUNT + 1))
 }
 
 check_svc "nginx"    "nginx"
@@ -162,7 +164,8 @@ check_svc "sshd"     "sshd"
 check_svc "couchdb"  "couchdb"
 check_svc "mysqld"   "mysqld"
 check_svc "mariadbd" "mariadb"
-check_svc "code-server" "code-server"
+check_svc "vaultwarden" "vaultwarden"
+check_svc "code-server"  "code-server"
 
 # ============================================================
 # 9. 数值清洗 & JSON 生成
