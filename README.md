@@ -2,6 +2,8 @@
 
 纯静态单页面应用，基于 Nginx 运行，无需 PHP / Node / Python 等后端。集成 **系统仪表盘**、**服务导航**、**博客阅读器**、**图片画廊** 四大模块，自适应 PC / 平板 / 手机。
 
+![example_Image](example/example.png)
+
 > [English version](README_EN.md)  
 附赠我个人的[termux的使用总结](Markdown/termux使用总结.md)  
 以及,本项目最初来自于 [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git) 在长期使用中东改一点西修一下,最终变成了现在这样。
@@ -95,6 +97,7 @@ Blog/
 ├── Image/                           # 放图片
 │
 └── example/
+    ├── example.png                  # 界面截图
     ├── Blog.conf                    # Nginx 配置示例
     ├── homer_config.yml             # 原 Homer 配置（参考用）
     └── homer_index.html             # 原 Homer 入口（已废弃）
@@ -115,7 +118,7 @@ index.html (单页面)
   │              PC/平板顶部 | 手机底部固定
   │
   ├─ 内容区 (4 个 section，同时只显示 1 个)
-  │   ├── #sec-dashboard    6 张卡片：设备/CPU/内存/储存/运行时间/电池
+  │   ├── #sec-dashboard    8 张卡片：设备/CPU/内存/储存/网络/电池/服务/运行时间
   │   ├── #sec-nav          服务分组卡片，搜索过滤，点击跳转
   │   ├── #sec-blog         文章列表，搜索 + Markdown/HTML 过滤
   │   └── #sec-gallery      图片网格，搜索，点击灯箱放大
@@ -150,12 +153,13 @@ index.html (单页面)
 
 ```
 系统资源           corn.sh (cron 每30s)      dashboard.json
-(top/free/df      ──────────────────────→    磁盘上的 JSON 文件
- /proc/stat)                                        │
+(top/free/df       ──────────────────────→    磁盘上的 JSON 文件
+ ifconfig/ps)                                       │
                                                     │ GET /api/dashboard (nginx alias)
                                                     ↓
                                               dashboard.js (每10s 轮询)
-                                              → 更新 6 张仪表盘卡片
+                                              → 更新 8 张仪表盘卡片
+                                              → 自动检测运行中的服务
 
 Markdown/          nginx autoindex          /api/md/ (HTML 目录列表)
 Image/             ─────────────────→       /api/images/
@@ -216,27 +220,32 @@ Html/                                       /api/html/
 | 数据源 | `GET /api/dashboard` (每 10 秒轮询) |
 | 对外方法 | `init()` `update(data)` `fetchData()` |
 
-渲染 6 张卡片：
+渲染 8 张卡片：
 
 | 卡片 | 内容 | 进度条 |
 |------|------|--------|
-| 📱 设备 | 品牌+型号 · Android · 内核 · 局域网IP · IPv6 | — |
+| 📱 设备 | 品牌+型号 · Android 版本 · 内核版本 | — |
 | 🧠 CPU | 使用率% · 核心数 · 处理器型号 | 蓝色 |
 | 💾 内存 | used / total (GB/MB) | 蓝色 |
 | 🗄️ 储存 | used / total (GB) | 蓝色 |
+| 🌐 网络 | 局域网IP · 接口 · IPv6 | — |
+| 🔋 电池 | 电量% · 充电状态 · 温度 | 绿色 |
+| 🔧 服务 | N 个运行中 · 进程名列表 | — |
 | ⏱️ 运行时间 | 如 "3d 12h 30m" | — |
-| 🔋 电池 | 电量% · 充电状态 · 温度 | 绿色 (仅 termux-api 装好后显示) |
+
+> 服务卡片通过 `ps -e` 自动扫描全部进程并过滤噪音，部署新服务后无需修改脚本。
 
 `dashboard.json` 格式（由 corn.sh 生成）：
 ```json
 {
-  "device": {"model": "Xiaomi 14", "android": "14", "kernel": "6.1"},
-  "network": {"ip": "192.168.1.5", "ipv6": "", "iface": "wlan0"},
-  "cpu": {"usage": 12.3, "cores": 8, "model": "ARM"},
-  "memory": {"used": 3.2, "total": 7.5, "unit": "GB"},
-  "disk": {"used": 45.2, "total": 128, "unit": "GB"},
-  "uptime": "3 days, 2h",
-  "battery": {"level": 85, "status": "CHARGING", "temp": 36.5}
+  "device": {"model": "OnePlus KB2000", "android": "14", "kernel": "4.19"},
+  "cpu": {"usage": 12.3, "cores": 8, "model": "kona"},
+  "memory": {"used": 4.3, "total": 11.2, "unit": "GB"},
+  "disk": {"used": 64.8, "total": 224.5, "unit": "GB"},
+  "network": {"ip": "192.168.1.5", "ipv6": "240e:...", "iface": "wlan0"},
+  "battery": {"level": 85, "status": "FULL", "temp": 40.0},
+  "services": {"running": ["nginx","crond","sshd","couchdb","vaultwarden"], "count": 5},
+  "uptime": "2 weeks, 1 day, 4h"
 }
 ```
 
@@ -525,7 +534,7 @@ bash ~/Blog/corn.sh
 ps aux | grep crond
 ```
 
-### Q: 电池卡片不显示？
+### Q: 电池卡片显示 "--"？
 
 需要安装 `termux-api` 包（Android 上还需安装 Termux:API 应用并授予权限）：
 
@@ -533,7 +542,7 @@ ps aux | grep crond
 pkg install termux-api
 ```
 
-未安装时电池卡片自动隐藏，不影响其他功能。
+未安装时电池卡片显示 `--` 占位符，不影响其他功能。
 
 ### Q: 如何修改端口？
 
@@ -558,7 +567,8 @@ pkg install termux-api
 |------|----------|
 | 零后端 | nginx autoindex 生成目录列表，`DOMParser` 解析 |
 | 零外部依赖 | 所有库本地化在 `lib/` |
-| 无 root | `corn.sh` 全用 `top`/`free`/`uptime`/`getprop`/`ifconfig`（不读 `/proc`） |
+| 无 root | `corn.sh` 全用 `top`/`free`/`uptime`/`getprop`/`ifconfig`/`ps`（不读 `/proc`） |
+| 服务检测 | 自动扫描 `ps -e` 全部进程，噪音过滤 + 去重 + 通用名解析 |
 | 安全 | 文件名 `escapeHtml` 转义防 XSS |
 | 主题 | CSS 变量 + `body.dark` 切换 |
 | 响应式 | 3 个断点 (1200/640/400px) |
