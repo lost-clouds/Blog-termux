@@ -146,23 +146,28 @@ add_svc() {
     SVC_COUNT=$((SVC_COUNT + 1))
 }
 
-# 进程名噪音列表（不视为服务的进程）
-NOISE="bash|zsh|sh|dash|fish|-bash|-zsh|-sh|su|sudo|login|ps|grep|awk|sed|find|cat|ls|top|head|tail|wc|sort|uniq|xargs|cut|tr|sleep|echo|pstree|pgrep|kill|killall|tmux|screen|dbus-daemon|logcat|getprop|erl_child_setup|inet_gethost|epmd|sh|disksup|sshd-se"
+# 噪音列表（basename 后匹配，不视为服务的进程）
+NOISE="bash|zsh|sh|dash|fish|su|sudo|login|ps|grep|awk|sed|find|cat|ls|top|head|tail|wc|sort|uniq|xargs|cut|tr|sleep|echo|pstree|pgrep|kill|killall|tmux|screen|dbus-daemon|logcat|getprop|erl_child_setup|inet_gethost|epmd|disksup"
 
 detect_services() {
-    local seen="" comm name pid
+    local seen="" comm raw name pid
 
-    # 遍历所有进程，按 comm 去重
-    while IFS= read -r comm; do
-        [ -z "$comm" ] && continue
+    while IFS= read -r raw; do
+        [ -z "$raw" ] && continue
 
-        # 跳过噪音/系统进程
+        # 1. 路径压缩：取 basename（/usr/bin/proot → proot）
+        comm=$(basename "$raw" 2>/dev/null || echo "$raw")
+
+        # 2. nginx 变体归一化
+        case "$comm" in nginx:*) comm="nginx" ;; esac
+
+        # 3. 跳过噪音和系统进程
         echo "$comm" | grep -qE "^(${NOISE})$" && continue
         echo "$comm" | grep -q '^com\.' && continue
 
         name="$comm"
 
-        # 通用进程名 → 从命令行提取真实服务名
+        # 4. 通用进程名 → 从命令参数解析真实服务
         case "$comm" in
             python|python3)
                 pid=$(pgrep -x "$comm" 2>/dev/null | head -1)
@@ -170,7 +175,6 @@ detect_services() {
                 [ -z "$name" ] && name="$comm"
                 ;;
             beam\.smp)
-                # Erlang VM → 从路径提取如 couchdb
                 pid=$(pgrep -x beam.smp 2>/dev/null | head -1)
                 [ -n "$pid" ] && name=$(ps -p "$pid" -o args= 2>/dev/null | grep -oP '/opt/\K[^/]+' | head -1)
                 [ -z "$name" ] && name="beam.smp"
