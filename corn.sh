@@ -133,24 +133,12 @@ if command -v termux-battery-status &>/dev/null; then
 fi
 
 # ============================================================
-# 8. 正在运行的服务（通过 pgrep/ps 检测，无需 root）
+# 8. 正在运行的服务（自动检测，无需 root）
+#    策略：扫描所有进程 → 过滤噪音 → 去重 → 必要时从参数解析真实名称
+#    如需排除某服务，添加到下面 NOISE 列表中即可
 # ============================================================
 SVC_ARRAY=""
 SVC_COUNT=0
-
-# 要检测的服务列表：命令名 显示名
-check_svc() {
-    local bin="$1" label="$2"
-    if command -v pgrep &>/dev/null; then
-        # 1. 先尝试精确进程名匹配
-        pgrep -x "$bin" >/dev/null 2>&1 && { add_svc "$label"; return; }
-        # 2. 再尝试全命令行匹配（如 couchdb→beam.smp, code-server 等）
-        pgrep -f "$bin" >/dev/null 2>&1 && { add_svc "$label"; return; }
-    elif command -v ps &>/dev/null; then
-        # 3. pgrep 不可用时用 ps 回退
-        ps -e 2>/dev/null | grep -qw "$bin" && { add_svc "$label"; return; }
-    fi
-}
 
 add_svc() {
     [ -n "$SVC_ARRAY" ] && SVC_ARRAY="${SVC_ARRAY},"
@@ -158,14 +146,45 @@ add_svc() {
     SVC_COUNT=$((SVC_COUNT + 1))
 }
 
-check_svc "nginx"    "nginx"
-check_svc "crond"    "crond"
-check_svc "sshd"     "sshd"
-check_svc "couchdb"  "couchdb"
-check_svc "mysqld"   "mysqld"
-check_svc "mariadbd" "mariadb"
-check_svc "vaultwarden" "vaultwarden"
-check_svc "code-server"  "code-server"
+# 进程名噪音列表（不视为服务的进程）
+NOISE="bash|zsh|sh|dash|fish|-bash|-zsh|-sh|su|sudo|login|ps|grep|awk|sed|find|cat|ls|top|head|tail|wc|sort|uniq|xargs|cut|tr|sleep|echo|pstree|pgrep|kill|killall|tmux|screen|dbus-daemon|logcat|getprop|erl_child_setup|inet_gethost|epmd|sh|disksup|sshd-se"
+
+detect_services() {
+    local seen="" comm name pid
+
+    # 遍历所有进程，按 comm 去重
+    while IFS= read -r comm; do
+        [ -z "$comm" ] && continue
+
+        # 跳过噪音/系统进程
+        echo "$comm" | grep -qE "^(${NOISE})$" && continue
+        echo "$comm" | grep -q '^com\.' && continue
+
+        name="$comm"
+
+        # 通用进程名 → 从命令行提取真实服务名
+        case "$comm" in
+            python|python3)
+                pid=$(pgrep -x "$comm" 2>/dev/null | head -1)
+                [ -n "$pid" ] && name=$(ps -p "$pid" -o args= 2>/dev/null | grep -oP '[^/ ]+\.py' | head -1)
+                [ -z "$name" ] && name="$comm"
+                ;;
+            beam\.smp)
+                # Erlang VM → 从路径提取如 couchdb
+                pid=$(pgrep -x beam.smp 2>/dev/null | head -1)
+                [ -n "$pid" ] && name=$(ps -p "$pid" -o args= 2>/dev/null | grep -oP '/opt/\K[^/]+' | head -1)
+                [ -z "$name" ] && name="beam.smp"
+                ;;
+        esac
+
+        # 去重
+        echo " $seen " | grep -qF " $name " && continue
+        seen="${seen} ${name}"
+        add_svc "$name"
+    done < <(ps -e -o comm= --no-headers 2>/dev/null | sort -u)
+}
+
+detect_services
 
 # ============================================================
 # 9. 数值清洗 & JSON 生成
