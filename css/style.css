@@ -994,12 +994,13 @@ body.dark .bottom-nav {
     .tab-bar { display: none; }
     .bottom-nav { display: flex; }
 
-    /* 仪表盘单列 + 缩略 */
+    /* 仪表盘单列 + 缩略 + 防溢出 */
     .dashboard-grid { grid-template-columns: 1fr; gap: 0.5rem; }
-    .dash-card { padding: 0.75rem 1rem; gap: 0.6rem; }
-    .dash-icon  { font-size: 1.6rem; width: 36px; }
-    .dash-value { font-size: 1rem; }
-    .dash-bar   { display: none; }   /* 移动端隐藏进度条 */
+    .dash-card { padding: 0.7rem 0.85rem; gap: 0.55rem; overflow: hidden; min-width: 0; }
+    .dash-icon  { font-size: 1.4rem; width: 32px; }
+    .dash-value { font-size: 0.95rem; }
+    .dash-sub   { font-size: 0.7rem; white-space: normal; word-break: break-all; }
+    .dash-bar   { display: none; }   /* 移动端隐藏进度条节省空间 */
 
     /* 服务导航单列 */
     .nav-items { grid-template-columns: 1fr; gap: 0.5rem; }
@@ -1034,6 +1035,11 @@ body.dark .bottom-nav {
 
 /* ---- 小屏手机 (< 400px) ---- */
 @media (max-width: 400px) {
+    .dash-card  { padding: 0.55rem 0.7rem; gap: 0.4rem; }
+    .dash-icon  { font-size: 1.2rem; width: 28px; }
+    .dash-value { font-size: 0.85rem; }
+    .dash-label { font-size: 0.7rem; }
+    .dash-sub   { font-size: 0.65rem; }
     .gallery-grid { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
     .gallery-thumb { height: 100px; }
     .nav-card-tag { display: none; }
