@@ -3,6 +3,7 @@
 A pure static single-page application powered by Nginx. No PHP, Node.js, Python, or any backend runtime required. Integrates **system dashboard**, **service navigation**, **Markdown blog reader**, and **image gallery** into one page, with responsive layout for PC, tablet, and mobile.
 
 ![screenshot](example/example.png)
+![screenshot](example/example1.png)
 
 > [中文版本](README.md)  
 > Originally forked from [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git), extensively rewritten over time into its current form.
@@ -97,9 +98,12 @@ Blog/
 ├── Image/                           # Image files
 │
 └── example/
+    ├── example.png                  # Screenshot (dashboard + nav)
+    ├── example1.png                 # Screenshot (blog three-column layout)
     ├── Blog.conf                    # Nginx config template
     ├── homer_config.yml             # Original Homer config (reference)
-    └── homer_index.html             # Original Homer entry (deprecated)
+    ├── homer_index.html             # Original Homer entry (deprecated)
+    └── hugo-book-0.14.0/            # Hugo Book theme reference
 ```
 
 ---
@@ -119,7 +123,7 @@ index.html (SPA)
   ├─ content area (4 sections, 1 visible at a time)
   │   ├── #sec-dashboard    8 cards: device/CPU/memory/storage/network/battery/services/uptime
   │   ├── #sec-nav          service group cards, search filter, click to open
-  │   ├── #sec-blog         article list, search + Markdown/HTML filter
+  │   ├── #sec-blog         three-column: sidebar(article list) | content | ToC, search/filter/inline render
   │   └── #sec-gallery      image grid, search, click lightbox
   │
   ├─ md-overlay (fullscreen) ── Markdown reader
@@ -262,17 +266,17 @@ Reads `config.json`, renders service cards grouped by category. Search filters b
 
 ---
 
-### blog.js — Article List
+### blog.js — Blog (Hugo Book-style three-column layout)
 
 | | |
 |---|---|
 | Global | `window.Blog` |
 | Source | `GET /api/md/` + `GET /api/html/` |
-| API | `init()` `render()` `fetchArticles()` |
+| API | `init()` `fetchArticles()` `selectArticle(filename, type)` |
 
-Markdown articles → `MdViewer.open(filename)` opens fullscreen reader.
-HTML articles → `window.open('/Html/<name>', '_blank')` opens in new tab.
-Search + type filter (All / Markdown / HTML).
+Desktop: scrollable sidebar (article list + search/filter) | inline rendered content | auto-generated ToC.
+Mobile: sidebar slides in via CSS checkbox, ToC drops down from header.
+Rendering reuses `MdViewer.render()` and `MdViewer.buildToc()`, sharing the engine with the fullscreen overlay. HTML articles still open in new tab.
 
 ---
 

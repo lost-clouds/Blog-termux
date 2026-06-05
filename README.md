@@ -2,7 +2,9 @@
 
 纯静态单页面应用，基于 Nginx 运行，无需 PHP / Node / Python 等后端。集成 **系统仪表盘**、**服务导航**、**博客阅读器**、**图片画廊** 四大模块，自适应 PC / 平板 / 手机。
 
-![example_Image](example/example.png)
+![仪表盘+导航](example/example.png)
+![博客三栏布局](example/example1.png)
+![example_Image](example/example1.png)
 
 > [English version](README_EN.md)  
 附赠我个人的[termux的使用总结](Markdown/termux使用总结.md)  
@@ -97,10 +99,12 @@ Blog/
 ├── Image/                           # 放图片
 │
 └── example/
-    ├── example.png                  # 界面截图
+    ├── example.png                  # 界面截图（仪表盘+导航）
+    ├── example1.png                 # 界面截图（博客三栏布局）
     ├── Blog.conf                    # Nginx 配置示例
     ├── homer_config.yml             # 原 Homer 配置（参考用）
-    └── homer_index.html             # 原 Homer 入口（已废弃）
+    ├── homer_index.html             # 原 Homer 入口（已废弃）
+    └── hugo-book-0.14.0/            # Hugo Book 主题参考
 ```
 
 ---
@@ -120,7 +124,7 @@ index.html (单页面)
   ├─ 内容区 (4 个 section，同时只显示 1 个)
   │   ├── #sec-dashboard    8 张卡片：设备/CPU/内存/储存/网络/电池/服务/运行时间
   │   ├── #sec-nav          服务分组卡片，搜索过滤，点击跳转
-  │   ├── #sec-blog         文章列表，搜索 + Markdown/HTML 过滤
+  │   ├── #sec-blog         三栏布局：文章目录(左) | 正文(中) | ToC(右)，搜索/过滤/内联渲染
   │   └── #sec-gallery      图片网格，搜索，点击灯箱放大
   │
   ├─ md-overlay (全屏覆盖) ── Markdown 阅读器
@@ -263,17 +267,17 @@ Html/                                       /api/html/
 
 ---
 
-### blog.js — 博客列表
+### blog.js — 博客（Hugo Book 风格三栏布局）
 
 | | |
 |---|---|
 | 全局名 | `window.Blog` |
 | 数据源 | `GET /api/md/` + `GET /api/html/` |
-| 对外方法 | `init()` `render()` `fetchArticles()` |
+| 对外方法 | `init()` `fetchArticles()` `selectArticle(filename, type)` |
 
-Markdown 文章点击 → `MdViewer.open(filename)` 打开全屏阅读器。
-HTML 文章点击 → `window.open('/Html/<name>', '_blank')` 新标签页打开。
-搜索 + 类型过滤 (全部 / Markdown / HTML)。
+桌面端三栏布局：左侧可滚动文章目录 + 搜索/类型过滤 → 中间内联渲染正文 → 右侧自动生成 ToC。
+移动端侧边栏通过 CSS checkbox 滑入，ToC 下拉面板。
+渲染复用 `MdViewer.render()` 和 `MdViewer.buildToc()`，与覆盖层共享引擎。HTML 文章仍新标签页打开。
 
 ---
 
