@@ -4,6 +4,7 @@
 A pure static single-page application powered by Nginx. No PHP, Node.js, Python, or any backend runtime required. Integrates **system dashboard**, **service navigation**, **Markdown blog reader**, and **image gallery** into one page, with responsive layout for PC, tablet, and mobile.
 
 ![screenshot](example/example.png)
+![screenshot](example/example0.png)
 ![screenshot](example/example1.png)
 
 > Originally forked from [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git), extensively rewritten over time into its current form.
