@@ -7,6 +7,7 @@ A pure static single-page application powered by Nginx. No PHP, Node.js, Python,
 ![screenshot](example/example0.png)
 ![screenshot](example/example1.png)
 
+> Share my way about make your phone as a little Homelab[termux的使用总结](Markdown/termux使用总结.md)  
 > Originally forked from [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git), extensively rewritten over time into its current form.
 
 ---
