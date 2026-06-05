@@ -44,11 +44,11 @@
 
         _currentTab = tabId;
 
-        // 切到博客/图库时刷新数据
+        // 切到博客/图库时懒加载数据
         if (tabId === 'blog' && typeof Blog !== 'undefined') {
-            if (!Blog._articles || !Blog._articles.length) Blog.fetchArticles();
+            Blog.fetchArticles();
         } else if (tabId === 'gallery' && typeof Gallery !== 'undefined') {
-            if (!Gallery._images || !Gallery._images.length) Gallery.fetchImages();
+            Gallery.fetchImages();
         }
 
         window.location.hash = tabId;

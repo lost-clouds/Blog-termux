@@ -1,55 +1,56 @@
 /* ============================================================
-   blog.js —— 博客文章列表模块
+   blog.js —— 博客模块（Hugo Book 风格三栏布局）
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] 脚本加载时执行 IIFE，在 window 上挂载 Blog API
-     [初始化] 外部调用 Blog.init() → 获取文章列表 + 绑定搜索/过滤
-     [运行] Blog.render() → 按搜索词和类型过滤渲染文章卡片
-     [交互] 点击文章卡片 → 调用 MdViewer.open(filename) 打开阅读器
+     [init]  获取文章列表 → 渲染侧边栏 → 自动加载第一篇
+     [render] 渲染左侧文章列表（搜索+类型过滤）
+     [select] 点击文章 → 中间内联渲染正文 + 右侧生成 ToC
    ────────────────────────────────────────────────────────────
-   数据源：GET /api/md/ (nginx autoindex) → 解析 HTML 提取文件列表
-   依赖：Utils.escapeHtml, MdViewer.open（由 md-viewer.js 提供）
+   依赖：Utils.escapeHtml, MdViewer.render, MdViewer.buildToc
    使用：Blog.init()
    ============================================================ */
 
 (function(global) {
     'use strict';
 
-    let _articles = [];
-    let _filterType = 'all';    // 'all' | 'markdown' | 'html'
+    var _articles = [];
+    var _filterType = 'all';
+    var _currentFile = null;
 
-    /* ---- DOM 引用缓存 ---- */
-    let $blogList, $blogSearch, $blogTabs;
+    /* ---- DOM 引用 ---- */
+    var $blogSidebar, $blogNav, $blogContent, $blogToc, $blogSearch, $blogFilter;
+    var $blogMenuCtrl, $blogSidebarOverlay, $blogTitle;
 
-    /* ---- 解析 nginx autoindex 页面，提取文件列表 ---- */
+    /* ============================================================
+       解析 nginx autoindex 目录
+       ============================================================ */
     async function parseDirListing(resp, type) {
-        const text = await resp.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, 'text/html');
-        const links = doc.querySelectorAll('a');
-        const results = [];
+        var text = await resp.text();
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(text, 'text/html');
+        var links = doc.querySelectorAll('a');
+        var results = [];
 
-        for (const link of links) {
-            const href = link.getAttribute('href');
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            var href = link.getAttribute('href');
             if (!href || href === '../' || href === '/') continue;
 
-            let name;
+            var name;
             try { name = decodeURIComponent(href); } catch(e) { name = href; }
 
-            // 过滤：只保留对应类型的文件
-            const extMatch = type === 'markdown'
+            var extMatch = type === 'markdown'
                 ? name.match(/\.(md|markdown)$/i)
                 : name.match(/\.(html?|htm)$/i);
             if (!extMatch) continue;
 
-            // 提取文件大小和修改时间
-            let size = '?', modified = '?';
-            const parent = link.parentElement;
+            var size = '?', modified = '?';
+            var parent = link.parentElement;
             if (parent) {
-                const txt = parent.textContent || '';
-                const dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
+                var txt = parent.textContent || '';
+                var dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
                 if (dm) modified = dm[1];
-                const sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
+                var sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
                 if (sm) size = sm[1] + ' ' + sm[2];
             }
 
@@ -59,120 +60,220 @@
         return results;
     }
 
-    /* ---- 获取文章列表 ---- */
+    /* ============================================================
+       获取文章列表
+       ============================================================ */
     async function fetchArticles() {
-        if (!$blogList) return;
-        $blogList.innerHTML = '<div class="blog-loading">加载中...</div>';
+        if (!$blogSidebar) return;
+        $blogNav.innerHTML = '<div class="blog-nav-loading">加载中...</div>';
 
         try {
-            const [mdResp, htmlResp] = await Promise.all([
-                fetch('/api/md/'),
-                fetch('/api/html/')
+            var results = await Promise.all([
+                fetch('/api/md/').then(function(r) { return parseDirListing(r, 'markdown'); }),
+                fetch('/api/html/').then(function(r) { return parseDirListing(r, 'html'); })
             ]);
 
-            const mdArticles   = await parseDirListing(mdResp,   'markdown');
-            const htmlArticles = await parseDirListing(htmlResp, 'html');
-
-            _articles = [...mdArticles, ...htmlArticles].sort(function(a, b) {
+            _articles = results[0].concat(results[1]).sort(function(a, b) {
                 return a.name.localeCompare(b.name);
             });
 
-            render();
+            renderSidebar();
+
+            // 默认加载第一篇 MD 文章
+            var firstMd = _articles.find(function(a) { return a.type === 'markdown'; });
+            if (firstMd) selectArticle(firstMd.name, firstMd.type);
+
         } catch (err) {
-            console.error('Blog: 加载文章列表失败', err);
-            $blogList.innerHTML = '<div class="blog-loading">加载失败，请检查网络</div>';
+            console.error('Blog: 加载失败', err);
+            $blogNav.innerHTML = '<div class="blog-nav-loading">加载失败</div>';
         }
     }
 
-    /* ---- 渲染文章列表 ---- */
-    function render() {
-        if (!$blogList) return;
+    /* ============================================================
+       渲染左侧文章列表
+       ============================================================ */
+    function renderSidebar() {
+        if (!$blogSidebar) return;
 
-        const query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
+        var query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
 
-        const filtered = _articles.filter(function(a) {
+        var filtered = _articles.filter(function(a) {
             if (_filterType !== 'all' && a.type !== _filterType) return false;
             if (query && !a.name.toLowerCase().includes(query)) return false;
             return true;
         });
 
-        if (filtered.length === 0) {
-            $blogList.innerHTML = '<div class="blog-empty">' +
-                (query ? '未找到匹配的文章' : '暂无文章，请将 .md 文件放入 Markdown/ 目录') +
+        // 按类型分组
+        var mdArticles = filtered.filter(function(a) { return a.type === 'markdown'; });
+        var htmlArticles = filtered.filter(function(a) { return a.type === 'html'; });
+
+        var html = '';
+
+        // Markdown 分组
+        html += '<div class="blog-nav-section">';
+        html += '<span class="blog-nav-section-title">📘 Markdown <span class="blog-nav-count">' + mdArticles.length + '</span></span>';
+        if (mdArticles.length === 0) {
+            html += '<div class="blog-nav-empty">无匹配</div>';
+        } else {
+            html += '<ul class="blog-nav-list">';
+            mdArticles.forEach(function(a) {
+                var active = _currentFile === a.name ? ' active' : '';
+                html += '<li><a href="#" class="blog-nav-link' + active + '" data-file="' +
+                    Utils.escapeHtml(a.name) + '" data-type="markdown">' +
+                    Utils.escapeHtml(a.name) + '</a></li>';
+            });
+            html += '</ul>';
+        }
+        html += '</div>';
+
+        // HTML 分组
+        html += '<div class="blog-nav-section">';
+        html += '<span class="blog-nav-section-title">📄 HTML <span class="blog-nav-count">' + htmlArticles.length + '</span></span>';
+        if (htmlArticles.length === 0) {
+            html += '<div class="blog-nav-empty">无匹配</div>';
+        } else {
+            html += '<ul class="blog-nav-list">';
+            htmlArticles.forEach(function(a) {
+                html += '<li><a href="#" class="blog-nav-link" data-file="' +
+                    Utils.escapeHtml(a.name) + '" data-type="html">' +
+                    Utils.escapeHtml(a.name) + '</a></li>';
+            });
+            html += '</ul>';
+        }
+        html += '</div>';
+
+        $blogNav.innerHTML = html;
+    }
+
+    /* ============================================================
+       选中文章 → 内联渲染
+       ============================================================ */
+    async function selectArticle(filename, type) {
+        _currentFile = filename;
+
+        // 更新侧边栏高亮
+        renderSidebar();
+
+        if (!$blogContent || !$blogToc) return;
+
+        // HTML 文件 → 新窗口打开
+        if (type === 'html') {
+            window.open('/Html/' + encodeURIComponent(filename), '_blank');
+            $blogContent.innerHTML = '<div class="blog-content-placeholder">' +
+                '<div class="blog-content-placeholder-icon">📄</div>' +
+                '<div>HTML 文件已在新标签页打开</div>' +
+                '<div class="blog-content-placeholder-hint">' + Utils.escapeHtml(filename) + '</div>' +
                 '</div>';
+            $blogToc.innerHTML = '';
             return;
         }
 
-        $blogList.innerHTML = filtered.map(function(a) {
-            return '<div class="blog-card" data-file="' + Utils.escapeHtml(a.name) + '" data-type="' + a.type + '">' +
-                '<span class="blog-card-icon">' + (a.type === 'markdown' ? '📘' : '📄') + '</span>' +
-                '<span class="blog-card-info">' +
-                    '<span class="blog-card-name">' + Utils.escapeHtml(a.name) + '</span>' +
-                    '<span class="blog-card-meta">' +
-                        Utils.escapeHtml(a.size) + ' · ' +
-                        Utils.escapeHtml(a.modified) + ' · ' +
-                        a.type.toUpperCase() +
-                    '</span>' +
-                '</span>' +
-                '<span class="blog-card-arrow">→</span>' +
-            '</div>';
-        }).join('');
-    }
+        // 更新标题
+        if ($blogTitle) $blogTitle.textContent = filename;
 
-    /* ---- 文章点击 → 打开 Markdown 阅读器 ---- */
-    function onArticleClick(e) {
-        const card = e.target.closest('.blog-card');
-        if (!card) return;
-        const file = card.getAttribute('data-file');
-        const type = card.getAttribute('data-type');
-        if (file) {
-            if (typeof MdViewer !== 'undefined' && type === 'markdown') {
-                MdViewer.open(file);
-            } else if (type === 'html') {
-                window.open('/Html/' + encodeURIComponent(file), '_blank');
-            } else {
-                MdViewer.open(file);
+        // 显示加载状态
+        $blogContent.innerHTML = '<div class="blog-content-placeholder">加载中...</div>';
+        $blogToc.innerHTML = '';
+
+        try {
+            var resp = await fetch('/Markdown/' + encodeURIComponent(filename));
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+            var raw = await resp.text();
+
+            // 调用共享渲染引擎
+            if (typeof MdViewer === 'undefined' || !MdViewer.render) {
+                throw new Error('MdViewer 渲染模块未加载');
             }
+
+            var $article = document.createElement('div');
+            $article.className = 'markdown-body';
+
+            // 清空内容容器，放入 markdown-body
+            $blogContent.innerHTML = '';
+            $blogContent.appendChild($article);
+
+            await MdViewer.render(raw, $article);
+
+            // 生成右侧 ToC
+            if ($blogToc) {
+                $blogToc.innerHTML = MdViewer.buildToc($article.innerHTML);
+                // 绑定 ToC 点击 → 滚动到对应标题
+                $blogToc.querySelectorAll('a').forEach(function(a) {
+                    a.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var id = a.getAttribute('data-toc-id');
+                        if (id) {
+                            var el = document.getElementById(id);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                        // 移动端关闭 ToC
+                        var tocCtrl = document.getElementById('blog-toc-ctrl');
+                        if (tocCtrl) tocCtrl.checked = false;
+                    });
+                });
+            }
+
+            // 滚动到顶部
+            $blogContent.scrollTop = 0;
+
+        } catch (err) {
+            console.error('Blog: 渲染失败', err);
+            $blogContent.innerHTML = '<div class="md-error">渲染失败: ' +
+                Utils.escapeHtml(err.message) + '</div>';
+            if ($blogToc) $blogToc.innerHTML = '';
         }
     }
 
-    /* ---- 类型过滤切换 ---- */
-    function onTabClick(e) {
-        const btn = e.target.closest('.blog-tab');
+    /* ---- 侧边栏文章点击 ---- */
+    function onSidebarClick(e) {
+        var a = e.target.closest('.blog-nav-link');
+        if (!a) return;
+        e.preventDefault();
+        var file = a.getAttribute('data-file');
+        var type = a.getAttribute('data-type');
+        if (file) selectArticle(file, type);
+        // 移动端关闭侧边栏
+        if ($blogMenuCtrl) $blogMenuCtrl.checked = false;
+    }
+
+    /* ---- 类型过滤 ---- */
+    function onFilterClick(e) {
+        var btn = e.target.closest('.blog-filter-btn');
         if (!btn) return;
         _filterType = btn.getAttribute('data-type') || 'all';
 
-        // 更新标签页激活状态
-        if ($blogTabs) {
-            $blogTabs.querySelectorAll('.blog-tab').forEach(function(b) { b.classList.remove('active'); });
+        if ($blogFilter) {
+            $blogFilter.querySelectorAll('.blog-filter-btn').forEach(function(b) { b.classList.remove('active'); });
         }
         btn.classList.add('active');
-        render();
+        renderSidebar();
     }
 
     /* ---- 绑定事件 ---- */
     function bindEvents() {
-        if ($blogSearch) {
-            $blogSearch.addEventListener('input', render);
-        }
-        if ($blogTabs) {
-            $blogTabs.addEventListener('click', onTabClick);
-        }
-        if ($blogList) {
-            $blogList.addEventListener('click', onArticleClick);
-        }
+        if ($blogSearch) $blogSearch.addEventListener('input', renderSidebar);
+        if ($blogFilter) $blogFilter.addEventListener('click', onFilterClick);
+        if ($blogSidebar) $blogSidebar.addEventListener('click', onSidebarClick);
+        // 移动端遮罩关闭由 <label for="blog-menu-ctrl"> 处理，无需 JS
     }
 
     /* ---- 初始化 ---- */
     function init() {
-        $blogList  = document.getElementById('blogList');
-        $blogSearch = document.getElementById('blogSearch');
-        $blogTabs  = document.getElementById('blogTabs');
+        $blogSidebar        = document.getElementById('blogSidebar');
+        $blogNav            = document.getElementById('blogNav');
+        $blogContent        = document.getElementById('blogContent');
+        $blogToc            = document.getElementById('blogToc');
+        $blogSearch         = document.getElementById('blogSearch2');
+        $blogFilter         = document.getElementById('blogFilter');
+        $blogMenuCtrl       = document.getElementById('blog-menu-ctrl');
+        $blogSidebarOverlay = document.getElementById('blogSidebarOverlay');
+        $blogTitle          = document.getElementById('blogTitle');
 
         bindEvents();
         fetchArticles();
     }
 
-    global.Blog = { init: init, render: render, fetchArticles: fetchArticles };
+    global.Blog = { init: init, fetchArticles: fetchArticles, selectArticle: selectArticle };
 
 })(window);

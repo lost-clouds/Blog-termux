@@ -1,34 +1,32 @@
 /* ============================================================
-   md-viewer.js —— Markdown 阅读器模块（全屏覆盖层）
+   md-viewer.js —— Markdown 渲染引擎（全屏覆盖层 + 内联渲染）
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] 脚本加载时执行 IIFE，在 window 上挂载 MdViewer API
-     [初始化] 外部调用 MdViewer.init() → 绑定关闭事件、进度条、TOC
-     [运行] MdViewer.open(filename) → 加载 .md 文件并渲染
-           MdViewer.close() → 关闭覆盖层
-     [渲染] marked 解析 Markdown → KaTeX 渲染数学公式 → 生成 TOC
+     [加载] IIFE 执行，挂载 MdViewer API
+     [init] 绑定覆盖层关闭事件、进度条、TOC
+     [render] MdViewer.render(raw, $el) → 内联渲染（blog.js 复用）
+     [open]   MdViewer.open(filename)   → 全屏覆盖层模式
    ────────────────────────────────────────────────────────────
    数据源：GET /Markdown/<filename>
-   依赖：marked (全局), Katex (懒加载), Utils.escapeHtml, Lightbox.open
-   使用：MdViewer.init() / MdViewer.open(filename) / MdViewer.close()
+   依赖：marked, KaTeX(懒加载), Utils.escapeHtml, Lightbox.open
+   使用：MdViewer.init() / MdViewer.render(raw, $el) / MdViewer.open(fn) / MdViewer.close()
    ============================================================ */
 
 (function(global) {
     'use strict';
 
-    let _currentFile = null;
+    var _currentFile = null;
 
-    /* ---- DOM 引用 ---- */
-    let $overlay, $mdContent, $mdTitle, $tocSidebar, $tocOverlay, $tocNav;
-    let $mdLightbox, $mdLbImg, $mdLbName;
-    let _tocVisible = false;
+    /* ---- 覆盖层 DOM 引用 ---- */
+    var $overlay, $mdContent, $mdTitle, $tocSidebar, $tocOverlay, $tocNav;
+    var $mdLightbox, $mdLbImg, $mdLbName;
+    var _tocVisible = false;
 
     /* ============================================================
        KaTeX 懒加载
-       仅在检测到数学公式时才加载 katex.min.js + auto-render.min.js
        ============================================================ */
-    let _katexReady = false;
-    let _katexPromise = null;
+    var _katexReady = false;
+    var _katexPromise = null;
 
     function ensureKatex() {
         if (_katexReady) return Promise.resolve();
@@ -52,26 +50,26 @@
     }
 
     /* ============================================================
-       阅读进度条
+       阅读进度条（仅覆盖层模式）
        ============================================================ */
     function updateProgress() {
         if (!$overlay || !$overlay.classList.contains('active')) return;
-        const content = $overlay.querySelector('.md-content-scroll');
+        var content = $overlay.querySelector('.md-content-scroll');
         if (!content) return;
-        const scrollTop = content.scrollTop;
-        const scrollHeight = content.scrollHeight - content.clientHeight;
-        const pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
-        const bar = document.getElementById('mdProgressBar');
+        var scrollTop = content.scrollTop;
+        var scrollHeight = content.scrollHeight - content.clientHeight;
+        var pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+        var bar = document.getElementById('mdProgressBar');
         if (bar) bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
     }
 
     /* ============================================================
-       TOC 目录生成
+       TOC 目录生成（公用）
        ============================================================ */
     function buildToc(htmlContent) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlContent, 'text/html');
-        const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(htmlContent, 'text/html');
+        var headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
 
         if (headings.length === 0) {
             return '<div class="toc-empty">无标题</div>';
@@ -85,27 +83,27 @@
 
             if (!h.id) {
                 h.id = text.toLowerCase()
-                    .replace(/[^\w一-龥]+/g, '-')
-                    .replace(/^-|-$/g, '') + '-' + Date.now();
+                    .replace(/[^\w一-鿿]+/g, '-')
+                    .replace(/^-|-$/g, '');
             }
+            if (!h.id) h.id = 'h-' + Date.now();
 
             html += '<li class="toc-level-' + level + '">';
-            html += '<a href="#' + h.id + '" onclick="MdViewer._scrollTo(\'' + h.id + '\')">';
-            html += Utils.escapeHtml(text) + '</a></li>';
+            html += '<a href="#' + h.id + '" data-toc-id="' + h.id + '">' + Utils.escapeHtml(text) + '</a></li>';
         });
         html += '</ul>';
         return html;
     }
 
     /* ---- 注入标题锚点 ---- */
-    function injectAnchors() {
-        if (!$mdContent) return;
-        var headings = $mdContent.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    function injectAnchors($container) {
+        if (!$container) return;
+        var headings = $container.querySelectorAll('h1, h2, h3, h4, h5, h6');
         headings.forEach(function(h) {
             if (!h.id) {
                 var text = h.textContent;
                 h.id = text.toLowerCase()
-                    .replace(/[^\w一-龥]+/g, '-')
+                    .replace(/[^\w一-鿿]+/g, '-')
                     .replace(/^-|-$/g, '');
             }
             if (!h.querySelector('.anchor')) {
@@ -120,70 +118,92 @@
         });
     }
 
-    function scrollToId(id) {
-        var content = $overlay ? $overlay.querySelector('.md-content-scroll') : null;
-        var el = document.getElementById(id);
-        if (el && content) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
-
-    /* ============================================================
-       Markdown 内图片处理
-       ============================================================ */
-    function fixImagePaths() {
-        if (!$mdContent) return;
-        var imgs = $mdContent.querySelectorAll('img');
+    /* ---- 图片路径修正 ---- */
+    function fixImagePaths($container) {
+        if (!$container) return;
+        var imgs = $container.querySelectorAll('img');
+        var IMG_RE = /\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)(\?.*)?$/i;
         imgs.forEach(function(img) {
             var src = img.getAttribute('src') || '';
             if (!src || /^(https?:|\/\/|data:|\/api\/)/i.test(src)) return;
             var filename = src.split('/').pop();
-            if (!filename || !/\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)$/i.test(filename)) return;
+            if (!filename || !IMG_RE.test(filename)) return;
             img.src = '/api/images/' + encodeURIComponent(filename);
         });
     }
 
-    /* ---- Markdown 图片灯箱 ---- */
+    /* ---- KaTeX 数学渲染 ---- */
+    function renderKatex($container) {
+        if (typeof renderMathInElement === 'function') {
+            renderMathInElement($container, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$',  right: '$',  display: false},
+                    {left: '\\[', right: '\\]', display: true},
+                    {left: '\\(', right: '\\)', display: false}
+                ],
+                throwOnError: false,
+                strict: false,
+                trust: true
+            });
+        }
+    }
+
+    /* ---- MD 图片灯箱（公用）---- */
     function onMdImageClick(e) {
         var img = e.target.closest('img');
         if (!img) return;
         var src = img.getAttribute('src');
         if (!src) return;
 
-        if (!$mdLightbox) {
-            $mdLightbox = document.getElementById('mdLightbox');
-            $mdLbImg    = document.getElementById('mdLightboxImg');
-            $mdLbName   = document.getElementById('mdLightboxName');
-        }
-        if (!$mdLightbox || !$mdLbImg) return;
+        var lb = document.getElementById('mdLightbox');
+        var lbImg = document.getElementById('mdLightboxImg');
+        var lbName = document.getElementById('mdLightboxName');
+        if (!lb || !lbImg) return;
 
-        $mdLbImg.src = src;
-        $mdLbImg.alt = img.alt || '';
-        if ($mdLbName) $mdLbName.textContent = img.alt || '';
-        $mdLightbox.classList.add('active');
+        lbImg.src = src;
+        lbImg.alt = img.alt || '';
+        if (lbName) lbName.textContent = img.alt || '';
+        lb.classList.add('active');
     }
 
     function closeMdLightbox() {
-        if ($mdLightbox) $mdLightbox.classList.remove('active');
+        var lb = document.getElementById('mdLightbox');
+        if (lb) lb.classList.remove('active');
     }
 
     /* ============================================================
-       TOC 侧边栏控制
+       共享渲染引擎（blog.js 内联渲染 + 覆盖层共用）
        ============================================================ */
-    function toggleToc() {
-        _tocVisible = !_tocVisible;
-        if ($tocSidebar) $tocSidebar.classList.toggle('open', _tocVisible);
-        if ($tocOverlay) $tocOverlay.classList.toggle('active', _tocVisible);
-    }
+    async function render(rawMarkdown, $target) {
+        if (!$target) throw new Error('目标元素缺失');
 
-    function closeToc() {
-        _tocVisible = false;
-        if ($tocSidebar) $tocSidebar.classList.remove('open');
-        if ($tocOverlay) $tocOverlay.classList.remove('active');
+        if (typeof marked === 'undefined') {
+            throw new Error('Markdown 解析组件 (marked) 未加载');
+        }
+
+        var html = marked.parse(rawMarkdown);
+        // KaTeX 兼容：\begin{split} → \begin{aligned}
+        html = html.replace(/\\begin\{split\}/g, '\\begin{aligned}')
+                   .replace(/\\end\{split\}/g, '\\end{aligned}');
+
+        $target.innerHTML = html;
+
+        // 后处理
+        fixImagePaths($target);
+        injectAnchors($target);
+
+        // KaTeX 按需加载
+        if (/(?:\$\$|\\\[|\\\(|\\begin\{)/.test(html)) {
+            try { await ensureKatex(); } catch(ke) { console.warn('KaTeX 加载失败'); }
+        }
+        renderKatex($target);
+
+        return html;
     }
 
     /* ============================================================
-       加载 & 渲染 Markdown 文件
+       覆盖层模式：加载文件并渲染
        ============================================================ */
     async function loadMarkdown(filename) {
         if (!$mdContent || !$mdTitle) return;
@@ -197,52 +217,29 @@
 
             var raw = await resp.text();
 
-            if (typeof marked === 'undefined') {
-                throw new Error('Markdown 解析组件 (marked) 未加载，请确认 lib/marked.min.js 存在');
-            }
+            // 使用共享渲染引擎
+            await render(raw, $mdContent);
 
-            // marked 解析
-            var html = marked.parse(raw);
-
-            // KaTeX 兼容：\begin{split} → \begin{aligned}
-            html = html.replace(/\\begin\{split\}/g, '\\begin{aligned}')
-                       .replace(/\\end\{split\}/g, '\\end{aligned}');
-
-            $mdContent.innerHTML = html;
             $mdTitle.textContent = filename;
             document.title = filename + ' - Blog';
 
-            // 图片相关处理
-            fixImagePaths();
-
-            // 注入标题锚点
-            injectAnchors();
-
-            // 生成 TOC
+            // 覆盖层特有的 TOC 生成
             if ($tocNav) {
-                $tocNav.innerHTML = buildToc(html);
-            }
-
-            // 数学公式检测 & KaTeX 按需加载
-            if (/(?:\$\$|\\\[|\\\(|\\begin\{)/.test(html)) {
-                try {
-                    await ensureKatex();
-                } catch(ke) {
-                    console.warn('MdViewer: KaTeX 加载失败，公式将以原始文本显示');
-                }
-            }
-
-            if (typeof renderMathInElement === 'function') {
-                renderMathInElement($mdContent, {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$',  right: '$',  display: false},
-                        {left: '\\[', right: '\\]', display: true},
-                        {left: '\\(', right: '\\)', display: false}
-                    ],
-                    throwOnError: false,
-                    strict: false,
-                    trust: true
+                $tocNav.innerHTML = buildToc($mdContent.innerHTML);
+                // TOC 点击跳转
+                $tocNav.querySelectorAll('a').forEach(function(a) {
+                    a.addEventListener('click', function(ev) {
+                        ev.preventDefault();
+                        var id = a.getAttribute('data-toc-id');
+                        if (id) {
+                            var el = document.getElementById(id);
+                            if (el) {
+                                var scrollEl = $overlay.querySelector('.md-content-scroll');
+                                if (scrollEl) el.scrollIntoView({ behavior: 'smooth', block: 'start', container: scrollEl });
+                                else el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }
+                    });
                 });
             }
 
@@ -265,8 +262,8 @@
         }
     }
 
-    /* ---- 打开阅读器 ---- */
-    function open(filename) {
+    /* ---- 打开覆盖层 ---- */
+    function openOverlay(filename) {
         if (!$overlay) return;
         _currentFile = filename;
         $overlay.classList.add('active');
@@ -277,8 +274,8 @@
         loadMarkdown(filename);
     }
 
-    /* ---- 关闭阅读器 ---- */
-    function close() {
+    /* ---- 关闭覆盖层 ---- */
+    function closeOverlay() {
         if (!$overlay) return;
         $overlay.classList.remove('active');
         document.body.style.overflow = '';
@@ -287,13 +284,25 @@
         closeMdLightbox();
         document.title = '控制台';
 
-        // 清除进度条
         var bar = document.getElementById('mdProgressBar');
         if (bar) bar.style.width = '0%';
     }
 
+    /* ---- TOC 控制 ---- */
+    function toggleToc() {
+        _tocVisible = !_tocVisible;
+        if ($tocSidebar) $tocSidebar.classList.toggle('open', _tocVisible);
+        if ($tocOverlay) $tocOverlay.classList.toggle('active', _tocVisible);
+    }
+
+    function closeToc() {
+        _tocVisible = false;
+        if ($tocSidebar) $tocSidebar.classList.remove('open');
+        if ($tocOverlay) $tocOverlay.classList.remove('active');
+    }
+
     /* ============================================================
-       初始化：缓存 DOM 引用，绑定全局事件
+       初始化（覆盖层事件绑定）
        ============================================================ */
     function init() {
         $overlay    = document.getElementById('mdOverlay');
@@ -302,80 +311,57 @@
         $tocSidebar = document.getElementById('tocSidebar');
         $tocOverlay = document.getElementById('tocOverlay');
         $tocNav     = document.getElementById('tocNav');
-        $mdLightbox = document.getElementById('mdLightbox');
-        $mdLbImg    = document.getElementById('mdLightboxImg');
-        $mdLbName   = document.getElementById('mdLightboxName');
 
-        // 滚动进度监听
         document.addEventListener('scroll', updateProgress, true);
-        // 关闭按钮
-        var closeBtn = document.getElementById('mdCloseBtn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', close);
-        }
 
-        // 背景点击关闭（点击覆盖层边缘）
+        var closeBtn = document.getElementById('mdCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', closeOverlay);
+
         if ($overlay) {
             $overlay.addEventListener('click', function(e) {
-                if (e.target === $overlay) close();
+                if (e.target === $overlay) closeOverlay();
             });
         }
 
-        // ESC 关闭
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && $overlay && $overlay.classList.contains('active')) {
-                // 先关灯箱（MD 内图片灯箱），再关阅读器
-                if ($mdLightbox && $mdLightbox.classList.contains('active')) {
+                var lb = document.getElementById('mdLightbox');
+                if (lb && lb.classList.contains('active')) {
                     closeMdLightbox();
                 } else {
-                    close();
+                    closeOverlay();
                 }
             }
         });
 
-        // TOC 切换按钮
         var tocBtn = document.getElementById('mdTocBtn');
         if (tocBtn) tocBtn.addEventListener('click', toggleToc);
 
-        // TOC 侧边栏关闭按钮
         var tocCloseBtn = document.getElementById('tocCloseBtn');
         if (tocCloseBtn) tocCloseBtn.addEventListener('click', closeToc);
 
-        // TOC 覆盖层点击关闭
         if ($tocOverlay) $tocOverlay.addEventListener('click', closeToc);
 
-        // Markdown 内图片点击 → 灯箱
-        if ($mdContent) {
-            $mdContent.addEventListener('click', onMdImageClick);
-        }
-
-        // MD 灯箱关闭按钮
+        // MD 图片灯箱事件（委托）
+        document.addEventListener('click', onMdImageClick);
         var lbCloseBtn = document.querySelector('.md-lightbox-close');
-        if (lbCloseBtn) {
-            lbCloseBtn.addEventListener('click', closeMdLightbox);
-        }
-        // MD 灯箱背景点击关闭
-        if ($mdLightbox) {
-            $mdLightbox.addEventListener('click', function(e) {
-                if (e.target === $mdLightbox) closeMdLightbox();
-            });
-        }
+        if (lbCloseBtn) lbCloseBtn.addEventListener('click', closeMdLightbox);
+        var mdLb = document.getElementById('mdLightbox');
+        if (mdLb) mdLb.addEventListener('click', function(e) {
+            if (e.target === mdLb) closeMdLightbox();
+        });
 
-        // 进度条滚动监听（在 .md-content-scroll 上）
         var scrollEl = $overlay ? $overlay.querySelector('.md-content-scroll') : null;
-        if (scrollEl) {
-            scrollEl.addEventListener('scroll', updateProgress);
-        }
+        if (scrollEl) scrollEl.addEventListener('scroll', updateProgress);
     }
 
     // 暴露 API
     global.MdViewer = {
         init: init,
-        open: open,
-        close: close,
-        loadMarkdown: loadMarkdown,
-        _scrollTo: scrollToId,
-        _closeToc: closeToc
+        render: render,
+        buildToc: buildToc,
+        open: openOverlay,
+        close: closeOverlay
     };
 
 })(window);

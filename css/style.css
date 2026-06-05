@@ -97,6 +97,10 @@ img { max-width: 100%; height: auto; }
     margin: 0 auto;
     padding: 1rem;
 }
+/* 博客标签激活时撑满宽度 */
+.app-container:has(#sec-blog.active) {
+    max-width: 96vw;
+}
 
 /* ============================================================
    3. 顶部导航栏
@@ -371,98 +375,262 @@ img { max-width: 100%; height: auto; }
     flex-shrink: 0;
 }
 
-.nav-empty, .blog-empty, .gallery-empty {
+.nav-empty, .gallery-empty {
     text-align: center;
     padding: 3rem 1rem;
     color: var(--text-tertiary);
     font-size: 0.95rem;
 }
-
-/* ============================================================
-   8. 博客文章列表
-   ============================================================ */
-.blog-tabs {
-    display: flex;
-    gap: 0.3rem;
-    background: var(--glass-bg);
-    border-radius: var(--radius-full);
-    padding: 0.25rem;
-    border: 1px solid var(--glass-border);
-    flex-shrink: 0;
-}
-
-.blog-tab {
-    padding: 0.4rem 1rem;
-    font-size: 0.82rem;
-    border-radius: var(--radius-full);
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    color: var(--text-secondary);
-    font-family: inherit;
-    transition: var(--transition);
-    white-space: nowrap;
-}
-.blog-tab.active { background: var(--accent); color: #fff; }
-.blog-tab:hover:not(.active) { color: var(--text-primary); }
-
-.blog-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-}
-
-.blog-loading, .gallery-loading {
+.gallery-loading {
     text-align: center;
     padding: 2rem;
     color: var(--text-secondary);
 }
 
-.blog-card {
+/* ============================================================
+   8. 博客 — Hugo Book 风格三栏布局
+   ============================================================ */
+
+/* 隐藏 checkbox（CSS 驱动移动端侧边栏） */
+.blog-toggle { display: none; }
+
+/* 博客 section 激活时撑满可用高度 */
+#sec-blog.active {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    flex-direction: column;
+    height: calc(100vh - 100px);
+    min-height: 420px;
+}
+
+/* 三栏布局容器 */
+.blog-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+    position: relative;
+}
+
+/* ---- 左侧文章列表 ---- */
+.blog-sidebar {
+    width: 16rem;
+    min-width: 16rem;
     background: var(--glass-bg);
     backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
     border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
-    padding: 0.85rem 1rem;
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    margin-right: 1rem;
+    min-height: 0;
+}
+.blog-sidebar-search {
+    padding: 0.6rem 0.7rem;
+    border-bottom: 1px solid var(--glass-border);
+    flex-shrink: 0;
+}
+.blog-sidebar-search .search-input { width: 100%; }
+
+.blog-filter-bar {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.4rem 0.7rem;
+    border-bottom: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    flex-shrink: 0;
+}
+.blog-filter-btn {
+    flex: 1;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
     cursor: pointer;
+    font-family: inherit;
     transition: var(--transition);
-    box-shadow: var(--shadow-sm);
 }
-.blog-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--accent);
+.blog-filter-btn.active { background: var(--accent); color: #fff; }
+.blog-filter-btn:hover:not(.active) { background: var(--accent-soft); }
+
+.blog-nav {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.5rem 0;
+}
+.blog-nav::-webkit-scrollbar { width: 4px; }
+.blog-nav::-webkit-scrollbar-thumb { background: var(--border-medium, rgba(0,0,0,0.15)); border-radius: 2px; }
+
+.blog-nav-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
 }
 
-.blog-card-icon { font-size: 1.5rem; flex-shrink: 0; }
-.blog-card-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.blog-nav-section { margin-bottom: 0.25rem; }
 
-.blog-card-name {
-    font-size: 0.95rem;
+.blog-nav-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
+    color: var(--text-secondary);
+}
+.blog-nav-count {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    background: var(--accent-soft);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-full);
+}
+
+.blog-nav-empty {
+    padding: 0.3rem 1.2rem;
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+}
+
+.blog-nav-list { list-style: none; }
+
+.blog-nav-link {
+    display: block;
+    padding: 0.45rem 1rem 0.45rem 1.5rem;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: var(--transition);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.blog-nav-link:hover { color: var(--text-primary); background: var(--accent-soft); }
+.blog-nav-link.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-left-color: var(--accent);
+    font-weight: 500;
+}
+
+/* ---- 中间文章正文 ---- */
+.blog-content {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem 2rem;
+    margin-right: 1rem;
+}
+.blog-content .markdown-body {
+    background: none;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    padding: 0 !important;
+}
+
+.blog-content-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-tertiary);
+    font-size: 0.95rem;
+    gap: 0.5rem;
+}
+.blog-content-placeholder-icon { font-size: 3rem; }
+.blog-content-placeholder-hint { font-size: 0.8rem; opacity: 0.7; }
+
+/* ---- 右侧 ToC ---- */
+.blog-toc {
+    width: 14rem;
+    min-width: 14rem;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 0.75rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.82rem;
+}
+.blog-toc ul { list-style: none; }
+.blog-toc li { margin: 0.1rem 0; }
+.blog-toc a {
+    display: block;
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: var(--transition);
+}
+.blog-toc a:hover { background: var(--accent-soft); color: var(--accent); }
+.blog-toc .toc-level-1 { padding-left: 0; font-weight: 600; }
+.blog-toc .toc-level-2 { padding-left: 0.75rem; }
+.blog-toc .toc-level-3 { padding-left: 1.5rem; }
+.blog-toc .toc-level-4 { padding-left: 2.25rem; }
+
+/* ---- 移动端顶栏 ---- */
+.blog-header-mobile {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+}
+.blog-header-btn {
+    width: 36px; height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--glass-border-strong);
+    background: var(--glass-bg);
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+.blog-header-title {
+    flex: 1;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.blog-card-meta {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    margin-top: 0.1rem;
+/* 移动端侧边栏遮罩 */
+.blog-sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 800;
+    cursor: pointer;
 }
-
-.blog-card-arrow {
-    font-size: 1.1rem;
-    color: var(--text-tertiary);
-    flex-shrink: 0;
-    transition: var(--transition);
-}
-.blog-card:hover .blog-card-arrow { color: var(--accent); transform: translateX(3px); }
 
 /* ============================================================
    9. 图片画廊
@@ -661,6 +829,49 @@ img { max-width: 100%; height: auto; }
     text-align: left;
 }
 .markdown-body th { background: rgba(0,0,0,0.04); font-weight: 600; }
+
+/* 浅色模式代码块和表格增强对比 */
+body:not(.dark) .markdown-body code {
+    background: rgba(0,0,0,0.08);
+    color: #1a1a2e;
+}
+body:not(.dark) .markdown-body pre {
+    background: #f0f0f3;
+    border-color: rgba(0,0,0,0.1);
+}
+body:not(.dark) .markdown-body table {
+    background: #fff;
+}
+body:not(.dark) .markdown-body th {
+    background: #e8e8ed;
+    color: #1c1c1e !important;
+}
+body:not(.dark) .markdown-body td {
+    background: transparent;
+    color: #1c1c1e !important;
+}
+body:not(.dark) .markdown-body tr:nth-child(even) td {
+    background: rgba(0,0,0,0.03);
+}
+body:not(.dark) .markdown-body tr:hover td {
+    background: rgba(0,0,0,0.06);
+}
+body:not(.dark) .markdown-body td * {
+    color: #1c1c1e !important;
+}
+body:not(.dark) .markdown-body tr {
+    background: #fff !important;
+}
+body:not(.dark) .markdown-body tr:nth-child(even) {
+    background: #f6f8fa !important;
+}
+body:not(.dark) .markdown-body tr:hover {
+    background: #e8f0fe !important;
+}
+/* 强制覆盖 github-markdown.css */
+.markdown-body td, .markdown-body th {
+    color: var(--text-primary);
+}
 .markdown-body img {
     cursor: zoom-in;
     border-radius: var(--radius-sm);
@@ -1022,8 +1233,27 @@ body.dark .bottom-nav {
     .nav-card { padding: 0.7rem 0.8rem; }
     .nav-card-icon { font-size: 1.4rem; width: 36px; }
 
-    /* 博客 */
-    .blog-card { padding: 0.7rem 0.9rem; }
+    /* 博客 — 移动端三栏变单栏 */
+    #sec-blog.active { height: auto; min-height: 0; }
+    .blog-layout { height: auto; min-height: 0; flex-direction: column; flex: none; }
+    .blog-sidebar {
+        position: fixed; left: 0; top: 0; bottom: 0; z-index: 900;
+        width: 17rem; min-width: 0; margin-right: 0;
+        border-radius: 0; border-left: none;
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.2,0.9,0.4,1.1);
+    }
+    #blog-menu-ctrl:checked ~ .blog-layout .blog-sidebar { transform: translateX(0); }
+    #blog-menu-ctrl:checked ~ .blog-sidebar-overlay { display: block; }
+
+    .blog-toc {
+        display: none; position: fixed; left: 0; right: 0; top: 56px; z-index: 850;
+        width: auto; min-width: 0; max-height: 50vh; border-radius: 0 0 var(--radius-md) var(--radius-md);
+    }
+    #blog-toc-ctrl:checked ~ .blog-layout .blog-toc { display: block; }
+
+    .blog-content { margin-right: 0; border-radius: var(--radius-md); padding: 1rem; }
+    .blog-header-mobile { display: flex; }
 
     /* 图库两列 */
     .gallery-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
@@ -1045,7 +1275,6 @@ body.dark .bottom-nav {
 
     /* 搜索框 + 标签组合 */
     .section-search { flex-wrap: wrap; }
-    .blog-tabs { order: 3; width: 100%; justify-content: center; }
 }
 
 /* ---- 小屏手机 (< 400px) ---- */
@@ -1074,7 +1303,8 @@ body.dark .bottom-nav {
     body:not(.dark) .tab-bar,
     body:not(.dark) .dash-card,
     body:not(.dark) .nav-card,
-    body:not(.dark) .blog-card,
+    body:not(.dark) .blog-sidebar,
+	    body:not(.dark) .blog-content,
     body:not(.dark) .gallery-card,
     body:not(.dark) .markdown-body {
         backdrop-filter: none !important;
@@ -1085,7 +1315,8 @@ body.dark .bottom-nav {
     body.dark .tab-bar,
     body.dark .dash-card,
     body.dark .nav-card,
-    body.dark .blog-card,
+    body.dark .blog-sidebar,
+	    body.dark .blog-content,
     body.dark .gallery-card,
     body.dark .markdown-body {
         backdrop-filter: none !important;

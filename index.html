@@ -14,9 +14,9 @@
          2. github-markdown.min.css —— GitHub 风格 Markdown 样式（本地）
          3. style.css        —— 全站统一响应式样式
          ============================================================ -->
-    <link rel="stylesheet" href="lib/katex.min.css?v=1">
-    <link rel="stylesheet" href="lib/github-markdown.min.css?v=1">
-    <link rel="stylesheet" href="css/style.css?v=1">
+    <link rel="stylesheet" href="lib/katex.min.css?v=2">
+    <link rel="stylesheet" href="lib/github-markdown.min.css?v=2">
+    <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 
@@ -151,19 +151,58 @@
             </div>
         </section>
 
-        <!-- 博客文章列表 -->
+        <!-- ============================================================
+             博客 — Hugo Book 风格三栏布局
+             桌面: 侧边栏 | 内容 | ToC   移动: 侧边栏/ToC 滑入
+             ============================================================ -->
         <section class="content-section" id="sec-blog">
-            <div class="section-search">
-                <input type="text" class="search-input" id="blogSearch" placeholder="搜索文章…" autocomplete="off">
-                <div class="blog-tabs" id="blogTabs">
-                    <button class="blog-tab active" data-type="all">全部</button>
-                    <button class="blog-tab" data-type="markdown">Markdown</button>
-                    <button class="blog-tab" data-type="html">HTML</button>
+
+            <!-- 隐藏 checkbox 驱动移动端侧边栏/ToC -->
+            <input type="checkbox" class="blog-toggle" id="blog-menu-ctrl">
+            <input type="checkbox" class="blog-toggle" id="blog-toc-ctrl">
+
+            <!-- 移动端顶栏 -->
+            <div class="blog-header-mobile">
+                <label for="blog-menu-ctrl" class="blog-header-btn" aria-label="菜单">☰</label>
+                <span class="blog-header-title" id="blogTitle">博客</span>
+                <label for="blog-toc-ctrl" class="blog-header-btn" aria-label="目录">📑</label>
+            </div>
+
+            <!-- 三栏布局容器 -->
+            <div class="blog-layout">
+
+                <!-- 左侧：文章列表 -->
+                <aside class="blog-sidebar" id="blogSidebar">
+                    <div class="blog-sidebar-search">
+                        <input type="text" class="search-input" id="blogSearch2" placeholder="搜索文章…" autocomplete="off">
+                    </div>
+                    <div class="blog-filter-bar" id="blogFilter">
+                        <button class="blog-filter-btn active" data-type="all">全部</button>
+                        <button class="blog-filter-btn" data-type="markdown">MD</button>
+                        <button class="blog-filter-btn" data-type="html">HTML</button>
+                    </div>
+                    <nav class="blog-nav" id="blogNav">
+                        <div class="blog-nav-loading">加载中...</div>
+                    </nav>
+                </aside>
+
+                <!-- 中间：文章正文 -->
+                <div class="blog-content" id="blogContent">
+                    <div class="blog-content-placeholder">
+                        <div class="blog-content-placeholder-icon">📝</div>
+                        <div>从左侧选择一篇文章</div>
+                    </div>
                 </div>
+
+                <!-- 右侧：目录 -->
+                <aside class="blog-toc" id="blogToc">
+                    <div class="toc-empty">选择文章后显示目录</div>
+                </aside>
+
             </div>
-            <div class="blog-list" id="blogList">
-                <div class="blog-loading">加载中...</div>
-            </div>
+
+            <!-- 移动端侧边栏遮罩 -->
+            <label class="blog-sidebar-overlay" for="blog-menu-ctrl" id="blogSidebarOverlay"></label>
         </section>
 
         <!-- 图片画廊 -->
@@ -245,16 +284,16 @@
     <!-- ============================================================
          脚本加载区（依赖顺序）
          ============================================================ -->
-    <script src="js/theme.js?v=1"></script>
-    <script src="js/utils.js?v=1"></script>
-    <script src="js/lightbox.js?v=1"></script>
-    <script src="js/dashboard.js?v=1"></script>
-    <script src="js/navigation.js?v=1"></script>
-    <script src="js/blog.js?v=1"></script>
-    <script src="js/gallery.js?v=1"></script>
-    <script src="lib/marked.min.js?v=1"></script>
-    <script src="js/md-viewer.js?v=1"></script>
-    <script src="js/app.js?v=1"></script>
+    <script src="js/theme.js?v=2"></script>
+    <script src="js/utils.js?v=2"></script>
+    <script src="js/lightbox.js?v=2"></script>
+    <script src="js/dashboard.js?v=2"></script>
+    <script src="js/navigation.js?v=2"></script>
+    <script src="js/blog.js?v=2"></script>
+    <script src="js/gallery.js?v=2"></script>
+    <script src="lib/marked.min.js?v=2"></script>
+    <script src="js/md-viewer.js?v=2"></script>
+    <script src="js/app.js?v=2"></script>
 
 </body>
 </html>
