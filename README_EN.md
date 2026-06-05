@@ -1,11 +1,11 @@
 # Blog — Personal Dashboard + Blog Console
+[简体中文](README.md) | [English](README_EN.md)  
 
 A pure static single-page application powered by Nginx. No PHP, Node.js, Python, or any backend runtime required. Integrates **system dashboard**, **service navigation**, **Markdown blog reader**, and **image gallery** into one page, with responsive layout for PC, tablet, and mobile.
 
 ![screenshot](example/example.png)
 ![screenshot](example/example1.png)
 
-> [中文版本](README.md)  
 > Originally forked from [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git), extensively rewritten over time into its current form.
 
 ---

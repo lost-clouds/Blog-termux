@@ -1,4 +1,5 @@
 # Blog — 个人导航 + 博客控制台
+[简体中文](README.md) | [English](README_EN.md)  
 
 纯静态单页面应用，基于 Nginx 运行，无需 PHP / Node / Python 等后端。集成 **系统仪表盘**、**服务导航**、**博客阅读器**、**图片画廊** 四大模块，自适应 PC / 平板 / 手机。
 
@@ -6,8 +7,7 @@
 ![博客三栏布局](example/example1.png)
 ![example_Image](example/example1.png)
 
-> [English version](README_EN.md)  
-附赠我个人的[termux的使用总结](Markdown/termux使用总结.md)  
+> 附赠我个人的[termux的使用总结](Markdown/termux使用总结.md)  
 以及,本项目最初来自于 [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git) 在长期使用中东改一点西修一下,最终变成了现在这样。
 ---
 
