@@ -1,4 +1,4 @@
-# Blog — Personal Dashboard + Blog Console
+# Blog-termux — Personal Dashboard + Blog Console
 [简体中文](README.md) | [English](README_EN.md)  
 
 A pure static single-page application powered by Nginx. No PHP, Node.js, Python, or any backend runtime required. Integrates **system dashboard**, **service navigation**, **Markdown blog reader**, and **image gallery** into one page, with responsive layout for PC, tablet, and mobile.
@@ -34,10 +34,10 @@ A pure static single-page application powered by Nginx. No PHP, Node.js, Python,
 
 ```bash
 # 1. Clone to your server
-git clone https://github.com/example/Blog.git ~/Blog
+git clone https://github.com/example/Blog-termux.git ~/Blog-termux
 
 # 2. Download frontend dependencies (one-time)
-cd ~/Blog/lib
+cd ~/Blog-termux/lib
 curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
@@ -46,14 +46,14 @@ curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.
 
 # 3. Copy nginx config, update paths
 cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
-# Edit: replace /path/to/Blog with your actual absolute path
+# Edit: replace /path/to/Blog-termux with your actual absolute path
 
 # 4. Setup dashboard cron (every 30s)
 # Edit corn.sh: set OUTPUT to your actual dashboard.json path
 # Then add crontab:
 #   crontab -e
-#   * * * * * ~/Blog/corn.sh
-#   * * * * * sleep 30; ~/Blog/corn.sh
+#   * * * * * ~/Blog-termux/corn.sh
+#   * * * * * sleep 30; ~/Blog-termux/corn.sh
 
 # 5. Reload nginx and open
 nginx -s reload
@@ -65,7 +65,7 @@ nginx -s reload
 ## Directory Structure
 
 ```
-Blog/
+Blog-termux/
 ├── index.html                       # Single entry point — tabbed SPA
 ├── config.json                      # Service navigation config
 ├── corn.sh                          # System metrics collector (no root)
@@ -356,8 +356,8 @@ Boot sequence:
 The following 5 files must be placed in `lib/`. **Download once, then fully offline.**
 
 ```bash
-mkdir -p ~/Blog/lib
-cd ~/Blog/lib
+mkdir -p ~/Blog-termux/lib
+cd ~/Blog-termux/lib
 
 # marked — Markdown parser
 curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
@@ -380,15 +380,15 @@ ls -lh lib/
 **Step 1 — Copy config template**
 
 ```bash
-cp ~/Blog/example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
+cp ~/Blog-termux/example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
 ```
 
 **Step 2 — Update paths**
 
-Edit `$PREFIX/etc/nginx/conf.d/Blog.conf`, replace all `/path/to/Blog` with your actual path:
+Edit `$PREFIX/etc/nginx/conf.d/Blog.conf`, replace all `/path/to/Blog-termux` with your actual path:
 
 ```bash
-sed -i 's|/path/to/Blog|/your/real/path/to/Blog|g' $PREFIX/etc/nginx/conf.d/Blog.conf
+sed -i 's|/path/to/Blog-termux|/your/real/path/to/Blog-termux|g' $PREFIX/etc/nginx/conf.d/Blog.conf
 ```
 
 **Step 3 — Ensure nginx includes site configs**
@@ -449,14 +449,14 @@ Refresh the page to apply changes.
 **Step 1 — Update corn.sh output path**
 
 ```bash
-sed -i 's|/path/to/Blog|/your/real/path/to/Blog|g' ~/Blog/corn.sh
+sed -i 's|/path/to/Blog-termux|/your/real/path/to/Blog-termux|g' ~/Blog-termux/corn.sh
 ```
 
 **Step 2 — Run manually to verify**
 
 ```bash
-bash ~/Blog/corn.sh
-cat ~/Blog/dashboard.json
+bash ~/Blog-termux/corn.sh
+cat ~/Blog-termux/dashboard.json
 # Should output JSON like {"device":{"model":"Xiaomi 14",...},...}
 ```
 
@@ -465,8 +465,8 @@ cat ~/Blog/dashboard.json
 ```bash
 crontab -e
 # Add these two lines (runs every 30 seconds):
-# * * * * * /path/to/Blog/corn.sh
-# * * * * * sleep 30; /path/to/Blog/corn.sh
+# * * * * * /path/to/Blog-termux/corn.sh
+# * * * * * sleep 30; /path/to/Blog-termux/corn.sh
 ```
 
 > **Termux note**: Start cron service first. `sv-enable crond` (termux-services) or run `crond` manually.
@@ -515,8 +515,8 @@ Check three things:
 curl http://127.0.0.1:7443/api/md/
 
 # 2. Are the directories empty?
-ls ~/Blog/Markdown/
-ls ~/Blog/Image/
+ls ~/Blog-termux/Markdown/
+ls ~/Blog-termux/Image/
 
 # 3. Browser console (F12) — any fetch errors? Usually a path mismatch in nginx config.
 ```
@@ -525,10 +525,10 @@ ls ~/Blog/Image/
 
 ```bash
 # Check dashboard.json exists and is valid JSON
-cat ~/Blog/dashboard.json
+cat ~/Blog-termux/dashboard.json
 
 # Run the collector manually
-bash ~/Blog/corn.sh
+bash ~/Blog-termux/corn.sh
 
 # Verify cron is running
 ps aux | grep crond

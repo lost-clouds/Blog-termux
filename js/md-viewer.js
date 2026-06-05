@@ -221,7 +221,7 @@
             await render(raw, $mdContent);
 
             $mdTitle.textContent = filename;
-            document.title = filename + ' - Blog';
+            document.title = filename + ' - Blog-termux';
 
             // 覆盖层特有的 TOC 生成
             if ($tocNav) {

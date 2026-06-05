@@ -1,4 +1,4 @@
-# Blog — 个人导航 + 博客控制台
+# Blog-termux — 个人导航 + 博客控制台
 [简体中文](README.md) | [English](README_EN.md)  
 
 纯静态单页面应用，基于 Nginx 运行，无需 PHP / Node / Python 等后端。集成 **系统仪表盘**、**服务导航**、**博客阅读器**、**图片画廊** 四大模块，自适应 PC / 平板 / 手机。
@@ -34,10 +34,10 @@
 
 ```bash
 # 1. 克隆项目到你的服务器
-git clone https://github.com/example/Blog.git ~/Blog
+git clone https://github.com/example/Blog-termux.git ~/Blog-termux
 
 # 2. 下载前端依赖库（一次性）
-cd ~/Blog/lib
+cd ~/Blog-termux/lib
 curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
@@ -46,14 +46,14 @@ curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.
 
 # 3. 将 example/Blog.conf 复制到 nginx 配置目录，修改路径
 cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
-# 编辑：将所有 /path/to/Blog 替换为 ~/Blog 的绝对路径
+# 编辑：将所有 /path/to/Blog-termux 替换为 ~/Blog-termux 的绝对路径
 
 # 4. 启动仪表盘定时采集（每 30 秒）
 # 编辑 corn.sh：将 OUTPUT 路径改为实际 dashboard.json 路径
 # 然后添加 crontab：
 #   crontab -e
-#   * * * * * ~/Blog/corn.sh
-#   * * * * * sleep 30; ~/Blog/corn.sh
+#   * * * * * ~/Blog-termux/corn.sh
+#   * * * * * sleep 30; ~/Blog-termux/corn.sh
 
 # 5. 重载 nginx 并访问
 nginx -s reload
@@ -65,7 +65,7 @@ nginx -s reload
 ## 目录结构
 
 ```
-Blog/
+Blog-termux/
 ├── index.html                       # 唯一入口 — 标签页切换所有功能
 ├── config.json                      # 服务导航配置
 ├── corn.sh                          # 系统资源采集脚本（零 root）
@@ -356,8 +356,8 @@ Html/                                       /api/html/
 以下 5 个文件必须放入 `lib/` 目录。**下载一次即可，后续完全离线运行。**
 
 ```bash
-mkdir -p ~/Blog/lib
-cd ~/Blog/lib
+mkdir -p ~/Blog-termux/lib
+cd ~/Blog-termux/lib
 
 # marked — Markdown 解析器
 curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
@@ -380,17 +380,17 @@ ls -lh lib/
 **Step 1 — 复制配置模板**
 
 ```bash
-cp ~/Blog/example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
+cp ~/Blog-termux/example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
 ```
 
 **Step 2 — 修改路径**
 
-编辑 `$PREFIX/etc/nginx/conf.d/Blog.conf`，将所有 `/path/to/Blog` 替换为实际路径：
+编辑 `$PREFIX/etc/nginx/conf.d/Blog.conf`，将所有 `/path/to/Blog-termux` 替换为实际路径：
 
 ```nginx
-# 假设项目在 /path/to/Blog
+# 假设项目在 /path/to/Blog-termux
 # 用 sed 一键替换：
-sed -i 's|/path/to/Blog|/path/to/Blog|g' \
+sed -i 's|/path/to/Blog-termux|/path/to/Blog-termux|g' \
     $PREFIX/etc/nginx/conf.d/Blog.conf
 ```
 
@@ -452,15 +452,15 @@ nginx -s reload             # 重载
 **Step 1 — 修改 corn.sh 输出路径**
 
 ```bash
-sed -i 's|/path/to/Blog|/path/to/Blog|g' \
-    ~/Blog/corn.sh
+sed -i 's|/path/to/Blog-termux|/path/to/Blog-termux|g' \
+    ~/Blog-termux/corn.sh
 ```
 
 **Step 2 — 手动测试**
 
 ```bash
-bash ~/Blog/corn.sh
-cat ~/Blog/dashboard.json
+bash ~/Blog-termux/corn.sh
+cat ~/Blog-termux/dashboard.json
 # 应看到类似 {"device":{"model":"Xiaomi 14",...},...} 的 JSON
 ```
 
@@ -469,8 +469,8 @@ cat ~/Blog/dashboard.json
 ```bash
 crontab -e
 # 添加以下两行（每 30 秒执行一次）：
-# * * * * * /path/to/Blog/corn.sh
-# * * * * * sleep 30; /path/to/Blog/corn.sh
+# * * * * * /path/to/Blog-termux/corn.sh
+# * * * * * sleep 30; /path/to/Blog-termux/corn.sh
 ```
 
 > **Termux 注意**：需要先启动 cron 服务。`sv-enable crond` (termux-services) 或手动 `crond`。
@@ -519,8 +519,8 @@ nginx -s reload
 curl http://127.0.0.1:7443/api/md/
 
 # 2. 目录是否为空
-ls ~/Blog/Markdown/
-ls ~/Blog/Image/
+ls ~/Blog-termux/Markdown/
+ls ~/Blog-termux/Image/
 
 # 3. 浏览器控制台 (F12) 有无 fetch 错误 —— 通常是 nginx 配置路径不对
 ```
@@ -529,10 +529,10 @@ ls ~/Blog/Image/
 
 ```bash
 # 检查 dashboard.json 是否存在且格式正确
-cat ~/Blog/dashboard.json
+cat ~/Blog-termux/dashboard.json
 
 # 手动执行一次采集脚本
-bash ~/Blog/corn.sh
+bash ~/Blog-termux/corn.sh
 
 # 确认 crond 在运行
 ps aux | grep crond
