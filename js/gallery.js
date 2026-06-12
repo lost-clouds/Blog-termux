@@ -1,18 +1,23 @@
+import { Utils } from './utils.js';
+import { Lightbox } from './lightbox.js';
+
 /* ============================================================
    gallery.js —— 图片画廊模块
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] 脚本加载时执行 IIFE，在 window 上挂载 Gallery API
-     [初始化] 外部调用 Gallery.init() → 获取图片列表 + 绑定事件
+     [加载] 作为 ES Module 被 app.js 静态导入
+     [初始化] 外部调用 Gallery.init() → 缓存 DOM + 绑定事件
+     [加载] Gallery.fetchImages() → 获取图片列表 + 渲染图片网格
      [运行] Gallery.render() → 按搜索词过滤渲染图片网格
      [交互] 点击图片卡片 → 调用 Lightbox.open() 展示灯箱
    ────────────────────────────────────────────────────────────
-   数据源：GET /api/images/ (nginx autoindex) → 解析 HTML 提取图片列表
-   依赖：Utils.escapeHtml, Lightbox.open
-   使用：Gallery.init()
+   数据源：Image/index.json 优先，/api/images/ autoindex 降级
+   依赖：Utils (escapeHtml/formatSize/parseAutoindex), Lightbox (open)
+   使用：import { Gallery } from './gallery.js'
    ============================================================ */
 
 'use strict';
+
 
     const IMG_EXTS = /\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)$/i;
 
@@ -114,7 +119,7 @@
         if (!card) return;
         const src  = card.getAttribute('data-src');
         const name = card.getAttribute('data-name');
-        if (src && typeof Lightbox !== 'undefined') {
+        if (src) {
             Lightbox.open(src, name);
         }
     }
@@ -144,12 +149,9 @@
         $gallerySearch = document.getElementById('gallerySearch');
 
         bindEvents();
-        fetchImages();
     }
 
     function hasImages() { return _images.length > 0; }
     const Gallery = { init: init, render: render, fetchImages: fetchImages, hasImages: hasImages };
-    window.Gallery = Gallery;
-
 
 export { Gallery };

@@ -1,0 +1,49 @@
+---
+# Homer 配置示例（参考用，项目已迁移为 config.json）
+# 原配置中的个人信息已移除，保留结构供参考
+
+title: "Dashboard"
+subtitle: "服务导航"
+
+header: false
+footer: false
+
+columns: "3"
+
+defaults:
+  layout: list
+
+message:
+  style: "is-dark"
+  title: "Welcome!"
+  content: "个人服务导航页面"
+
+links:
+  - name: "GitHub"
+    icon: "fab fa-github"
+    url: "https://github.com/example"
+    target: "_blank"
+
+services:
+  - name: "Server"
+    icon: "fa-solid fa-server"
+    items:
+      - name: "示例服务 1"
+        icon: "fa-solid fa-download"
+        subtitle: "服务描述"
+        tag: "tag-name"
+        url: "https://your-server.local:8443/service1/"
+      - name: "示例服务 2"
+        icon: "fa-solid fa-download"
+        subtitle: "服务描述"
+        tag: "tag-name"
+        url: "https://your-server.local:8443/service2/"
+
+  - name: "Game"
+    icon: "fa-solid fa-gamepad"
+    items:
+      - name: "示例服务 3"
+        icon: "fa-solid fa-download"
+        subtitle: "服务描述"
+        tag: "tag-name"
+        url: "http://your-server.local:8000"

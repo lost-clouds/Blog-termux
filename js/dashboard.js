@@ -2,14 +2,16 @@
    dashboard.js —— 系统资源仪表盘模块（8 卡片版）
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] IIFE 执行，缓存 DOM 引用
-     [init] 立即拉取 /api/dashboard + 每 10s 轮询
+     [加载] ES Module 被 app.js 静态导入
+     [init] 启动轮询（默认 Tab）+ 监听页面可见性
+     [enter] 进入 dashboard Tab → start()
+     [leave] 离开 dashboard Tab → stop()
      [update] 解析 JSON 渲染 8 张卡片
    ────────────────────────────────────────────────────────────
    卡片顺序：设备 → CPU → 内存 → 储存 → 网络 → 电池 → 服务 → 运行时间
    数据源: GET /api/dashboard → corn.sh 生成
    依赖: 无
-   使用: Dashboard.init()
+   使用：import { Dashboard } from './dashboard.js'
    ============================================================ */
 
 'use strict';
@@ -39,6 +41,7 @@
     var _fetchErrors = 0;
     var _fetching = false;
     var _paused = false;
+    var _tabActive = true;  // dashboard 是默认 Tab
 
     function set(el, text) { if (el) el.textContent = text || '--'; }
     function setBar(el, pct) {
@@ -209,9 +212,20 @@
     function onVisibilityChange() {
         if (document.hidden) {
             stop();
-        } else if (_paused) {
+        } else if (_tabActive) {
             start();
         }
+    }
+
+    /* ---- Tab 进入/离开（由 app.js switchTab 调用）---- */
+    function onTabEnter() {
+        _tabActive = true;
+        if (!document.hidden) start();
+    }
+
+    function onTabLeave() {
+        _tabActive = false;
+        stop();
     }
 
     /* ---- 初始化 ---- */
@@ -220,8 +234,10 @@
         document.addEventListener('visibilitychange', onVisibilityChange);
     }
 
-    const Dashboard = { init: init, update: update, fetchData: fetchData, start: start, stop: stop };
-    window.Dashboard = Dashboard;
-
+    const Dashboard = {
+        init: init, update: update, fetchData: fetchData,
+        start: start, stop: stop,
+        onTabEnter: onTabEnter, onTabLeave: onTabLeave
+    };
 
 export { Dashboard };

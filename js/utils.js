@@ -2,11 +2,11 @@
    utils.js —— 通用工具函数模块
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] 脚本加载时执行 IIFE，在 window 上挂载 Utils API
-     [运行] 各模块调用 Utils 方法进行 HTML 转义、文件下载等
+     [加载] ES Module 被多个业务模块静态导入
+     [运行] 提供 HTML 转义、文件大小格式化、autoindex 解析
    ────────────────────────────────────────────────────────────
    依赖：无
-   使用：Utils.escapeHtml(str), Utils.formatSize(bytes), Utils.parseAutoindex(resp, ext)
+   使用：import { Utils } from './utils.js'
    ============================================================ */
 
 'use strict';
@@ -68,6 +68,5 @@
         formatSize: formatSize,
         parseAutoindex: parseAutoindex
     };
-    window.Utils = Utils;
 
 export { Utils };

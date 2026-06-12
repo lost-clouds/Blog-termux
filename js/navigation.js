@@ -1,18 +1,21 @@
+import { Utils } from './utils.js';
+
 /* ============================================================
    navigation.js —— 服务导航模块（替代 Homer iframe）
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] 脚本加载时执行 IIFE，在 window 上挂载 Navigation API
+     [加载] 作为 ES Module 被 app.js 静态导入
      [初始化] 外部调用 Navigation.init() → 加载 config.json 并渲染
      [运行] Navigation.search(query) → 过滤服务卡片
      [渲染] 按分组渲染服务卡片，支持点击跳转到外部服务 URL
    ────────────────────────────────────────────────────────────
    数据源：GET /config.json → 服务分组配置
    依赖：Utils.escapeHtml
-   使用：Navigation.init()
+   使用：import { Navigation } from './navigation.js'
    ============================================================ */
 
 'use strict';
+
 
     let _config = null;
     let _debounceTimer = null;
@@ -112,7 +115,5 @@
     }
 
     const Navigation = { init: init, render: render, search: search };
-    window.Navigation = Navigation;
-
 
 export { Navigation };

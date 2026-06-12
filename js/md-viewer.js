@@ -1,18 +1,20 @@
+import { Utils } from './utils.js';
+
 /* ============================================================
    md-viewer.js —— Markdown 渲染引擎（全屏覆盖层 + 内联渲染）
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] IIFE 执行，挂载 MdViewer API
+     [加载] 作为 ES Module 被 app.js/blog.js 静态导入
      [init] 绑定覆盖层关闭事件、进度条、TOC
-     [render] MdViewer.render(raw, $el) → 内联渲染（blog.js 复用）
-     [open]   MdViewer.open(filename)   → 全屏覆盖层模式
+     [render] MdViewer.render(raw, el) → 共享 Markdown 渲染引擎（blog.js 内联 + 覆盖层共用）
    ────────────────────────────────────────────────────────────
    数据源：GET /Markdown/<filename>
-   依赖：marked, KaTeX(懒加载), Utils.escapeHtml, Lightbox.open
-   使用：MdViewer.init() / MdViewer.render(raw, $el) / MdViewer.open(fn) / MdViewer.close()
+   依赖：marked, KaTeX(懒加载), Utils.escapeHtml
+   使用：import { MdViewer } from './md-viewer.js'
    ============================================================ */
 
 'use strict';
+
 
     var _currentFile = null;
 
@@ -485,7 +487,5 @@
         buildToc: buildToc,
         bindTocLinks: bindTocLinks
     };
-    window.MdViewer = MdViewer;
-
 
 export { MdViewer };

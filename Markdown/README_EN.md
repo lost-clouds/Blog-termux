@@ -35,7 +35,7 @@ A pure static single-page application powered by Nginx. No PHP, Node.js, Python,
 
 ```bash
 # 1. Clone to your server
-git clone https://github.com/lost-clouds/Blog-termux.git ~/Blog-termux
+git clone https://github.com/example/Blog-termux.git ~/Blog-termux
 
 # 2. Download frontend dependencies (one-time)
 cd ~/Blog-termux/lib
@@ -50,17 +50,13 @@ cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
 # Edit: replace /path/to/Blog-termux with your actual absolute path
 
 # 4. Setup dashboard cron (every 30s)
-# corn.sh takes output path as first argument (default: /path/to/Blog-termux/dashboard.json)
-# Add crontab:
+# Edit corn.sh: set OUTPUT to your actual dashboard.json path
+# Then add crontab:
 #   crontab -e
-#   * * * * * ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
-#   * * * * * sleep 30; ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+#   * * * * * ~/Blog-termux/corn.sh
+#   * * * * * sleep 30; ~/Blog-termux/corn.sh
 
-# 5. (Optional) Generate static index for faster article/image loading
-bash ~/Blog-termux/gen_index.sh ~/Blog-termux
-# Add to cron for periodic updates: */5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux
-
-# 6. Reload nginx and open
+# 5. Reload nginx and open
 nginx -s reload
 # Visit https://127.0.0.1:7443 in browser
 ```
@@ -78,6 +74,7 @@ Blog-termux/
 ├── sw.js                            # Service Worker (offline cache + SWR)
 ├── .gitignore
 ├── LICENSE                          # MIT
+├── TECH_REPORT.md                   # Technical analysis report
 ├── favicon.ico
 │
 ├── css/
@@ -115,11 +112,11 @@ Blog-termux/
 │
 ├── Markdown/                        # .md articles
 ├── Html/                            # .html articles
-├── Image/                           # Images (scanned by gen_index.sh → shown in gallery)
-│   ├── posts/                       #   Article images → ✅ shown in gallery
-│   ├── gallery/                     #   Standalone images → ✅ shown in gallery
-│   ├── thumbnails/                  #   Thumbnail cache → ❌ skipped (gen_index.sh excludes)
-│   └── archive/unused/              #   Orphan images → ❌ skipped (gen_index.sh excludes)
+├── Image/                           # Images
+│   ├── posts/                       #   Article images (by slug)
+│   ├── gallery/                     #   Gallery images
+│   ├── thumbnails/                  #   Thumbnail cache
+│   └── archive/unused/              #   Orphan image archive
 │
 └── example/
     ├── Blog.conf                    # Nginx config template
@@ -160,19 +157,19 @@ index.html (SPA)
 ### Script Load Order
 
 ```
- main.js           → ES Module entry (<script type="module">)
-   └── app.js           → main controller, explicitly imports all modules:
-         ├── theme.js       → no deps
-         ├── utils.js       → no deps
-         ├── lightbox.js    → no deps
-         ├── dashboard.js   → no deps
-         ├── navigation.js  → depends on utils.js
-         ├── blog.js        → depends on utils.js + md-viewer.js
-         ├── gallery.js     → depends on utils.js + lightbox.js
-         └── md-viewer.js   → depends on marked (global) + utils.js
+ theme.js          → no deps
+ utils.js          → no deps
+ lightbox.js       → no deps
+ dashboard.js      → no deps
+ navigation.js     → depends on utils.js
+ blog.js           → depends on utils.js, references MdViewer at runtime
+ gallery.js        → depends on utils.js + lightbox.js
+ marked.min.js     → Markdown engine
+ md-viewer.js      → depends on marked + utils.js + lightbox.js
+ app.js            → depends on all, loads last, boot entry
 ```
 
-All business JS uses **ES Modules** (`import`/`export` with explicit dependency declarations). `main.js` is a single line `import './app.js'` — `app.js` manages the entire import chain. The only regular `<script>` is `lib/marked.min.js` (global `marked`). Module scripts auto-defer until DOM is ready.
+All JS modules use **ES Modules** (`export`/`import`) loaded via `main.js` entry point. Modules also attach to `window.*` globals for cross-module compatibility. The only regular `<script>` tag is `lib/marked.min.js` (provides the global `marked` parser).
 
 ### Data Flow
 
@@ -196,7 +193,7 @@ Html/                                           /api/html/
                                                    → renders article list / image grid
 ```
 
-Core idea: **gen_index.sh generates index.json as primary data source, with nginx autoindex fallback**. The frontend first fetches `Markdown/index.json` / `Image/index.json` (fast, structured), falling back to DOMParser-based autoindex parsing if the index is missing (404). `gen_index.sh` can be run manually or added to cron for periodic updates.
+Core idea: **nginx autoindex as a "backend-less API"**. The frontend parses nginx-generated directory listing HTML via `DOMParser` to extract filenames, sizes, and dates — zero backend code required.
 
 ---
 
@@ -241,9 +238,9 @@ Close via background click / close button / ESC. Gallery and Markdown images sha
 
 | | |
 |---|---|
-| Global | `import { Dashboard } from './dashboard.js'` |
-| Source | `GET /api/dashboard` (every 10s, paused when leaving tab) |
-| API | `init()` `update(data)` `fetchData()` `onTabEnter()` `onTabLeave()` |
+| Global | `window.Dashboard` |
+| Source | `GET /api/dashboard` (every 10s) |
+| API | `init()` `update(data)` `fetchData()` |
 
 Renders 8 cards:
 
@@ -292,13 +289,13 @@ Reads `config.json`, renders service cards grouped by category. Search filters b
 
 | | |
 |---|---|
-| Global | `import { Blog } from './blog.js'` |
-| Source | `index.json` first → nginx autoindex fallback |
-| API | `init()` `fetchArticles()` `selectArticle(name, type)` `hasArticles()` |
+| Global | `window.Blog` |
+| Source | `GET /api/md/` + `GET /api/html/` |
+| API | `init()` `fetchArticles()` `selectArticle(filename, type)` |
 
-Desktop: scrollable sidebar + search/filter | inline rendering | auto-generated ToC.
-250ms debounced search, `AbortController` cancels stale requests.
-Rendering via `MdViewer.render()` + `MdViewer.buildToc()`. HTML articles in new tab.
+Desktop: scrollable sidebar (article list + search/filter) | inline rendered content | auto-generated ToC.
+Mobile: sidebar slides in via CSS checkbox, ToC drops down from header.
+Rendering reuses `MdViewer.render()` and `MdViewer.buildToc()`, sharing the engine with the fullscreen overlay. HTML articles still open in new tab.
 
 ---
 
@@ -318,9 +315,9 @@ Thumbnail grid with search. Click → `Lightbox.open(src, name)`. Failed images 
 
 | | |
 |---|---|
-| Global | `import { MdViewer } from './md-viewer.js'` |
+| Global | `window.MdViewer` |
 | Source | `GET /Markdown/<filename>` |
-| API | `init()` `render(raw, $el)` `buildToc(html)` `open(fn)` `close()` |
+| API | `init()` `open(filename)` `close()` |
 
 Fullscreen overlay with:
 
@@ -340,20 +337,21 @@ Fullscreen overlay with:
 
 | | |
 |---|---|
-| Global | import chain root, not attached to window |
-| Role | Import all modules → ordered init → tab routing → keyboard nav → Service Worker |
+| Global | none (ES module entry, not exported) |
+| Role | Boot initialization, tab routing, responsive adaptation |
 
 Boot sequence:
 ```
-1.  Theme.initTheme()       → apply stored theme
-2.  Lightbox.init()         → bind lightbox events
-3.  MdViewer.init()         → pre-bind reader events
-4.  Dashboard.init()        → start polling (paused when leaving tab)
-5.  Navigation.init()       → load nav config + render
-6.  Blog.init()             → cache DOM + bind events (data lazy-loaded)
-7.  Gallery.init()          → cache DOM + bind events (data lazy-loaded)
-8.  Tab click/keyboard(←→HomeEnd) + theme toggle + hashchange events
-9.  URL hash restore + mobile responsive + Service Worker registration
+1.  Theme.initTheme()        → apply stored theme
+2.  Lightbox.init()          → bind lightbox events
+3.  MdViewer.init()          → pre-bind reader events
+4.  Dashboard.init()         → start dashboard polling
+5.  Navigation.init()        → load nav config + render
+6.  Blog.init()              → cache DOM + fetch articles
+7.  Gallery.init()           → cache DOM + fetch images
+8.  Bind tab bar + theme button events
+9.  Restore last tab from URL hash
+10. Mobile responsive adaptation
 ```
 
 ---
@@ -495,13 +493,11 @@ crontab -e
 
 | Content type | Place in | Discovery |
 |-------------|----------|-----------|
-| Markdown articles | `Markdown/` | index.json first → nginx autoindex fallback |
-| HTML articles | `Html/` | index.json first → nginx autoindex fallback |
-| Images | `Image/` | index.json first → nginx autoindex fallback |
+| Markdown articles | `Markdown/` | nginx autoindex → `GET /api/md/` |
+| HTML articles | `Html/` | nginx autoindex → `GET /api/html/` |
+| Images | `Image/` | nginx autoindex → `GET /api/images/` |
 
-> **Gallery visibility**: `gen_index.sh` skips `thumbnails/` and `archive/` — images in these directories are **not shown** in the gallery. Images in `posts/` and `gallery/` are indexed and displayed.
-
-Add or remove files and refresh the page. Run `bash gen_index.sh` to rebuild static indexes for faster loading; add `*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux` to cron for periodic updates.
+Add or remove files and refresh the page — no nginx restart needed.
 
 ### 7. Launch
 

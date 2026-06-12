@@ -2,14 +2,14 @@
    lightbox.js —— 图片灯箱模块
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] 脚本加载时执行 IIFE，在 window 上挂载 Lightbox API
-     [初始化] 外部调用 Lightbox.init() → 绑定关闭事件
+     [加载] ES Module 被 app.js/gallery.js 静态导入
+     [初始化] Lightbox.init() → 绑定关闭事件
      [运行] Lightbox.open(src, name) → 展示图片
            Lightbox.close() → 关闭灯箱
    ────────────────────────────────────────────────────────────
    事件：背景点击关闭、关闭按钮、ESC 键关闭
    依赖：无（直接操作 DOM 元素 #lightbox, #lightboxImg, #lightboxName）
-   使用：Lightbox.init() / Lightbox.open(src) / Lightbox.close()
+   使用：import { Lightbox } from './lightbox.js'
    ============================================================ */
 
 'use strict';
@@ -66,7 +66,5 @@
     }
 
     const Lightbox = { open: open, close: close, init: init };
-    window.Lightbox = Lightbox;
-
 
 export { Lightbox };

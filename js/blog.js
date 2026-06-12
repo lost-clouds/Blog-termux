@@ -1,16 +1,22 @@
+import { Utils } from './utils.js';
+import { MdViewer } from './md-viewer.js';
+
 /* ============================================================
    blog.js —— 博客模块（Hugo Book 风格三栏布局）
    ────────────────────────────────────────────────────────────
    生命周期：
-     [init]  获取文章列表 → 渲染侧边栏 → 自动加载第一篇
+     [init]  缓存 DOM → 绑定事件
+     [load]  fetchArticles() → 获取文章列表 → 渲染侧边栏 → 自动加载第一篇
      [render] 渲染左侧文章列表（搜索+类型过滤）
      [select] 点击文章 → 中间内联渲染正文 + 右侧生成 ToC
    ────────────────────────────────────────────────────────────
-   依赖：Utils.escapeHtml, MdViewer.render, MdViewer.buildToc
-   使用：Blog.init()
+   依赖：Utils (escapeHtml/formatSize/parseAutoindex),
+        MdViewer (render/buildToc/bindTocLinks)
+   使用：import { Blog } from './blog.js'
    ============================================================ */
 
 'use strict';
+
 
     var _articles = [];
     var _filterType = 'all';
@@ -185,14 +191,8 @@
             var raw = await resp.text();
 
             // 调用共享渲染引擎
-            if (typeof MdViewer === 'undefined' || !MdViewer.render) {
-                throw new Error('MdViewer 渲染模块未加载');
-            }
-
             var $article = document.createElement('div');
             $article.className = 'markdown-body';
-
-            // 清空内容容器，放入 markdown-body
             $blogContent.innerHTML = '';
             $blogContent.appendChild($article);
 
@@ -265,12 +265,9 @@
         $blogTitle          = document.getElementById('blogTitle');
 
         bindEvents();
-        fetchArticles();
     }
 
     function hasArticles() { return _articles.length > 0; }
     const Blog = { init: init, fetchArticles: fetchArticles, selectArticle: selectArticle, hasArticles: hasArticles };
-    window.Blog = Blog;
-
 
 export { Blog };

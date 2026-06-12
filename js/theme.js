@@ -2,13 +2,13 @@
    theme.js —— 主题管理模块
    ────────────────────────────────────────────────────────────
    生命周期：
-     [加载] 脚本加载时执行 IIFE，在 window 上挂载 Theme API
-     [初始化] 外部调用 Theme.initTheme() → 应用存储的主题
+     [加载] ES Module 被 app.js 静态导入
+     [初始化] Theme.initTheme() → 应用存储的主题
      [运行] Theme.toggleTheme() 在深色/浅色间切换
      [持久化] 主题偏好存储在 localStorage key: "app-theme"
    ────────────────────────────────────────────────────────────
-   依赖：无
-   使用：Theme.initTheme() / Theme.toggleTheme() / Theme.applyTheme()
+   依赖：无（DOM / localStorage / matchMedia）
+   使用：import { Theme } from './theme.js'
    ============================================================ */
 
 'use strict';
@@ -56,14 +56,12 @@
         applyTheme(getStoredTheme());
     }
 
-    // 暴露 API 到全局
+    // 暴露 API
     const Theme = {
         getStoredTheme: getStoredTheme,
         applyTheme: applyTheme,
         toggleTheme: toggleTheme,
         initTheme: initTheme
     };
-    window.Theme = Theme;
-
 
 export { Theme };

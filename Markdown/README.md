@@ -3,9 +3,11 @@
 
 纯静态单页面应用，基于 Nginx 运行，无需 PHP / Node / Python 等后端。集成 **系统仪表盘**、**服务导航**、**博客阅读器**、**图片画廊** 四大模块，自适应 PC / 平板 / 手机。
 
-![仪表盘+导航](example/example.png)
-![博客三栏布局白](example/example0.png)
-![博客三栏布局黑](example/example1.png)
+![仪表盘+导航](Image/posts/example.png)
+![博客三栏布局白](posts/example0.png)
+![博客三栏布局黑](Image/posts/example1.png)
+
+![仪表盘截图](Image/posts/example.png)
 
 > 附赠我个人的[termux的使用总结](Markdown/termux使用总结.md)  
 以及,本项目最初来自于 [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git) 在长期使用中东改一点西修一下,最终变成了现在这样。
@@ -34,7 +36,7 @@
 
 ```bash
 # 1. 克隆项目到你的服务器
-git clone https://github.com/lost-clouds/Blog-termux.git ~/Blog-termux
+git clone https://github.com/example/Blog-termux.git ~/Blog-termux
 
 # 2. 下载前端依赖库（一次性）
 cd ~/Blog-termux/lib
@@ -77,6 +79,7 @@ Blog-termux/
 ├── sw.js                            # Service Worker（离线缓存 + 文章 SWR 策略）
 ├── .gitignore                       # 忽略运行时产物
 ├── LICENSE                          # MIT 许可证
+├── TECH_REPORT.md                   # 技术分析报告
 ├── favicon.ico
 │
 ├── css/
@@ -125,11 +128,11 @@ Blog-termux/
 │
 ├── Markdown/                        # 放 .md 文章
 ├── Html/                            # 放 .html 文章
-├── Image/                           # 图片目录（gen_index.sh 扫描 → 图库展示）
-│   ├── posts/                       #   文章配图 → ✅ 图库展示
-│   ├── gallery/                     #   独立图片 → ✅ 图库展示
-│   ├── thumbnails/                  #   缩略图缓存 → ❌ 图库不展示（gen_index.sh 跳过）
-│   └── archive/unused/              #   未使用图片 → ❌ 图库不展示（gen_index.sh 跳过）
+├── Image/                           # 图片目录
+│   ├── posts/                       #   文章配图（按 article-slug 分目录）
+│   ├── gallery/                     #   独立图库图片
+│   ├── thumbnails/                  #   缩略图缓存
+│   └── archive/unused/              #   未使用图片归档
 │
 └── example/
     ├── Blog.conf                    # Nginx 配置示例
@@ -170,19 +173,19 @@ index.html (单页面)
 ### 脚本加载链
 
 ```
- main.js           → ES Module 入口 (<script type="module">)
-   └── app.js           → 主控制器，显式 import 所有模块：
-         ├── theme.js       → 无依赖
-         ├── utils.js       → 无依赖
-         ├── lightbox.js    → 无依赖
-         ├── dashboard.js   → 无依赖
-         ├── navigation.js  → 依赖 utils.js
-         ├── blog.js        → 依赖 utils.js + md-viewer.js
-         ├── gallery.js     → 依赖 utils.js + lightbox.js
-         └── md-viewer.js   → 依赖 marked (全局) + utils.js
+ main.js           → ES Module 入口，浏览器 <script type="module"> 加载
+   ├── theme.js         → 无依赖
+   ├── utils.js         → 无依赖
+   ├── lightbox.js      → 无依赖
+   ├── dashboard.js     → 无依赖
+   ├── navigation.js    → 依赖 utils.js
+   ├── blog.js          → 依赖 utils.js，运行时引用 MdViewer
+   ├── gallery.js       → 依赖 utils.js + lightbox.js
+   ├── md-viewer.js     → 依赖 marked (全局) + utils.js + lightbox.js
+   └── app.js           → 依赖全部，最后加载，引导入口
 ```
 
-所有业务 JS 使用 **ES Modules**（`import`/`export` 显式声明依赖）。`main.js` 精简为单行 `import './app.js'`，由 `app.js` 统一管理导入链。唯一保留的常规 `<script>` 是 `lib/marked.min.js`（提供全局 `marked`）。Module 脚本自动延迟到 DOM 就绪后执行。
+所有业务 JS 使用 **ES Modules** (`export`/`import`)，通过 `main.js` 统一导入并保证加载顺序。模块同时挂载到 `window.*` 全局以维持跨模块调用的兼容性。唯一保留的常规 `<script>` 标签是 `lib/marked.min.js`（提供全局 `marked` 解析器）。
 
 ### 数据流
 
@@ -251,9 +254,9 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | `import { Dashboard } from './dashboard.js'` |
-| 数据源 | `GET /api/dashboard` (每 10 秒轮询，离开标签时暂停) |
-| 对外方法 | `init()` `update(data)` `fetchData()` `onTabEnter()` `onTabLeave()` |
+| 全局名 | `window.Dashboard` |
+| 数据源 | `GET /api/dashboard` (每 10 秒轮询) |
+| 对外方法 | `init()` `update(data)` `fetchData()` |
 
 渲染 8 张卡片：
 
@@ -303,13 +306,13 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | `import { Blog } from './blog.js'` |
-| 数据源 | `index.json` 优先 → nginx autoindex 降级 |
-| 对外方法 | `init()` `fetchArticles()` `selectArticle(name, type)` `hasArticles()` |
+| 全局名 | `window.Blog` |
+| 数据源 | `GET /api/md/` + `GET /api/html/` |
+| 对外方法 | `init()` `fetchArticles()` `selectArticle(filename, type)` |
 
-桌面端三栏布局：左侧可滚动文章目录 + 搜索/类型过滤 → 中间内联渲染 → 右侧 ToC。
-搜索 250ms 防抖，`AbortController` 取消上次未完成请求防竞态。
-渲染复用 `MdViewer.render()` + `MdViewer.buildToc()`，HTML 文章新标签页打开。
+桌面端三栏布局：左侧可滚动文章目录 + 搜索/类型过滤 → 中间内联渲染正文 → 右侧自动生成 ToC。
+移动端侧边栏通过 CSS checkbox 滑入，ToC 下拉面板。
+渲染复用 `MdViewer.render()` 和 `MdViewer.buildToc()`，与覆盖层共享引擎。HTML 文章仍新标签页打开。
 
 ---
 
@@ -325,26 +328,25 @@ Html/                                       /api/html/
 
 ---
 
-### md-viewer.js — Markdown 渲染引擎
+### md-viewer.js — Markdown 阅读器
 
 | | |
 |---|---|
-| 全局名 | `import { MdViewer } from './md-viewer.js'` |
+| 全局名 | `window.MdViewer` |
 | 数据源 | `GET /Markdown/<filename>` |
-| 对外方法 | `init()` `render(raw, $el)` `buildToc(html)` `open(fn)` `close()` |
+| 对外方法 | `init()` `open(filename)` `close()` |
 
-全屏覆盖层 + 内联渲染共享引擎，功能集：
+全屏覆盖层，功能集：
 
 | 功能 | 实现 |
 |------|------|
 | Markdown 解析 | marked 引擎 |
-| XSS 防护 | 白名单 HTML sanitizer（标签/属性/URL 三重过滤） |
-| 数学公式 | KaTeX 按需懒加载 |
-| TOC 目录 | 解析 h1-h6，层级缩进，侧边栏滑入 |
+| 数学公式 | KaTeX 按需懒加载（仅检测到 `$$`/`$`/`\[` 时加载） |
+| TOC 目录 | 解析 h1-h6 标题，层级缩进，侧边栏滑入 |
 | 阅读进度 | 顶部 3px 蓝色进度条 |
 | 标题锚点 | 每个标题注入 `#` 链接 |
-| 图片处理 | 相对路径 → `/api/images/<name>`，灯箱放大 |
-| 快捷键 | ESC 关灯箱 → 关阅读器 |
+| 图片处理 | 相对路径 → `/api/images/<name>`，点击独立灯箱放大 |
+| 快捷键 | ESC 关闭灯箱（优先）→ 关闭阅读器 |
 
 ---
 
@@ -352,20 +354,21 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | `import` 链根节点，不挂载全局 |
-| 职责 | 导入全部模块 → 按序初始化 → 标签页路由 → 键盘导航 → Service Worker |
+| 全局名 | 无（ES Module 入口，不挂载全局） |
+| 职责 | 引导初始化、标签页路由、响应式适配 |
 
 初始化序列：
 ```
-1.  Theme.initTheme()       → 应用存储的主题
-2.  Lightbox.init()         → 绑定全局灯箱事件
-3.  MdViewer.init()         → 预绑定阅读器事件
-4.  Dashboard.init()        → 开始仪表盘轮询（离开标签时暂停）
-5.  Navigation.init()       → 加载导航配置 + 渲染
-6.  Blog.init()             → 缓存 DOM + 绑定事件（数据懒加载）
-7.  Gallery.init()          → 缓存 DOM + 绑定事件（数据懒加载）
-8.  标签栏点击/键盘(←→HomeEnd) + 主题按钮 + hashchange 事件
-9.  URL hash 恢复 + 移动端响应式 + Service Worker 注册
+1. Theme.initTheme()        → 应用存储的主题
+2. Lightbox.init()          → 绑定全局灯箱事件
+3. MdViewer.init()          → 预绑定阅读器事件
+4. Dashboard.init()         → 开始仪表盘轮询
+5. Navigation.init()        → 加载导航配置 + 渲染
+6. Blog.init()              → 缓存 DOM + 拉取文章列表
+7. Gallery.init()           → 缓存 DOM + 拉取图片列表
+8. 标签栏 + 主题按钮事件绑定
+9. URL hash 恢复上次标签状态
+10. 移动端响应式适配
 ```
 
 ---
@@ -508,8 +511,6 @@ crontab -e
 | Markdown 文章 | `Markdown/` | index.json 优先 → nginx autoindex 降级 |
 | HTML 文章 | `Html/` | index.json 优先 → nginx autoindex 降级 |
 | 图片 | `Image/` | index.json 优先 → nginx autoindex 降级 |
-
-> **图库展示规则**：`gen_index.sh` 扫描时**跳过 `thumbnails/` 和 `archive/`**，这两目录下的图片不会出现在图库中。`posts/` 和 `gallery/` 下的图片会被索引并展示。
 
 文件增删后**刷新页面即可**看到变化。运行 `bash gen_index.sh` 可生成静态索引加速加载，也可加入 cron：`*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux`
 
