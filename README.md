@@ -49,13 +49,17 @@ cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
 # 编辑：将所有 /path/to/Blog-termux 替换为 ~/Blog-termux 的绝对路径
 
 # 4. 启动仪表盘定时采集（每 30 秒）
-# 编辑 corn.sh：将 OUTPUT 路径改为实际 dashboard.json 路径
-# 然后添加 crontab：
+# corn.sh 第一个参数为输出路径（默认 /path/to/Blog-termux/dashboard.json）
+# 添加 crontab：
 #   crontab -e
-#   * * * * * ~/Blog-termux/corn.sh
-#   * * * * * sleep 30; ~/Blog-termux/corn.sh
+#   * * * * * ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+#   * * * * * sleep 30; ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 
-# 5. 重载 nginx 并访问
+# 5. （可选）生成静态索引，加速文章/图片列表加载
+bash ~/Blog-termux/gen_index.sh ~/Blog-termux
+# 可加入 cron 定时更新：*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux
+
+# 6. 重载 nginx 并访问
 nginx -s reload
 # 浏览器打开 https://127.0.0.1:7443
 ```
@@ -66,26 +70,52 @@ nginx -s reload
 
 ```
 Blog-termux/
-├── index.html                       # 唯一入口 — 标签页切换所有功能
+├── index.html                       # 唯一入口
 ├── config.json                      # 服务导航配置
 ├── corn.sh                          # 系统资源采集脚本（零 root）
+├── gen_index.sh                     # 静态索引生成器（生成 index.json 供前端优先读取）
+├── sw.js                            # Service Worker（离线缓存 + 文章 SWR 策略）
 ├── .gitignore                       # 忽略运行时产物
 ├── LICENSE                          # MIT 许可证
+├── TECH_REPORT.md                   # 技术分析报告
 ├── favicon.ico
 │
 ├── css/
-│   └── style.css                    # 全站样式（浅色/深色变量 + 响应式）
+│   ├── style.css                    # 构建产物 — 合并后的全站样式
+│   ├── build.sh                     # CSS 构建脚本（cat 合并源文件）
+│   ├── split.sh                     # CSS 拆分脚本（将 style.css 拆为模块）
+│   └── src/                         # CSS 源文件（按模块拆分）
+│       ├── _header.css              #   文件头注释
+│       ├── variables.css            #   CSS 自定义属性
+│       ├── base.css                 #   重置 + 排版
+│       ├── layout.css               #   页面布局
+│       ├── responsive.css           #   响应式断点
+│       ├── components/              #   组件样式
+│       │   ├── header.css
+│       │   ├── tabs.css
+│       │   ├── dashboard.css
+│       │   ├── navigation.css
+│       │   ├── blog.css
+│       │   ├── gallery.css
+│       │   ├── md-overlay.css
+│       │   ├── toc.css
+│       │   ├── image-lightbox.css
+│       │   ├── progress-bar.css
+│       │   └── bottom-nav.css
+│       └── themes/
+│           └── dark.css             #   深色模式覆盖
 │
-├── js/
-│   ├── theme.js                     # 主题管理（localStorage 持久化）
-│   ├── utils.js                     # 工具函数（HTML 转义、下载）
-│   ├── lightbox.js                  # 图片灯箱组件
-│   ├── dashboard.js                 # 系统仪表盘模块
-│   ├── navigation.js                # 服务导航模块
-│   ├── blog.js                      # 博客文章列表模块
-│   ├── gallery.js                   # 图片画廊模块
-│   ├── md-viewer.js                 # Markdown 阅读器模块
-│   └── app.js                       # 主控制器（引导、路由、协调）
+├── js/                              # ES Module 模块
+│   ├── main.js                      #   模块入口 — 按序导入全部模块
+│   ├── theme.js                     #   主题管理
+│   ├── utils.js                     #   工具函数
+│   ├── lightbox.js                  #   图片灯箱组件
+│   ├── dashboard.js                 #   系统仪表盘模块
+│   ├── navigation.js                #   服务导航模块
+│   ├── blog.js                      #   博客文章列表模块
+│   ├── gallery.js                   #   图片画廊模块
+│   ├── md-viewer.js                 #   Markdown 阅读器模块
+│   └── app.js                       #   主控制器（引导、路由、协调）
 │
 ├── lib/                             # 第三方库（全部本地，零 CDN 依赖）
 │   ├── marked.min.js                #   Markdown 解析
@@ -94,17 +124,19 @@ Blog-termux/
 │   ├── auto-render.min.js           #   KaTeX 自动渲染
 │   └── github-markdown.min.css      #   GitHub 风格 Markdown 样式
 │
-├── Markdown/                        # 放 .md 文章（nginx autoindex 自动列出）
+├── Markdown/                        # 放 .md 文章
 ├── Html/                            # 放 .html 文章
-├── Image/                           # 放图片
+├── Image/                           # 图片目录
+│   ├── posts/                       #   文章配图（按 article-slug 分目录）
+│   ├── gallery/                     #   独立图库图片
+│   ├── thumbnails/                  #   缩略图缓存
+│   └── archive/unused/              #   未使用图片归档
 │
 └── example/
-    ├── example.png                  # 界面截图（仪表盘+导航）
-    ├── example1.png                 # 界面截图（博客三栏布局）
     ├── Blog.conf                    # Nginx 配置示例
-    ├── homer_config.yml             # 原 Homer 配置（参考用）
-    ├── homer_index.html             # 原 Homer 入口（已废弃）
-    └── hugo-book-0.14.0/            # Hugo Book 主题参考
+    ├── example.png                  # 界面截图（仪表盘+导航）
+    ├── example0.png                 # 界面截图（博客三栏-浅色）
+    └── example1.png                 # 界面截图（博客三栏-深色）
 ```
 
 ---
@@ -139,19 +171,19 @@ index.html (单页面)
 ### 脚本加载链
 
 ```
- theme.js          → 无依赖
- utils.js          → 无依赖
- lightbox.js       → 无依赖
- dashboard.js      → 无依赖
- navigation.js     → 依赖 utils.js
- blog.js           → 依赖 utils.js，运行时引用 MdViewer
- gallery.js        → 依赖 utils.js + lightbox.js
- marked.min.js     → Markdown 引擎
- md-viewer.js      → 依赖 marked + utils.js + lightbox.js
- app.js            → 依赖全部，最后加载，引导入口
+ main.js           → ES Module 入口，浏览器 <script type="module"> 加载
+   ├── theme.js         → 无依赖
+   ├── utils.js         → 无依赖
+   ├── lightbox.js      → 无依赖
+   ├── dashboard.js     → 无依赖
+   ├── navigation.js    → 依赖 utils.js
+   ├── blog.js          → 依赖 utils.js，运行时引用 MdViewer
+   ├── gallery.js       → 依赖 utils.js + lightbox.js
+   ├── md-viewer.js     → 依赖 marked (全局) + utils.js + lightbox.js
+   └── app.js           → 依赖全部，最后加载，引导入口
 ```
 
-所有模块通过 `<script>` 标签顺序保证依赖关系，不依赖打包工具或 ES modules，浏览器直接执行。
+所有业务 JS 使用 **ES Modules** (`export`/`import`)，通过 `main.js` 统一导入并保证加载顺序。模块同时挂载到 `window.*` 全局以维持跨模块调用的兼容性。唯一保留的常规 `<script>` 标签是 `lib/marked.min.js`（提供全局 `marked` 解析器）。
 
 ### 数据流
 
@@ -175,7 +207,7 @@ Html/                                       /api/html/
                                               → 渲染文章列表 / 图片网格
 ```
 
-核心思路：**用 nginx autoindex 作为"无后端 API"**。前端通过 `DOMParser` 解析 nginx 生成的目录列表 HTML，提取文件名、大小、修改时间，实现零后端的文件发现。
+核心思路：**gen_index.sh 生成 index.json 优先 + nginx autoindex 降级**。前端优先 fetch `Markdown/index.json` 等静态索引文件（结构稳定、解析快），若索引未生成（404）则降级为解析 nginx autoindex HTML，实现零后端的文件发现。`gen_index.sh` 可手动执行或加入 cron 定时更新。
 
 ---
 
@@ -242,6 +274,7 @@ Html/                                       /api/html/
 `dashboard.json` 格式（由 corn.sh 生成）：
 ```json
 {
+  "timestamp": "2026-06-12T14:30:00+08:00",
   "device": {"model": "OnePlus KB2000", "android": "14", "kernel": "4.19"},
   "cpu": {"usage": 12.3, "cores": 8, "model": "kona"},
   "memory": {"used": 4.3, "total": 11.2, "unit": "GB"},
@@ -319,7 +352,7 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | 无 (IIFE，不挂载全局) |
+| 全局名 | 无（ES Module 入口，不挂载全局） |
 | 职责 | 引导初始化、标签页路由、响应式适配 |
 
 初始化序列：
@@ -449,28 +482,22 @@ nginx -s reload             # 重载
 
 ### 5. 配置仪表盘定时更新
 
-**Step 1 — 修改 corn.sh 输出路径**
+**Step 1 — 测试 corn.sh**
 
 ```bash
-sed -i 's|/path/to/Blog-termux|/path/to/Blog-termux|g' \
-    ~/Blog-termux/corn.sh
-```
-
-**Step 2 — 手动测试**
-
-```bash
-bash ~/Blog-termux/corn.sh
+# corn.sh 第一个参数为输出路径
+bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 cat ~/Blog-termux/dashboard.json
-# 应看到类似 {"device":{"model":"Xiaomi 14",...},...} 的 JSON
+# 应看到类似 {"timestamp":"2026-06-12T...","device":{"model":"Xiaomi 14",...},...} 的 JSON
 ```
 
-**Step 3 — 配置 crontab**
+**Step 2 — 配置 crontab**
 
 ```bash
 crontab -e
 # 添加以下两行（每 30 秒执行一次）：
-# * * * * * /path/to/Blog-termux/corn.sh
-# * * * * * sleep 30; /path/to/Blog-termux/corn.sh
+# * * * * * bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+# * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 ```
 
 > **Termux 注意**：需要先启动 cron 服务。`sv-enable crond` (termux-services) 或手动 `crond`。
@@ -479,11 +506,11 @@ crontab -e
 
 | 内容类型 | 放入目录 | 发现方式 |
 |----------|----------|----------|
-| Markdown 文章 | `Markdown/` | nginx autoindex → `GET /api/md/` |
-| HTML 文章 | `Html/` | nginx autoindex → `GET /api/html/` |
-| 图片 | `Image/` | nginx autoindex → `GET /api/images/` |
+| Markdown 文章 | `Markdown/` | index.json 优先 → nginx autoindex 降级 |
+| HTML 文章 | `Html/` | index.json 优先 → nginx autoindex 降级 |
+| 图片 | `Image/` | index.json 优先 → nginx autoindex 降级 |
 
-文件增删后**刷新页面即可**看到变化，无需重启 nginx。
+文件增删后**刷新页面即可**看到变化。运行 `bash gen_index.sh` 可生成静态索引加速加载，也可加入 cron：`*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux`
 
 ### 7. 启动
 

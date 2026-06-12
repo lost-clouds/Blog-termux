@@ -6,11 +6,10 @@
      [运行] 各模块调用 Utils 方法进行 HTML 转义、文件下载等
    ────────────────────────────────────────────────────────────
    依赖：无
-   使用：Utils.escapeHtml(str) / Utils.downloadFile(url, name)
+   使用：Utils.escapeHtml(str), Utils.formatSize(bytes), Utils.parseAutoindex(resp, ext)
    ============================================================ */
 
-(function(global) {
-    'use strict';
+'use strict';
 
     /* ---- HTML 特殊字符转义（防 XSS）---- */
     function escapeHtml(str) {
@@ -31,33 +30,44 @@
         return val.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
     }
 
-    /* ---- 通过 Blob 下载文件（解决跨域 <a download> 失效）---- */
-    async function downloadFile(url, filename) {
-        try {
-            const resp = await fetch(url);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const blob = await resp.blob();
-            const objUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = objUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-        } catch (err) {
-            console.error('下载失败:', err);
-            alert('下载失败: ' + err.message);
+    /* ---- 解析 nginx autoindex HTML 目录列表 ---- */
+    async function parseAutoindex(resp, extPattern) {
+        var text = await resp.text();
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(text, 'text/html');
+        var links = doc.querySelectorAll('a');
+        var results = [];
+
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            var href = link.getAttribute('href');
+            if (!href || href === '../' || href === '/') continue;
+
+            var name;
+            try { name = decodeURIComponent(href); } catch(e) { name = href; }
+            if (!extPattern.test(name)) continue;
+
+            var size = '?', modified = '?';
+            var parent = link.parentElement;
+            if (parent) {
+                var txt = parent.textContent || '';
+                var dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
+                if (dm) modified = dm[1];
+                var sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
+                if (sm) size = sm[1] + ' ' + sm[2];
+            }
+
+            results.push({ name: name, size: size, modified: modified });
         }
+
+        return results;
     }
 
-    global.Utils = {
+    const Utils = {
         escapeHtml: escapeHtml,
         formatSize: formatSize,
-        downloadFile: downloadFile
+        parseAutoindex: parseAutoindex
     };
+    window.Utils = Utils;
 
-    // 同时挂载 downloadFile 到全局（供 onclick 属性调用）
-    global.downloadFile = downloadFile;
-
-})(window);
+export { Utils };

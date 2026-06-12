@@ -11,8 +11,7 @@
    使用：Theme.initTheme() / Theme.toggleTheme() / Theme.applyTheme()
    ============================================================ */
 
-(function(global) {
-    'use strict';
+'use strict';
 
     const STORAGE_KEY = 'app-theme';
 
@@ -58,11 +57,13 @@
     }
 
     // 暴露 API 到全局
-    global.Theme = {
+    const Theme = {
         getStoredTheme: getStoredTheme,
         applyTheme: applyTheme,
         toggleTheme: toggleTheme,
         initTheme: initTheme
     };
+    window.Theme = Theme;
 
-})(window);
+
+export { Theme };

@@ -1,0 +1,13 @@
+/* ============================================================
+   13. 阅读进度条（Markdown 阅读器顶部）
+   ============================================================ */
+.md-progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 0%;
+    height: 3px;
+    background: var(--accent);
+    z-index: 1200;
+    transition: width 0.1s linear;
+}
+

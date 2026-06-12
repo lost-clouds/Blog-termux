@@ -12,8 +12,7 @@
    使用: Dashboard.init()
    ============================================================ */
 
-(function(global) {
-    'use strict';
+'use strict';
 
     /* ---- DOM 引用 ---- */
     var els = {
@@ -38,6 +37,8 @@
 
     var _timer = null;
     var _fetchErrors = 0;
+    var _fetching = false;
+    var _paused = false;
 
     function set(el, text) { if (el) el.textContent = text || '--'; }
     function setBar(el, pct) {
@@ -49,6 +50,18 @@
     /* ---- 更新 8 张卡片 ---- */
     function update(data) {
         try {
+            // 数据新鲜度指示器
+            var ageEl = document.getElementById('dataAge');
+            if (data.timestamp && ageEl) {
+                var ts = new Date(data.timestamp).getTime();
+                var age = isNaN(ts) ? -1 : Math.floor((Date.now() - ts) / 1000);
+                var ageText = '', ageClass = '';
+                if (age >= 0 && age <= 60) { ageText = age + 's 前'; ageClass = 'age-fresh'; }
+                else if (age <= 120) { ageText = Math.floor(age / 60) + 'm 前'; ageClass = 'age-warn'; }
+                else if (age > 120) { ageText = Math.floor(age / 60) + 'm 前'; ageClass = 'age-stale'; }
+                ageEl.textContent = ageText;
+                ageEl.className = 'data-age' + (ageClass ? ' ' + ageClass : '');
+            }
             // 1. 设备
             if (data.device) {
                 set(els.deviceValue, data.device.model || '--');
@@ -147,8 +160,10 @@
         set(els.uptimeValue, '--');
     }
 
-    /* ---- 获取数据 ---- */
+    /* ---- 获取数据（含请求去重）---- */
     async function fetchData() {
+        if (_fetching) return;
+        _fetching = true;
         try {
             var resp = await fetch('/api/dashboard');
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -161,19 +176,52 @@
             if (_fetchErrors === 1) {
                 set(els.deviceValue, '无数据');
                 set(els.deviceSub, '检查 corn.sh / nginx /api/dashboard');
-            } else if (_fetchErrors > 5) {
+            } else if (_fetchErrors <= 5) {
+                // 中间错误状态：更新数据新鲜度指示器显示过期
+                var ageEl = document.getElementById('dataAge');
+                if (ageEl) {
+                    ageEl.textContent = '数据可能过期';
+                    ageEl.className = 'data-age age-stale';
+                }
+            } else {
                 reset();
             }
+        } finally {
+            _fetching = false;
         }
     }
 
-    /* ---- 初始化 ---- */
-    function init() {
+    /* ---- 启动轮询 ---- */
+    function start() {
+        _paused = false;
         fetchData();
         if (_timer) clearInterval(_timer);
         _timer = setInterval(fetchData, 10000);
     }
 
-    global.Dashboard = { init: init, update: update, fetchData: fetchData };
+    /* ---- 停止轮询 ---- */
+    function stop() {
+        _paused = true;
+        if (_timer) { clearInterval(_timer); _timer = null; }
+    }
 
-})(window);
+    /* ---- 页面可见性变化处理 ---- */
+    function onVisibilityChange() {
+        if (document.hidden) {
+            stop();
+        } else if (_paused) {
+            start();
+        }
+    }
+
+    /* ---- 初始化 ---- */
+    function init() {
+        start();
+        document.addEventListener('visibilitychange', onVisibilityChange);
+    }
+
+    const Dashboard = { init: init, update: update, fetchData: fetchData, start: start, stop: stop };
+    window.Dashboard = Dashboard;
+
+
+export { Dashboard };

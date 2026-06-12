@@ -50,13 +50,17 @@ cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
 # Edit: replace /path/to/Blog-termux with your actual absolute path
 
 # 4. Setup dashboard cron (every 30s)
-# Edit corn.sh: set OUTPUT to your actual dashboard.json path
-# Then add crontab:
+# corn.sh takes output path as first argument (default: /path/to/Blog-termux/dashboard.json)
+# Add crontab:
 #   crontab -e
-#   * * * * * ~/Blog-termux/corn.sh
-#   * * * * * sleep 30; ~/Blog-termux/corn.sh
+#   * * * * * ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+#   * * * * * sleep 30; ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 
-# 5. Reload nginx and open
+# 5. (Optional) Generate static index for faster article/image loading
+bash ~/Blog-termux/gen_index.sh ~/Blog-termux
+# Add to cron for periodic updates: */5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux
+
+# 6. Reload nginx and open
 nginx -s reload
 # Visit https://127.0.0.1:7443 in browser
 ```
@@ -70,23 +74,38 @@ Blog-termux/
 ├── index.html                       # Single entry point — tabbed SPA
 ├── config.json                      # Service navigation config
 ├── corn.sh                          # System metrics collector (no root)
+├── gen_index.sh                     # Static index generator (index.json)
+├── sw.js                            # Service Worker (offline cache + SWR)
 ├── .gitignore
 ├── LICENSE                          # MIT
+├── TECH_REPORT.md                   # Technical analysis report
 ├── favicon.ico
 │
 ├── css/
-│   └── style.css                    # All styles (light/dark variables + responsive)
+│   ├── style.css                    # Built output — merged full stylesheet
+│   ├── build.sh                     # CSS build script (cat merge)
+│   ├── split.sh                     # CSS split script
+│   └── src/                         # CSS source (modular split)
+│       ├── _header.css
+│       ├── variables.css            #   CSS custom properties
+│       ├── base.css                 #   Reset + typography
+│       ├── layout.css               #   Page layout
+│       ├── responsive.css           #   Responsive breakpoints
+│       ├── components/              #   Component styles
+│       └── themes/
+│           └── dark.css             #   Dark mode overrides
 │
-├── js/
-│   ├── theme.js                     # Theme manager (localStorage)
-│   ├── utils.js                     # Utilities (HTML escape, download)
-│   ├── lightbox.js                  # Image lightbox
-│   ├── dashboard.js                 # System dashboard
-│   ├── navigation.js                # Service navigation
-│   ├── blog.js                      # Article list
-│   ├── gallery.js                   # Image gallery
-│   ├── md-viewer.js                 # Markdown reader (fullscreen overlay)
-│   └── app.js                       # Main controller (boot, routing, coordination)
+├── js/                              # ES Modules
+│   ├── main.js                      #   Module entry — imports all in order
+│   ├── theme.js                     #   Theme manager
+│   ├── utils.js                     #   Utilities
+│   ├── lightbox.js                  #   Image lightbox
+│   ├── dashboard.js                 #   System dashboard
+│   ├── navigation.js                #   Service navigation
+│   ├── blog.js                      #   Article list + reader
+│   ├── gallery.js                   #   Image gallery
+│   ├── md-viewer.js                 #   Markdown reader (overlay)
+│   └── app.js                       #   Main controller
 │
 ├── lib/                             # Third-party libraries (all local, zero CDN)
 │   ├── marked.min.js                #   Markdown parser
@@ -95,17 +114,19 @@ Blog-termux/
 │   ├── auto-render.min.js           #   KaTeX auto-render
 │   └── github-markdown.min.css      #   GitHub-flavored Markdown styles
 │
-├── Markdown/                        # .md articles (nginx autoindex exposes file list)
+├── Markdown/                        # .md articles
 ├── Html/                            # .html articles
-├── Image/                           # Image files
+├── Image/                           # Images
+│   ├── posts/                       #   Article images (by slug)
+│   ├── gallery/                     #   Gallery images
+│   ├── thumbnails/                  #   Thumbnail cache
+│   └── archive/unused/              #   Orphan image archive
 │
 └── example/
-    ├── example.png                  # Screenshot (dashboard + nav)
-    ├── example1.png                 # Screenshot (blog three-column layout)
     ├── Blog.conf                    # Nginx config template
-    ├── homer_config.yml             # Original Homer config (reference)
-    ├── homer_index.html             # Original Homer entry (deprecated)
-    └── hugo-book-0.14.0/            # Hugo Book theme reference
+    ├── example.png                  # Screenshot (dashboard + nav)
+    ├── example0.png                 # Screenshot (blog layout - light)
+    └── example1.png                 # Screenshot (blog layout - dark)
 ```
 
 ---
@@ -140,19 +161,19 @@ index.html (SPA)
 ### Script Load Order
 
 ```
- theme.js          → no deps
- utils.js          → no deps
- lightbox.js       → no deps
- dashboard.js      → no deps
- navigation.js     → depends on utils.js
- blog.js           → depends on utils.js, references MdViewer at runtime
- gallery.js        → depends on utils.js + lightbox.js
- marked.min.js     → Markdown engine
- md-viewer.js      → depends on marked + utils.js + lightbox.js
- app.js            → depends on all, loads last, boot entry
+ main.js           → ES Module entry, loaded via <script type="module">
+   ├── theme.js         → no deps
+   ├── utils.js         → no deps
+   ├── lightbox.js      → no deps
+   ├── dashboard.js     → no deps
+   ├── navigation.js    → depends on utils.js
+   ├── blog.js          → depends on utils.js, references MdViewer at runtime
+   ├── gallery.js       → depends on utils.js + lightbox.js
+   ├── md-viewer.js     → depends on marked (global) + utils.js + lightbox.js
+   └── app.js           → depends on all, loads last, boot entry
 ```
 
-Dependencies are guaranteed by `<script>` tag order — no bundler, no ES modules.
+All business JS uses **ES Modules** (`export`/`import`), loaded via `main.js` as a single `<script type="module">` entry point. Modules also attach to `window.*` for cross-module compatibility. The only regular `<script>` tag is `lib/marked.min.js` (provides the global `marked` parser). Module scripts auto-defer until DOM is ready.
 
 ### Data Flow
 
@@ -176,7 +197,7 @@ Html/                                           /api/html/
                                                    → renders article list / image grid
 ```
 
-Core idea: **nginx autoindex as a "backend-less API"**. The frontend parses nginx-generated directory listing HTML via `DOMParser` to extract filenames, sizes, and dates — zero backend code required.
+Core idea: **gen_index.sh generates index.json as primary data source, with nginx autoindex fallback**. The frontend first fetches `Markdown/index.json` / `Image/index.json` (fast, structured), falling back to DOMParser-based autoindex parsing if the index is missing (404). `gen_index.sh` can be run manually or added to cron for periodic updates.
 
 ---
 
@@ -320,7 +341,7 @@ Fullscreen overlay with:
 
 | | |
 |---|---|
-| Global | none (IIFE, not exported) |
+| Global | none (ES module entry, not exported) |
 | Role | Boot initialization, tab routing, responsive adaptation |
 
 Boot sequence:

@@ -12,14 +12,13 @@
    使用：Navigation.init()
    ============================================================ */
 
-(function(global) {
-    'use strict';
+'use strict';
 
     let _config = null;
-    let _allItems = [];   // 扁平化的所有服务项引用
+    let _debounceTimer = null;
 
     /* ---- DOM 引用缓存 ---- */
-    let $navGrid, $navSearch, $navEmpty;
+    let $navGrid, $navSearch;
 
     /* ---- 加载配置文件 ---- */
     async function loadConfig() {
@@ -43,7 +42,6 @@
         }
 
         const query = $navSearch ? $navSearch.value.trim().toLowerCase() : '';
-        _allItems = [];
 
         let html = '';
         _config.services.forEach(function(group) {
@@ -67,7 +65,6 @@
             html += '<div class="nav-items">';
 
             filtered.forEach(function(item) {
-                _allItems.push(item);
                 html += '<a href="' + Utils.escapeHtml(item.url) + '" ';
                 html += 'class="nav-card" target="_blank" rel="noopener" ';
                 html += 'title="' + Utils.escapeHtml(item.subtitle || item.name) + '">';
@@ -94,16 +91,16 @@
         }
     }
 
-    /* ---- 搜索过滤（由搜索框 input 事件触发）---- */
+    /* ---- 搜索过滤（debounce 250ms）---- */
     function search() {
-        render();
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(render, 250);
     }
 
     /* ---- 初始化 ---- */
     async function init() {
         $navGrid  = document.getElementById('navGrid');
         $navSearch = document.getElementById('navSearch');
-        $navEmpty  = document.getElementById('navEmpty');
 
         await loadConfig();
         render();
@@ -114,6 +111,8 @@
         }
     }
 
-    global.Navigation = { init: init, render: render, search: search };
+    const Navigation = { init: init, render: render, search: search };
+    window.Navigation = Navigation;
 
-})(window);
+
+export { Navigation };

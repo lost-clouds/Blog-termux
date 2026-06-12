@@ -10,67 +10,45 @@
    使用：Blog.init()
    ============================================================ */
 
-(function(global) {
-    'use strict';
+'use strict';
 
     var _articles = [];
     var _filterType = 'all';
     var _currentFile = null;
+    var _abortController = null;
+    var _debounceTimer = null;
+    var _fetching = false;
 
     /* ---- DOM 引用 ---- */
     var $blogSidebar, $blogNav, $blogContent, $blogToc, $blogSearch, $blogFilter;
-    var $blogMenuCtrl, $blogSidebarOverlay, $blogTitle;
+    var $blogMenuCtrl, $blogTocCtrl, $blogTitle;
 
     /* ============================================================
-       解析 nginx autoindex 目录
+       解析 nginx autoindex 目录（复用 utils 共享解析）
        ============================================================ */
+    var MD_EXTS = /\.(md|markdown)$/i;
+    var HTML_EXTS = /\.(html?|htm)$/i;
+
     async function parseDirListing(resp, type) {
-        var text = await resp.text();
-        var parser = new DOMParser();
-        var doc = parser.parseFromString(text, 'text/html');
-        var links = doc.querySelectorAll('a');
-        var results = [];
-
-        for (var i = 0; i < links.length; i++) {
-            var link = links[i];
-            var href = link.getAttribute('href');
-            if (!href || href === '../' || href === '/') continue;
-
-            var name;
-            try { name = decodeURIComponent(href); } catch(e) { name = href; }
-
-            var extMatch = type === 'markdown'
-                ? name.match(/\.(md|markdown)$/i)
-                : name.match(/\.(html?|htm)$/i);
-            if (!extMatch) continue;
-
-            var size = '?', modified = '?';
-            var parent = link.parentElement;
-            if (parent) {
-                var txt = parent.textContent || '';
-                var dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
-                if (dm) modified = dm[1];
-                var sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
-                if (sm) size = sm[1] + ' ' + sm[2];
-            }
-
-            results.push({ name: name, type: type, size: size, modified: modified });
-        }
-
-        return results;
+        var ext = type === 'markdown' ? MD_EXTS : HTML_EXTS;
+        var items = await Utils.parseAutoindex(resp, ext);
+        for (var i = 0; i < items.length; i++) items[i].type = type;
+        return items;
     }
 
     /* ============================================================
-       获取文章列表
+       获取文章列表（index.json 优先，autoindex 降级）
        ============================================================ */
     async function fetchArticles() {
+        if (_fetching) return;
         if (!$blogSidebar) return;
+        _fetching = true;
         $blogNav.innerHTML = '<div class="blog-nav-loading">加载中...</div>';
 
         try {
             var results = await Promise.all([
-                fetch('/api/md/').then(function(r) { return parseDirListing(r, 'markdown'); }),
-                fetch('/api/html/').then(function(r) { return parseDirListing(r, 'html'); })
+                fetchIndexOrAutoindex('/Markdown/index.json', '/api/md/', 'markdown'),
+                fetchIndexOrAutoindex('/Html/index.json', '/api/html/', 'html')
             ]);
 
             _articles = results[0].concat(results[1]).sort(function(a, b) {
@@ -79,14 +57,33 @@
 
             renderSidebar();
 
-            // 默认加载第一篇 MD 文章
             var firstMd = _articles.find(function(a) { return a.type === 'markdown'; });
             if (firstMd) selectArticle(firstMd.name, firstMd.type);
 
         } catch (err) {
             console.error('Blog: 加载失败', err);
             $blogNav.innerHTML = '<div class="blog-nav-loading">加载失败</div>';
+        } finally {
+            _fetching = false;
         }
+    }
+
+    /* ---- 优先 fetch index.json，404 时降级为解析 autoindex ---- */
+    async function fetchIndexOrAutoindex(indexUrl, autoindexUrl, type) {
+        try {
+            var resp = await fetch(indexUrl);
+            if (resp.ok) {
+                var json = await resp.json();
+                return json.map(function(item) {
+                    item.type = type;
+                    item.size = item.size > 0 ? Utils.formatSize(item.size) : '?';
+                    return item;
+                });
+            }
+        } catch(e) { /* index.json 不存在，降级 */ }
+
+        var resp = await fetch(autoindexUrl);
+        return parseDirListing(resp, type);
     }
 
     /* ============================================================
@@ -134,7 +131,8 @@
         } else {
             html += '<ul class="blog-nav-list">';
             htmlArticles.forEach(function(a) {
-                html += '<li><a href="#" class="blog-nav-link" data-file="' +
+                var activeH = _currentFile === a.name ? ' active' : '';
+                html += '<li><a href="#" class="blog-nav-link' + activeH + '" data-file="' +
                     Utils.escapeHtml(a.name) + '" data-type="html">' +
                     Utils.escapeHtml(a.name) + '</a></li>';
             });
@@ -149,6 +147,11 @@
        选中文章 → 内联渲染
        ============================================================ */
     async function selectArticle(filename, type) {
+        // 取消前一个未完成的请求
+        if (_abortController) _abortController.abort();
+        _abortController = new AbortController();
+        var signal = _abortController.signal;
+
         _currentFile = filename;
 
         // 更新侧边栏高亮
@@ -176,7 +179,7 @@
         $blogToc.innerHTML = '';
 
         try {
-            var resp = await fetch('/Markdown/' + encodeURIComponent(filename));
+            var resp = await fetch('/Markdown/' + encodeURIComponent(filename), { signal: signal });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
             var raw = await resp.text();
@@ -198,26 +201,14 @@
             // 生成右侧 ToC
             if ($blogToc) {
                 $blogToc.innerHTML = MdViewer.buildToc($article.innerHTML);
-                // 绑定 ToC 点击 → 滚动到对应标题
-                $blogToc.querySelectorAll('a').forEach(function(a) {
-                    a.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        var id = a.getAttribute('data-toc-id');
-                        if (id) {
-                            var el = document.getElementById(id);
-                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                        // 移动端关闭 ToC
-                        var tocCtrl = document.getElementById('blog-toc-ctrl');
-                        if (tocCtrl) tocCtrl.checked = false;
-                    });
-                });
+                MdViewer.bindTocLinks($blogToc, null, $blogTocCtrl);
             }
 
             // 滚动到顶部
             $blogContent.scrollTop = 0;
 
         } catch (err) {
+            if (err.name === 'AbortError') return; // 请求被取消，静默忽略
             console.error('Blog: 渲染失败', err);
             $blogContent.innerHTML = '<div class="md-error">渲染失败: ' +
                 Utils.escapeHtml(err.message) + '</div>';
@@ -252,7 +243,10 @@
 
     /* ---- 绑定事件 ---- */
     function bindEvents() {
-        if ($blogSearch) $blogSearch.addEventListener('input', renderSidebar);
+        if ($blogSearch) $blogSearch.addEventListener('input', function() {
+            clearTimeout(_debounceTimer);
+            _debounceTimer = setTimeout(renderSidebar, 250);
+        });
         if ($blogFilter) $blogFilter.addEventListener('click', onFilterClick);
         if ($blogSidebar) $blogSidebar.addEventListener('click', onSidebarClick);
         // 移动端遮罩关闭由 <label for="blog-menu-ctrl"> 处理，无需 JS
@@ -267,13 +261,16 @@
         $blogSearch         = document.getElementById('blogSearch2');
         $blogFilter         = document.getElementById('blogFilter');
         $blogMenuCtrl       = document.getElementById('blog-menu-ctrl');
-        $blogSidebarOverlay = document.getElementById('blogSidebarOverlay');
+        $blogTocCtrl        = document.getElementById('blog-toc-ctrl');
         $blogTitle          = document.getElementById('blogTitle');
 
         bindEvents();
         fetchArticles();
     }
 
-    global.Blog = { init: init, fetchArticles: fetchArticles, selectArticle: selectArticle };
+    function hasArticles() { return _articles.length > 0; }
+    const Blog = { init: init, fetchArticles: fetchArticles, selectArticle: selectArticle, hasArticles: hasArticles };
+    window.Blog = Blog;
 
-})(window);
+
+export { Blog };

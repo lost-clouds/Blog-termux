@@ -11,8 +11,7 @@
          Gallery, MdViewer（均由前置 <script> 保证加载）
    ============================================================ */
 
-(function() {
-    'use strict';
+'use strict';
 
     var TABS = ['dashboard', 'nav', 'blog', 'gallery'];
     var _currentTab = 'dashboard';
@@ -44,10 +43,10 @@
 
         _currentTab = tabId;
 
-        // 切到博客/图库时懒加载数据
-        if (tabId === 'blog' && typeof Blog !== 'undefined') {
+        // 切到博客/图库时懒加载数据（已加载则跳过，避免重复请求）
+        if (tabId === 'blog' && typeof Blog !== 'undefined' && !Blog.hasArticles()) {
             Blog.fetchArticles();
-        } else if (tabId === 'gallery' && typeof Gallery !== 'undefined') {
+        } else if (tabId === 'gallery' && typeof Gallery !== 'undefined' && !Gallery.hasImages()) {
             Gallery.fetchImages();
         }
 
@@ -62,6 +61,32 @@
         if (tabId) switchTab(tabId);
     }
 
+    /* ---- 标签栏键盘导航 ---- */
+    function onTabKeydown(e) {
+        var btn = e.target.closest('.tab-btn');
+        if (!btn) return;
+        var bar = btn.closest('.tab-bar, .bottom-nav');
+        var btns = bar ? Array.from(bar.querySelectorAll('.tab-btn')) : [];
+        if (!btns.length) return;
+
+        var idx = btns.indexOf(btn);
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            var next = btns[(idx + 1) % btns.length];
+            next.focus(); next.click();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            var prev = btns[(idx - 1 + btns.length) % btns.length];
+            prev.focus(); prev.click();
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            btns[0].focus(); btns[0].click();
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            btns[btns.length - 1].focus(); btns[btns.length - 1].click();
+        }
+    }
+
     /* ---- 主题切换 ---- */
     function onThemeToggle() {
         if (typeof Theme !== 'undefined') Theme.toggleTheme();
@@ -70,7 +95,6 @@
     /* ---- 响应式 ---- */
     function handleResize() {
         var isMobile = window.innerWidth < 640;
-        document.body.classList.toggle('is-mobile', isMobile);
         if ($bottomNav) $bottomNav.style.display = isMobile ? 'flex' : 'none';
     }
 
@@ -98,8 +122,14 @@
         if (typeof Gallery !== 'undefined') Gallery.init();
 
         // 6. 标签栏事件
-        if ($tabBar) $tabBar.addEventListener('click', onTabClick);
-        if ($bottomNav) $bottomNav.addEventListener('click', onTabClick);
+        if ($tabBar) {
+            $tabBar.addEventListener('click', onTabClick);
+            $tabBar.addEventListener('keydown', onTabKeydown);
+        }
+        if ($bottomNav) {
+            $bottomNav.addEventListener('click', onTabClick);
+            $bottomNav.addEventListener('keydown', onTabKeydown);
+        }
 
         // 7. 主题按钮
         var themeBtn = document.getElementById('themeToggleBtn');
@@ -112,6 +142,19 @@
         // 9. 响应式
         handleResize();
         window.addEventListener('resize', handleResize);
+
+        // 10. Service Worker 注册
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                console.warn('Service Worker 注册失败:', err);
+            });
+        }
+
+        // 11. 浏览器前进/后退 hash 变化监听
+        window.addEventListener('hashchange', function() {
+            var hash = window.location.hash.replace('#', '');
+            if (hash && TABS.indexOf(hash) !== -1) switchTab(hash);
+        });
     }
 
     if (document.readyState === 'loading') {
@@ -119,5 +162,3 @@
     } else {
         init();
     }
-
-})();

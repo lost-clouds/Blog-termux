@@ -12,52 +12,27 @@
    使用：Gallery.init()
    ============================================================ */
 
-(function(global) {
-    'use strict';
+'use strict';
 
     const IMG_EXTS = /\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)$/i;
 
     let _images = [];
+    let _debounceTimer = null;
+    let _fetching = false;
 
     /* ---- DOM 引用缓存 ---- */
     let $galleryGrid, $gallerySearch;
 
-    /* ---- 获取图片列表（解析 nginx autoindex）---- */
+    /* ---- 获取图片列表（index.json 优先，autoindex 降级）---- */
     async function fetchImages() {
+        if (_fetching) return;
         if (!$galleryGrid) return;
+        _fetching = true;
         $galleryGrid.innerHTML = '<div class="gallery-loading">加载中...</div>';
 
         try {
-            const resp = await fetch('/api/images/');
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const text = await resp.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(text, 'text/html');
-            const links = doc.querySelectorAll('a');
+            const results = await fetchIndexOrAutoindex();
 
-            const results = [];
-            for (const link of links) {
-                const href = link.getAttribute('href');
-                if (!href || href === '../' || href === '/') continue;
-
-                let name;
-                try { name = decodeURIComponent(href); } catch(e) { name = href; }
-                if (!IMG_EXTS.test(name)) continue;
-
-                let size = '?', modified = '?';
-                const parent = link.parentElement;
-                if (parent) {
-                    const txt = parent.textContent || '';
-                    const dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
-                    if (dm) modified = dm[1];
-                    const sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
-                    if (sm) size = sm[1] + ' ' + sm[2];
-                }
-
-                results.push({ name: name, size: size, modified: modified });
-            }
-
-            // 去重 + 排序
             const seen = new Set();
             _images = results.filter(function(f) {
                 if (seen.has(f.name)) return false;
@@ -71,7 +46,30 @@
         } catch (err) {
             console.error('Gallery: 加载图片列表失败', err);
             $galleryGrid.innerHTML = '<div class="gallery-loading">加载失败，请检查配置</div>';
+        } finally {
+            _fetching = false;
         }
+    }
+
+    /* ---- 优先 fetch index.json，404 时降级为解析 autoindex ---- */
+    async function fetchIndexOrAutoindex() {
+        try {
+            const resp = await fetch('/Image/index.json');
+            if (resp.ok) {
+                const json = await resp.json();
+                return json.map(function(item) {
+                    item.type = 'image';
+                    if (typeof item.size === 'number') {
+                        item.size = Utils.formatSize(item.size);
+                    }
+                    return item;
+                });
+            }
+        } catch(e) { /* index.json 不存在，降级 */ }
+
+        const resp = await fetch('/api/images/');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return Utils.parseAutoindex(resp, IMG_EXTS);
     }
 
     /* ---- 渲染图片网格 ---- */
@@ -91,12 +89,16 @@
         }
 
         $galleryGrid.innerHTML = filtered.map(function(img) {
-            const url = '/api/images/' + encodeURIComponent(img.name);
-            return '<div class="gallery-card" data-src="' + Utils.escapeHtml(url) +
+            // 保留路径分隔符 `/`，仅编码各段文件名
+            const url = '/api/images/' + img.name.split('/').map(function(s) {
+                return encodeURIComponent(s);
+            }).join('/');
+            return '<div class="gallery-card" tabindex="0" role="button" aria-label="' +
+                   Utils.escapeHtml(img.name) + '" data-src="' + Utils.escapeHtml(url) +
                    '" data-name="' + Utils.escapeHtml(img.name) + '">' +
                 '<div class="gallery-thumb">' +
                     '<img src="' + Utils.escapeHtml(url) + '" alt="' + Utils.escapeHtml(img.name) +
-                    '" loading="lazy" onerror="this.style.opacity=0">' +
+                    '" loading="lazy" onerror="this.style.display=\'none\'">' +
                 '</div>' +
                 '<div class="gallery-info">' +
                     '<span class="gallery-name">' + Utils.escapeHtml(img.name) + '</span>' +
@@ -120,10 +122,19 @@
     /* ---- 绑定事件 ---- */
     function bindEvents() {
         if ($gallerySearch) {
-            $gallerySearch.addEventListener('input', render);
+            $gallerySearch.addEventListener('input', function() {
+                clearTimeout(_debounceTimer);
+                _debounceTimer = setTimeout(render, 250);
+            });
         }
         if ($galleryGrid) {
             $galleryGrid.addEventListener('click', onCardClick);
+            $galleryGrid.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const card = e.target.closest('.gallery-card');
+                    if (card) { e.preventDefault(); card.click(); }
+                }
+            });
         }
     }
 
@@ -136,6 +147,9 @@
         fetchImages();
     }
 
-    global.Gallery = { init: init, render: render, fetchImages: fetchImages };
+    function hasImages() { return _images.length > 0; }
+    const Gallery = { init: init, render: render, fetchImages: fetchImages, hasImages: hasImages };
+    window.Gallery = Gallery;
 
-})(window);
+
+export { Gallery };

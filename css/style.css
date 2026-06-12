@@ -243,6 +243,31 @@ img { max-width: 100%; height: auto; }
 /* ============================================================
    6. 仪表盘卡片
    ============================================================ */
+/* ---- 数据新鲜度指示器 ---- */
+.dashboard-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+.status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #34c759;
+    flex-shrink: 0;
+}
+.data-age { font-variant-numeric: tabular-nums; }
+
+/* JS 同步圆点颜色：通过容器上的 class 扩散 */
+.dashboard-status-bar:has(.age-fresh) .status-dot { background: #34c759; }
+.dashboard-status-bar:has(.age-warn)  .status-dot { background: #ff9500; }
+.dashboard-status-bar:has(.age-stale) .status-dot { background: #ff3b30; }
+.data-age.age-fresh { color: #34c759; }
+.data-age.age-warn  { color: #ff9500; }
+.data-age.age-stale { color: #ff3b30; }
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -463,7 +488,7 @@ img { max-width: 100%; height: auto; }
     padding: 0.5rem 0;
 }
 .blog-nav::-webkit-scrollbar { width: 4px; }
-.blog-nav::-webkit-scrollbar-thumb { background: var(--border-medium, rgba(0,0,0,0.15)); border-radius: 2px; }
+.blog-nav::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
 
 .blog-nav-loading {
     text-align: center;
@@ -631,6 +656,20 @@ img { max-width: 100%; height: auto; }
     z-index: 800;
     cursor: pointer;
 }
+
+/* 脚注 */
+.markdown-body .footnote {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0.25rem 0;
+}
+.markdown-body .footnote-backref {
+    text-decoration: none;
+    font-size: 0.9rem;
+    opacity: 0.6;
+}
+.markdown-body .footnote-backref:hover { opacity: 1; }
+.markdown-body sup a { text-decoration: none; font-weight: 600; }
 
 /* ============================================================
    9. 图片画廊
@@ -1323,4 +1362,3 @@ body.dark .bottom-nav {
         -webkit-backdrop-filter: none !important;
         background: rgba(28,28,30,0.98) !important;
     }
-}

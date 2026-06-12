@@ -1,7 +1,4 @@
 {
-  "_说明": "服务导航配置示例。将其复制为 ../config.json 并修改为自己的服务列表",
-  "title": "我的控制台",
-  "subtitle": "服务导航",
   "services": [
     {
       "name": "Server",

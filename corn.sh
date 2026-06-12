@@ -5,7 +5,7 @@
 # crontab: 每 30 秒执行一次
 # ============================================================
 
-OUTPUT="${1:-/path/to/Blog-termux/dashboard.json}"
+OUTPUT="${1:-./dashboard.json}"
 
 # ============================================================
 # 辅助函数
@@ -141,8 +141,10 @@ SVC_ARRAY=""
 SVC_COUNT=0
 
 add_svc() {
+    local name
+    name=$(echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')
     [ -n "$SVC_ARRAY" ] && SVC_ARRAY="${SVC_ARRAY},"
-    SVC_ARRAY="${SVC_ARRAY}\"${1}\""
+    SVC_ARRAY="${SVC_ARRAY}\"${name}\""
     SVC_COUNT=$((SVC_COUNT + 1))
 }
 
@@ -238,8 +240,12 @@ V_SVC_COUNT="$SVC_COUNT"
 
 mkdir -p "$(dirname "$OUTPUT")" 2>/dev/null || true
 
-cat > "$OUTPUT" <<EOF
+TS=$(date -Iseconds 2>/dev/null || date +"%Y-%m-%dT%H:%M:%S%z" 2>/dev/null || date 2>/dev/null || echo "?")
+
+# 原子写入：先写临时文件再 mv（同文件系统内为原子操作），避免前端读到不完整 JSON
+cat > "${OUTPUT}.tmp" <<'EOF'
 {
+  "timestamp": "${TS}",
   "device": {"model": "${V_DEV_MODEL}", "android": "${V_ANDROID}", "kernel": "${V_KERNEL}"},
   "cpu": {"usage": ${V_CPU_USAGE}, "cores": ${V_CPU_CORES}, "model": "${V_CPU_MODEL}"},
   "memory": {"used": ${V_MEM_USED}, "total": ${V_MEM_TOTAL}, "unit": "${V_MEM_UNIT}"},
@@ -250,3 +256,4 @@ cat > "$OUTPUT" <<EOF
   "uptime": "${V_UPTIME}"
 }
 EOF
+mv "${OUTPUT}.tmp" "$OUTPUT"

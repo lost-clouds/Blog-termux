@@ -12,14 +12,17 @@
    使用：Lightbox.init() / Lightbox.open(src) / Lightbox.close()
    ============================================================ */
 
-(function(global) {
-    'use strict';
+'use strict';
+
+    var _lastFocus = null;
 
     /* ---- 关闭灯箱 ---- */
     function close() {
         const lb = document.getElementById('lightbox');
         if (lb) lb.classList.remove('active');
         document.body.style.overflow = '';
+        // 恢复焦点
+        if (_lastFocus) { _lastFocus.focus(); _lastFocus = null; }
     }
 
     /* ---- 打开灯箱 ---- */
@@ -28,11 +31,18 @@
         const img = document.getElementById('lightboxImg');
         const lbl = document.getElementById('lightboxName');
         if (!lb || !img) return;
+
+        _lastFocus = document.activeElement;
+
         img.src = src;
         img.alt = name || '';
         if (lbl) lbl.textContent = name || '';
         lb.classList.add('active');
         document.body.style.overflow = 'hidden';
+
+        // 将焦点移到灯箱，方便键盘关闭
+        lb.setAttribute('tabindex', '-1');
+        lb.focus();
     }
 
     /* ---- 初始化事件绑定 ---- */
@@ -55,6 +65,8 @@
         });
     }
 
-    global.Lightbox = { open: open, close: close, init: init };
+    const Lightbox = { open: open, close: close, init: init };
+    window.Lightbox = Lightbox;
 
-})(window);
+
+export { Lightbox };

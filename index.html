@@ -55,6 +55,10 @@
              仪表盘：8 张卡片
              ============================================================ -->
         <section class="content-section active" id="sec-dashboard">
+            <div class="dashboard-status-bar">
+                <span class="status-dot" id="statusDot"></span>
+                <span class="data-age" id="dataAge"></span>
+            </div>
             <div class="dashboard-grid" id="dashboardGrid">
 
                 <!-- 1. 设备 -->
@@ -284,16 +288,8 @@
     <!-- ============================================================
          脚本加载区（依赖顺序）
          ============================================================ -->
-    <script src="js/theme.js?v=2"></script>
-    <script src="js/utils.js?v=2"></script>
-    <script src="js/lightbox.js?v=2"></script>
-    <script src="js/dashboard.js?v=2"></script>
-    <script src="js/navigation.js?v=2"></script>
-    <script src="js/blog.js?v=2"></script>
-    <script src="js/gallery.js?v=2"></script>
     <script src="lib/marked.min.js?v=2"></script>
-    <script src="js/md-viewer.js?v=2"></script>
-    <script src="js/app.js?v=2"></script>
+    <script type="module" src="js/main.js?v=3"></script>
 
 </body>
 </html>
