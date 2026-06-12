@@ -243,7 +243,7 @@ mkdir -p "$(dirname "$OUTPUT")" 2>/dev/null || true
 TS=$(date -Iseconds 2>/dev/null || date +"%Y-%m-%dT%H:%M:%S%z" 2>/dev/null || date 2>/dev/null || echo "?")
 
 # 原子写入：先写临时文件再 mv（同文件系统内为原子操作），避免前端读到不完整 JSON
-cat > "${OUTPUT}.tmp" <<'EOF'
+cat > "${OUTPUT}.tmp" <<EOF
 {
   "timestamp": "${TS}",
   "device": {"model": "${V_DEV_MODEL}", "android": "${V_ANDROID}", "kernel": "${V_KERNEL}"},
