@@ -77,7 +77,6 @@ Blog-termux/
 ├── sw.js                            # Service Worker（离线缓存 + 文章 SWR 策略）
 ├── .gitignore                       # 忽略运行时产物
 ├── LICENSE                          # MIT 许可证
-├── TECH_REPORT.md                   # 技术分析报告
 ├── favicon.ico
 │
 ├── css/
@@ -126,11 +125,11 @@ Blog-termux/
 │
 ├── Markdown/                        # 放 .md 文章
 ├── Html/                            # 放 .html 文章
-├── Image/                           # 图片目录
-│   ├── posts/                       #   文章配图（按 article-slug 分目录）
-│   ├── gallery/                     #   独立图库图片
-│   ├── thumbnails/                  #   缩略图缓存
-│   └── archive/unused/              #   未使用图片归档
+├── Image/                           # 图片目录（gen_index.sh 扫描 → 图库展示）
+│   ├── posts/                       #   文章配图 → ✅ 图库展示
+│   ├── gallery/                     #   独立图片 → ✅ 图库展示
+│   ├── thumbnails/                  #   缩略图缓存 → ❌ 图库不展示（gen_index.sh 跳过）
+│   └── archive/unused/              #   未使用图片 → ❌ 图库不展示（gen_index.sh 跳过）
 │
 └── example/
     ├── Blog.conf                    # Nginx 配置示例
@@ -509,6 +508,8 @@ crontab -e
 | Markdown 文章 | `Markdown/` | index.json 优先 → nginx autoindex 降级 |
 | HTML 文章 | `Html/` | index.json 优先 → nginx autoindex 降级 |
 | 图片 | `Image/` | index.json 优先 → nginx autoindex 降级 |
+
+> **图库展示规则**：`gen_index.sh` 扫描时**跳过 `thumbnails/` 和 `archive/`**，这两目录下的图片不会出现在图库中。`posts/` 和 `gallery/` 下的图片会被索引并展示。
 
 文件增删后**刷新页面即可**看到变化。运行 `bash gen_index.sh` 可生成静态索引加速加载，也可加入 cron：`*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux`
 

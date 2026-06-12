@@ -78,7 +78,6 @@ Blog-termux/
 ├── sw.js                            # Service Worker (offline cache + SWR)
 ├── .gitignore
 ├── LICENSE                          # MIT
-├── TECH_REPORT.md                   # Technical analysis report
 ├── favicon.ico
 │
 ├── css/
@@ -116,11 +115,11 @@ Blog-termux/
 │
 ├── Markdown/                        # .md articles
 ├── Html/                            # .html articles
-├── Image/                           # Images
-│   ├── posts/                       #   Article images (by slug)
-│   ├── gallery/                     #   Gallery images
-│   ├── thumbnails/                  #   Thumbnail cache
-│   └── archive/unused/              #   Orphan image archive
+├── Image/                           # Images (scanned by gen_index.sh → shown in gallery)
+│   ├── posts/                       #   Article images → ✅ shown in gallery
+│   ├── gallery/                     #   Standalone images → ✅ shown in gallery
+│   ├── thumbnails/                  #   Thumbnail cache → ❌ skipped (gen_index.sh excludes)
+│   └── archive/unused/              #   Orphan images → ❌ skipped (gen_index.sh excludes)
 │
 └── example/
     ├── Blog.conf                    # Nginx config template
@@ -497,11 +496,13 @@ crontab -e
 
 | Content type | Place in | Discovery |
 |-------------|----------|-----------|
-| Markdown articles | `Markdown/` | nginx autoindex → `GET /api/md/` |
-| HTML articles | `Html/` | nginx autoindex → `GET /api/html/` |
-| Images | `Image/` | nginx autoindex → `GET /api/images/` |
+| Markdown articles | `Markdown/` | index.json first → nginx autoindex fallback |
+| HTML articles | `Html/` | index.json first → nginx autoindex fallback |
+| Images | `Image/` | index.json first → nginx autoindex fallback |
 
-Add or remove files and refresh the page — no nginx restart needed.
+> **Gallery visibility**: `gen_index.sh` skips `thumbnails/` and `archive/` — images in these directories are **not shown** in the gallery. Images in `posts/` and `gallery/` are indexed and displayed.
+
+Add or remove files and refresh the page. Run `bash gen_index.sh` to rebuild static indexes for faster loading; add `*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux` to cron for periodic updates.
 
 ### 7. Launch
 
