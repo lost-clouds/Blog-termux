@@ -34,7 +34,7 @@
 
 ```bash
 # 1. 克隆项目到你的服务器
-git clone https://github.com/example/Blog-termux.git ~/Blog-termux
+git clone https://github.com/lost-clouds/Blog-termux.git ~/Blog-termux
 
 # 2. 下载前端依赖库（一次性）
 cd ~/Blog-termux/lib

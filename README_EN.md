@@ -35,7 +35,7 @@ A pure static single-page application powered by Nginx. No PHP, Node.js, Python,
 
 ```bash
 # 1. Clone to your server
-git clone https://github.com/example/Blog-termux.git ~/Blog-termux
+git clone https://github.com/lost-clouds/Blog-termux.git ~/Blog-termux
 
 # 2. Download frontend dependencies (one-time)
 cd ~/Blog-termux/lib
