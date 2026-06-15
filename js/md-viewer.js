@@ -18,13 +18,37 @@ let _katexPromise = null;
 const _tocBound = new WeakSet();
 const _imageBound = new WeakSet();
 
-function protectLatexLineBreaks(text) {
-    return text.replace(
-        /(\$\$|\\\[|\\\()([\s\S]*?)(\$\$|\\\]|\\\))/g,
-        function(match, open, content, close) {
-            return open + content.replace(/\\\\/g, '\\\\\\\\') + close;
+function extractMathBlocks(text) {
+    const blocks = [];
+    const protected_ = text.replace(
+        /\$\$([\s\S]*?)\$\$/g,
+        function(match, content) {
+            content = content
+                .replace(/\\begin\{split\}/g, '\\begin{aligned}')
+                .replace(/\\end\{split\}/g, '\\end{aligned}')
+                .replace(/\\\\/g, '\\\\\\\\');
+            const idx = blocks.length;
+            blocks.push('$$' + content + '$$');
+            return '<span class="math-' + idx + '"></span>';
         }
     );
+    return { text: protected_, blocks: blocks };
+}
+
+function restoreMathBlocks(container, blocks) {
+    if (!blocks.length) return;
+    container.querySelectorAll('span[class^="math-"]').forEach(function(span) {
+        const m = span.className.match(/^math-(\d+)$/);
+        if (m) {
+            const idx = parseInt(m[1], 10);
+            if (blocks[idx] !== undefined) {
+                span.parentNode.replaceChild(
+                    document.createTextNode(blocks[idx]),
+                    span
+                );
+            }
+        }
+    });
 }
 
 function ensureKatex() {
@@ -216,17 +240,17 @@ async function render(rawMarkdown, target) {
     }
 
     let processed = processFootnotes(rawMarkdown);
-    processed = protectLatexLineBreaks(processed);
-    let html = marked.parse(processed)
-        .replace(/\\begin\{split\}/g, '\\begin{aligned}')
-        .replace(/\\end\{split\}/g, '\\end{aligned}');
+    const { text: protectedText, blocks: mathBlocks } = extractMathBlocks(processed);
+    let html = marked.parse(protectedText);
 
     target.innerHTML = sanitizeHtml(html);
     fixImagePaths(target);
     injectAnchors(target);
     bindMarkdownImages(target);
 
-    if (/(?:\$\$|\\\[|\\\(|\\begin\{)/.test(processed)) {
+    restoreMathBlocks(target, mathBlocks);
+
+    if (mathBlocks.length > 0) {
         try {
             await ensureKatex();
         } catch (err) {
