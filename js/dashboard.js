@@ -43,7 +43,7 @@ import { API } from './constants.js';
     let _fetchErrors = 0;
     let _fetching = false;
     let _paused = false;
-    let _tabActive = true;  // dashboard 是默认 Tab
+    let _tabActive = false;
 
     function set(el, text) { if (el) el.textContent = text || '--'; }
     function setBar(el, pct) {
