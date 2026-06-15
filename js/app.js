@@ -1,6 +1,5 @@
 import { Theme } from './theme.js';
 import { Lightbox } from './lightbox.js';
-import { MdViewer } from './md-viewer.js';
 import { Dashboard } from './dashboard.js';
 import { Navigation } from './navigation.js';
 import { Blog } from './blog.js';
@@ -11,19 +10,18 @@ import { Gallery } from './gallery.js';
    ────────────────────────────────────────────────────────────
    生命周期：
      [加载] ES Module 静态导入依赖，DOMContentLoaded 后初始化
-     [初始化] 按依赖序启动 Theme → Lightbox → MdViewer →
-              Dashboard → Navigation/Blog/Gallery 事件绑定 → 标签页路由
+     [初始化] 先解析 hash 确定初始 tab，仅当 tab=dashboard 时启动轮询
      [运行] 管理 4 个标签页切换，首次进入 Blog/Gallery 时懒加载数据
    ────────────────────────────────────────────────────────────
-   依赖：Theme, Lightbox, Dashboard, Navigation, Blog, Gallery, MdViewer
+   依赖：Theme, Lightbox, Dashboard, Navigation, Blog, Gallery
    ============================================================ */
 
 'use strict';
 
-var TABS = ['dashboard', 'nav', 'blog', 'gallery'];
-var _currentTab = 'dashboard';
+const TABS = ['dashboard', 'nav', 'blog', 'gallery'];
+let _currentTab = 'dashboard';
 
-var $tabBar, $sections, $bottomNav;
+let $tabBar, $sections, $bottomNav;
 
 function loadTabData(tabId) {
     if (tabId === 'blog' && !Blog.hasArticles()) {
@@ -69,28 +67,28 @@ function switchTab(tabId) {
 
 /* ---- 标签栏点击 ---- */
 function onTabClick(e) {
-    var btn = e.target.closest('.tab-btn');
+    let btn = e.target.closest('.tab-btn');
     if (!btn) return;
-    var tabId = btn.getAttribute('data-tab');
+    let tabId = btn.getAttribute('data-tab');
     if (tabId) switchTab(tabId);
 }
 
 /* ---- 标签栏键盘导航 ---- */
 function onTabKeydown(e) {
-    var btn = e.target.closest('.tab-btn');
+    let btn = e.target.closest('.tab-btn');
     if (!btn) return;
-    var bar = btn.closest('.tab-bar, .bottom-nav');
-    var btns = bar ? Array.from(bar.querySelectorAll('.tab-btn')) : [];
+    let bar = btn.closest('.tab-bar, .bottom-nav');
+    let btns = bar ? Array.from(bar.querySelectorAll('.tab-btn')) : [];
     if (!btns.length) return;
 
-    var idx = btns.indexOf(btn);
+    let idx = btns.indexOf(btn);
     if (e.key === 'ArrowRight') {
         e.preventDefault();
-        var next = btns[(idx + 1) % btns.length];
+        let next = btns[(idx + 1) % btns.length];
         next.focus(); next.click();
     } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        var prev = btns[(idx - 1 + btns.length) % btns.length];
+        let prev = btns[(idx - 1 + btns.length) % btns.length];
         prev.focus(); prev.click();
     } else if (e.key === 'Home') {
         e.preventDefault();
@@ -106,12 +104,6 @@ function onThemeToggle() {
     Theme.toggleTheme();
 }
 
-/* ---- 响应式 ---- */
-function handleResize() {
-    var isMobile = window.innerWidth < 640;
-    if ($bottomNav) $bottomNav.style.display = isMobile ? 'flex' : 'none';
-}
-
 /* ---- 初始化 ---- */
 function init() {
     $tabBar  = document.getElementById('tabBar');
@@ -120,8 +112,14 @@ function init() {
 
     Theme.initTheme();
     Lightbox.init();
-    MdViewer.init();
+
+    // 先解析 hash 确定初始 tab（默认 dashboard）
+    let hash = window.location.hash.replace('#', '');
+    let initialTab = (hash && TABS.indexOf(hash) !== -1) ? hash : 'dashboard';
+
+    // 注册 Dashboard 可见性监听器；仅当初始 tab 是 dashboard 时启动轮询
     Dashboard.init();
+    if (initialTab === 'dashboard') Dashboard.onTabEnter();
 
     Navigation.init();
     Blog.init();
@@ -136,18 +134,15 @@ function init() {
         $bottomNav.addEventListener('keydown', onTabKeydown);
     }
 
-    var themeBtn = document.getElementById('themeToggleBtn');
+    let themeBtn = document.getElementById('themeToggleBtn');
     if (themeBtn) themeBtn.addEventListener('click', onThemeToggle);
 
-    var hash = window.location.hash.replace('#', '');
-    if (hash && TABS.indexOf(hash) !== -1) {
-        switchTab(hash);
+    // 激活初始 tab 的 UI 状态（dashboard 由 HTML 默认处理）
+    if (initialTab !== 'dashboard') {
+        switchTab(initialTab);
     } else {
-        loadTabData(_currentTab);
+        loadTabData(initialTab);
     }
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(function(err) {
@@ -156,7 +151,7 @@ function init() {
     }
 
     window.addEventListener('hashchange', function() {
-        var nextHash = window.location.hash.replace('#', '');
+        let nextHash = window.location.hash.replace('#', '');
         if (nextHash && TABS.indexOf(nextHash) !== -1) switchTab(nextHash);
     });
 }

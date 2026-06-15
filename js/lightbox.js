@@ -14,7 +14,7 @@
 
 'use strict';
 
-    var _lastFocus = null;
+    let _lastFocus = null;
 
     /* ---- 关闭灯箱 ---- */
     function close() {

@@ -1,5 +1,6 @@
 import { Utils } from './utils.js';
 import { Lightbox } from './lightbox.js';
+import { API } from './constants.js';
 
 /* ============================================================
    gallery.js —— 图片画廊模块
@@ -40,8 +41,9 @@ import { Lightbox } from './lightbox.js';
 
             const seen = new Set();
             _images = results.filter(function(f) {
-                if (seen.has(f.name)) return false;
-                seen.add(f.name);
+                const key = f.path || f.name;
+                if (seen.has(key)) return false;
+                seen.add(key);
                 return true;
             }).sort(function(a, b) {
                 return a.name.localeCompare(b.name);
@@ -58,23 +60,7 @@ import { Lightbox } from './lightbox.js';
 
     /* ---- 优先 fetch index.json，404 时降级为解析 autoindex ---- */
     async function fetchIndexOrAutoindex() {
-        try {
-            const resp = await fetch('/Image/index.json');
-            if (resp.ok) {
-                const json = await resp.json();
-                return json.map(function(item) {
-                    item.type = 'image';
-                    if (typeof item.size === 'number') {
-                        item.size = Utils.formatSize(item.size);
-                    }
-                    return item;
-                });
-            }
-        } catch(e) { /* index.json 不存在，降级 */ }
-
-        const resp = await fetch('/api/images/');
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        return Utils.parseAutoindex(resp, IMG_EXTS);
+        return Utils.fetchIndexOrAutoindex(API.IMAGE_INDEX, API.IMAGES_LIST, IMG_EXTS);
     }
 
     /* ---- 渲染图片网格 ---- */
@@ -95,7 +81,7 @@ import { Lightbox } from './lightbox.js';
 
         $galleryGrid.innerHTML = filtered.map(function(img) {
             // 保留路径分隔符 `/`，仅编码各段文件名
-            const url = '/api/images/' + img.name.split('/').map(function(s) {
+            const url = API.IMAGES_LIST + img.name.split('/').map(function(s) {
                 return encodeURIComponent(s);
             }).join('/');
             return '<div class="gallery-card" tabindex="0" role="button" aria-label="' +

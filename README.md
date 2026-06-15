@@ -82,7 +82,6 @@ Blog-termux/
 ├── css/
 │   ├── style.css                    # 构建产物 — 合并后的全站样式
 │   ├── build.sh                     # CSS 构建脚本（cat 合并源文件）
-│   ├── split.sh                     # CSS 拆分脚本（将 style.css 拆为模块）
 │   └── src/                         # CSS 源文件（按模块拆分）
 │       ├── _header.css              #   文件头注释
 │       ├── variables.css            #   CSS 自定义属性
@@ -96,25 +95,26 @@ Blog-termux/
 │       │   ├── navigation.css
 │       │   ├── blog.css
 │       │   ├── gallery.css
-│       │   ├── md-overlay.css
-│       │   ├── toc.css
+│       │   ├── markdown-content.css
 │       │   ├── image-lightbox.css
-│       │   ├── progress-bar.css
 │       │   └── bottom-nav.css
 │       └── themes/
 │           └── dark.css             #   深色模式覆盖
 │
 ├── js/                              # ES Module 模块
-│   ├── main.js                      #   模块入口 — 按序导入全部模块
+│   ├── main.js                      #   模块入口 — 导入 app.js
+│   ├── app.js                       #   主控制器（引导、路由、协调）
 │   ├── theme.js                     #   主题管理
-│   ├── utils.js                     #   工具函数
+│   ├── utils.js                     #   工具函数（含 URL 安全验证）
+│   ├── constants.js                 #   路径常量（API + 静态资源）
+│   ├── sanitizer.js                 #   HTML 白名单清理器
+│   ├── footnotes.js                 #   Markdown 脚注预处理器
 │   ├── lightbox.js                  #   图片灯箱组件
 │   ├── dashboard.js                 #   系统仪表盘模块
 │   ├── navigation.js                #   服务导航模块
-│   ├── blog.js                      #   博客文章列表模块
+│   ├── blog.js                      #   博客文章列表 + 内联渲染
 │   ├── gallery.js                   #   图片画廊模块
-│   ├── md-viewer.js                 #   Markdown 阅读器模块
-│   └── app.js                       #   主控制器（引导、路由、协调）
+│   └── md-viewer.js                 #   Markdown 渲染引擎
 │
 ├── lib/                             # 第三方库（全部本地，零 CDN 依赖）
 │   ├── marked.min.js                #   Markdown 解析
@@ -124,7 +124,6 @@ Blog-termux/
 │   └── github-markdown.min.css      #   GitHub 风格 Markdown 样式
 │
 ├── Markdown/                        # 放 .md 文章
-├── Html/                            # 放 .html 文章
 ├── Image/                           # 图片目录（gen_index.sh 扫描 → 图库展示）
 │   ├── posts/                       #   文章配图 → ✅ 图库展示
 │   ├── gallery/                     #   独立图片 → ✅ 图库展示
@@ -154,17 +153,11 @@ index.html (单页面)
   │
   ├─ 内容区 (4 个 section，同时只显示 1 个)
   │   ├── #sec-dashboard    8 张卡片：设备/CPU/内存/储存/网络/电池/服务/运行时间
-  │   ├── #sec-nav          服务分组卡片，搜索过滤，点击跳转
-  │   ├── #sec-blog         三栏布局：文章目录(左) | 正文(中) | ToC(右)，搜索/过滤/内联渲染
+  │   ├── #sec-nav          服务分组卡片，搜索过滤，安全 URL 跳转
+  │   ├── #sec-blog         三栏布局：文章目录(左) | 正文(中) | ToC(右)，内联 Markdown 渲染，HTML 文章新标签打开
   │   └── #sec-gallery      图片网格，搜索，点击灯箱放大
   │
-  ├─ md-overlay (全屏覆盖) ── Markdown 阅读器
-  │   ├── TOC 侧边栏 (左侧滑入)
-  │   ├── 顶部进度条
-  │   ├── 内容渲染区 (marked + KaTeX)
-  │   └── 图片灯箱
-  │
-  └─ lightbox (全屏覆盖) ──── 图片灯箱
+  └─ lightbox (全屏覆盖) ──── 图片灯箱（Markdown 图片 + 画廊共享）
 ```
 
 ### 脚本加载链
@@ -175,11 +168,12 @@ index.html (单页面)
          ├── theme.js       → 无依赖
          ├── utils.js       → 无依赖
          ├── lightbox.js    → 无依赖
-         ├── dashboard.js   → 无依赖
-         ├── navigation.js  → 依赖 utils.js
-         ├── blog.js        → 依赖 utils.js + md-viewer.js
-         ├── gallery.js     → 依赖 utils.js + lightbox.js
-         └── md-viewer.js   → 依赖 marked (全局) + utils.js
+         ├── dashboard.js   → 依赖 constants.js
+         ├── navigation.js  → 依赖 utils.js + constants.js
+         ├── blog.js        → 依赖 utils.js + md-viewer.js + constants.js
+         ├── gallery.js     → 依赖 utils.js + lightbox.js + constants.js
+         └── md-viewer.js   → 依赖 marked (全局) + utils.js + constants.js
+                               + sanitizer.js + footnotes.js + lightbox.js
 ```
 
 所有业务 JS 使用 **ES Modules**（`import`/`export` 显式声明依赖）。`main.js` 精简为单行 `import './app.js'`，由 `app.js` 统一管理导入链。唯一保留的常规 `<script>` 是 `lib/marked.min.js`（提供全局 `marked`）。Module 脚本自动延迟到 DOM 就绪后执行。
@@ -197,8 +191,8 @@ index.html (单页面)
                                               → 自动检测运行中的服务
 
 Markdown/          nginx autoindex          /api/md/ (HTML 目录列表)
-Image/             ─────────────────→       /api/images/
-Html/                                       /api/html/
+Html/              ─────────────────→       /api/html/
+Image/                                      /api/images/
                                                     │
                                                     │ JS DOMParser 解析 HTML
                                                     ↓
@@ -228,11 +222,12 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | `window.Utils` / `window.downloadFile` |
-| 对外方法 | `escapeHtml(str)` `formatSize(bytes)` `downloadFile(url, name)` |
+| 全局名 | `import { Utils } from './utils.js'` |
+| 对外方法 | `escapeHtml(str)` `getSafeUrl(url)` `formatSize(bytes)` `parseAutoindex(resp, ext)` `fetchIndexOrAutoindex(...)` |
 
-`escapeHtml`：所有用户可控的文件名插入 DOM 前都经过转义，防止 XSS。
-`downloadFile`：通过 `fetch → Blob → ObjectURL` 下载，解决跨域 `<a download>` 失效。
+`escapeHtml`：所有用户可控内容插入 DOM 前转义 `& < > "`，防止 XSS。
+`getSafeUrl`：基于白名单的 URL 验证，仅允许 `http`/`https`/`mailto` 及相对路径，拒绝 `javascript:` 等危险协议。
+`fetchIndexOrAutoindex`：优先读取 `index.json`，404 时降级解析 nginx autoindex HTML。
 
 ---
 
@@ -304,12 +299,12 @@ Html/                                       /api/html/
 | | |
 |---|---|
 | 全局名 | `import { Blog } from './blog.js'` |
-| 数据源 | `index.json` 优先 → nginx autoindex 降级 |
-| 对外方法 | `init()` `fetchArticles()` `selectArticle(name, type)` `hasArticles()` |
+| 数据源 | `index.json` 优先 → nginx autoindex 降级（Markdown + HTML 双目录） |
+| 对外方法 | `init()` `fetchArticles()` `selectArticle(name, type)` `hasArticles()` `isLoaded()` |
 
-桌面端三栏布局：左侧可滚动文章目录 + 搜索/类型过滤 → 中间内联渲染 → 右侧 ToC。
-搜索 250ms 防抖，`AbortController` 取消上次未完成请求防竞态。
-渲染复用 `MdViewer.render()` + `MdViewer.buildToc()`，HTML 文章新标签页打开。
+桌面端三栏布局：左侧可滚动文章目录 + 类型过滤（全部/Markdown/HTML）→ 中间内联渲染 → 右侧 ToC。
+搜索 250ms 防抖，`AbortController` + `requestId` 双重竞态防护。
+Markdown 内联渲染复用 `MarkdownRenderer.render()` + `MarkdownRenderer.buildTocFromDom()`。HTML 文件在新标签页打开。
 
 ---
 
@@ -317,11 +312,11 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | `window.Gallery` |
-| 数据源 | `GET /api/images/` |
-| 对外方法 | `init()` `render()` `fetchImages()` |
+| 全局名 | `import { Gallery } from './gallery.js'` |
+| 数据源 | `index.json` 优先 → nginx autoindex 降级 |
+| 对外方法 | `init()` `fetchImages()` `hasImages()` `isLoaded()` |
 
-网格缩略图展示，搜索过滤，点击 → `Lightbox.open(src, name)` 灯箱放大。图片加载失败时自动隐藏不显示破损图标。
+网格缩略图展示，搜索过滤，点击 → `Lightbox.open(src, name)` 灯箱放大。图片加载失败自动隐藏不显示破损图标。
 
 ---
 
@@ -329,22 +324,21 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | `import { MdViewer } from './md-viewer.js'` |
-| 数据源 | `GET /Markdown/<filename>` |
-| 对外方法 | `init()` `render(raw, $el)` `buildToc(html)` `open(fn)` `close()` |
+| 全局名 | `import { MarkdownRenderer } from './md-viewer.js'` |
+| 数据源 | 由调用方传入原始 Markdown 文本 |
+| 对外方法 | `render(raw, $el)` `buildTocFromDom($el)` `bindTocLinks($toc, $content, $tocCtrl)` |
 
-全屏覆盖层 + 内联渲染共享引擎，功能集：
+纯渲染模块，不管理覆盖层/DOM 生命周期。功能集：
 
 | 功能 | 实现 |
 |------|------|
 | Markdown 解析 | marked 引擎 |
-| XSS 防护 | 白名单 HTML sanitizer（标签/属性/URL 三重过滤） |
+| XSS 防护 | 白名单 HTML sanitizer（标签/属性/URL/class/style 五重过滤） |
+| 脚注 | 预处理 `[^id]` 为脚注区块，含返回链接 |
 | 数学公式 | KaTeX 按需懒加载 |
-| TOC 目录 | 解析 h1-h6，层级缩进，侧边栏滑入 |
-| 阅读进度 | 顶部 3px 蓝色进度条 |
+| TOC 目录 | 解析渲染后的 h1-h6 DOM，层级缩进 |
 | 标题锚点 | 每个标题注入 `#` 链接 |
-| 图片处理 | 相对路径 → `/api/images/<name>`，灯箱放大 |
-| 快捷键 | ESC 关灯箱 → 关阅读器 |
+| 图片处理 | 相对路径 → `/api/images/`，复用全局 Lightbox |
 
 ---
 
@@ -359,13 +353,12 @@ Html/                                       /api/html/
 ```
 1.  Theme.initTheme()       → 应用存储的主题
 2.  Lightbox.init()         → 绑定全局灯箱事件
-3.  MdViewer.init()         → 预绑定阅读器事件
-4.  Dashboard.init()        → 开始仪表盘轮询（离开标签时暂停）
-5.  Navigation.init()       → 加载导航配置 + 渲染
-6.  Blog.init()             → 缓存 DOM + 绑定事件（数据懒加载）
-7.  Gallery.init()          → 缓存 DOM + 绑定事件（数据懒加载）
-8.  标签栏点击/键盘(←→HomeEnd) + 主题按钮 + hashchange 事件
-9.  URL hash 恢复 + 移动端响应式 + Service Worker 注册
+3.  Dashboard.init()        → 仅注册可见性监听器（轮询在进入标签页时启动）
+4.  Navigation.init()       → 加载导航配置 + 渲染
+5.  Blog.init()             → 缓存 DOM + 绑定事件（数据懒加载）
+6.  Gallery.init()          → 缓存 DOM + 绑定事件（数据懒加载）
+7.  标签栏点击/键盘(←→HomeEnd) + 主题按钮 + hashchange 事件
+8.  URL hash 恢复 + Service Worker 注册
 ```
 
 ---
@@ -506,7 +499,7 @@ crontab -e
 | 内容类型 | 放入目录 | 发现方式 |
 |----------|----------|----------|
 | Markdown 文章 | `Markdown/` | index.json 优先 → nginx autoindex 降级 |
-| HTML 文章 | `Html/` | index.json 优先 → nginx autoindex 降级 |
+| HTML 文章 | `Html/` | index.json 优先 → nginx autoindex 降级，点击新标签页打开 |
 | 图片 | `Image/` | index.json 优先 → nginx autoindex 降级 |
 
 > **图库展示规则**：`gen_index.sh` 扫描时**跳过 `thumbnails/` 和 `archive/`**，这两目录下的图片不会出现在图库中。`posts/` 和 `gallery/` 下的图片会被索引并展示。
@@ -529,10 +522,10 @@ nginx -s reload
 | **切换标签** | PC/平板：点击顶部标签栏。手机：点击底部导航栏 |
 | **深色模式** | 点击右上角 ☀️/🌙 按钮，偏好自动保存 |
 | **搜索服务** | 切到"导航"标签 → 搜索框输入关键词（匹配名称/描述/标签） |
-| **搜索文章** | 切到"博客"标签 → 搜索框输入 → 可选过滤 Markdown/HTML |
-| **阅读文章** | 点击文章卡片 → 全屏阅读器打开 → 左侧可展开目录导航 |
+| **搜索文章** | 切到"博客"标签 → 搜索框输入 → 可按类型过滤：全部 / Markdown / HTML |
+| **阅读文章** | 点击文章 → 正文内联渲染在中间栏，右侧自动生成目录导航 |
 | **浏览图片** | 切到"图库"标签 → 搜索或滚动浏览 → 点击图片灯箱放大 |
-| **Markdown 快捷键** | 阅读器内 ESC 关闭灯箱（再按 ESC 关闭阅读器） |
+| **快捷键** | ESC 关闭图片灯箱 |
 
 ---
 

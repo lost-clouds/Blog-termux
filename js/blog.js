@@ -1,5 +1,6 @@
 import { Utils } from './utils.js';
-import { MdViewer } from './md-viewer.js';
+import { MarkdownRenderer } from './md-viewer.js';
+import { API } from './constants.js';
 
 /* ============================================================
    blog.js —— 博客模块（Hugo Book 风格三栏布局）
@@ -7,89 +8,73 @@ import { MdViewer } from './md-viewer.js';
    生命周期：
      [init]  缓存 DOM → 绑定事件
      [load]  fetchArticles() → 获取文章列表 → 渲染侧边栏 → 自动加载第一篇
-     [render] 渲染左侧文章列表（搜索+类型过滤）
+     [render] 渲染左侧文章列表（搜索）
      [select] 点击文章 → 中间内联渲染正文 + 右侧生成 ToC
    ────────────────────────────────────────────────────────────
    依赖：Utils (escapeHtml/formatSize/parseAutoindex),
-        MdViewer (render/buildToc/bindTocLinks)
+        MarkdownRenderer (render/buildToc/bindTocLinks)
    使用：import { Blog } from './blog.js'
    ============================================================ */
 
 'use strict';
 
 
-    var _articles = [];
-    var _filterType = 'all';
-    var _currentFile = null;
-    var _abortController = null;
-    var _debounceTimer = null;
-    var _fetching = false;
+    let _articles = [];
+    let _filterType = 'all';
+    let _currentFile = null;
+    let _abortController = null;
+    let _debounceTimer = null;
+    let _fetching = false;
+    let _loaded = false;
+    let _requestId = 0;
+    let _eventsBound = false;
 
     /* ---- DOM 引用 ---- */
-    var $blogSidebar, $blogNav, $blogContent, $blogToc, $blogSearch, $blogFilter;
-    var $blogMenuCtrl, $blogTocCtrl, $blogTitle;
+    let $blogSidebar, $blogNav, $blogContent, $blogToc, $blogSearch, $blogFilter;
+    let $blogMenuCtrl, $blogTocCtrl, $blogTitle;
 
-    /* ============================================================
-       解析 nginx autoindex 目录（复用 utils 共享解析）
-       ============================================================ */
-    var MD_EXTS = /\.(md|markdown)$/i;
-    var HTML_EXTS = /\.(html?|htm)$/i;
+    const MD_EXTS = /\.(md|markdown)$/i;
+    const HTML_EXTS = /\.(html?|htm)$/i;
 
-    async function parseDirListing(resp, type) {
-        var ext = type === 'markdown' ? MD_EXTS : HTML_EXTS;
-        var items = await Utils.parseAutoindex(resp, ext);
-        for (var i = 0; i < items.length; i++) items[i].type = type;
-        return items;
+    /* ---- 优先 fetch index.json，404 时降级为解析 autoindex（委托 Utils.fetchIndexOrAutoindex）---- */
+    async function fetchIndexOrAutoindex(indexUrl, autoindexUrl, type) {
+        let ext = type === 'markdown' ? MD_EXTS : HTML_EXTS;
+        return Utils.fetchIndexOrAutoindex(indexUrl, autoindexUrl, ext, function(item) {
+            item.type = type;
+        });
     }
 
     /* ============================================================
        获取文章列表（index.json 优先，autoindex 降级）
        ============================================================ */
     async function fetchArticles() {
-        if (_fetching) return;
-        if (!$blogSidebar) return;
+        if (_fetching || _loaded) return;
+        if (!$blogNav) return;
         _fetching = true;
         $blogNav.innerHTML = '<div class="blog-nav-loading">加载中...</div>';
 
         try {
-            var results = await Promise.all([
-                fetchIndexOrAutoindex('/Markdown/index.json', '/api/md/', 'markdown'),
-                fetchIndexOrAutoindex('/Html/index.json', '/api/html/', 'html')
+            let results = await Promise.all([
+                fetchIndexOrAutoindex(API.MARKDOWN_INDEX, API.MARKDOWN_LIST, 'markdown'),
+                fetchIndexOrAutoindex(API.HTML_INDEX, API.HTML_LIST, 'html')
             ]);
 
             _articles = results[0].concat(results[1]).sort(function(a, b) {
                 return a.name.localeCompare(b.name);
             });
+            _loaded = true;
 
             renderSidebar();
 
-            var firstMd = _articles.find(function(a) { return a.type === 'markdown'; });
+            let firstMd = _articles.find(function(a) { return a.type === 'markdown'; });
             if (firstMd) selectArticle(firstMd.name, firstMd.type);
 
         } catch (err) {
             console.error('Blog: 加载失败', err);
-            $blogNav.innerHTML = '<div class="blog-nav-loading">加载失败</div>';
+            if ($blogNav) $blogNav.innerHTML = '<div class="blog-nav-loading">加载失败</div>';
         } finally {
             _fetching = false;
         }
-    }
-
-    /* ---- 优先 fetch index.json，404 时降级为解析 autoindex ---- */
-    async function fetchIndexOrAutoindex(indexUrl, autoindexUrl, type) {
-        try {
-            var resp = await fetch(indexUrl);
-            if (resp.ok) {
-                var json = await resp.json();
-                return json.map(function(item) {
-                    item.type = type;
-                    item.size = item.size > 0 ? Utils.formatSize(item.size) : '?';
-                    return item;
-                });
-            }
-        } catch(e) { /* index.json 不存在，降级 */ }
-
-        var resp = await fetch(autoindexUrl);
-        return parseDirListing(resp, type);
     }
 
     /* ============================================================
@@ -98,21 +83,19 @@ import { MdViewer } from './md-viewer.js';
     function renderSidebar() {
         if (!$blogSidebar) return;
 
-        var query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
+        let query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
 
-        var filtered = _articles.filter(function(a) {
+        let filtered = _articles.filter(function(a) {
             if (_filterType !== 'all' && a.type !== _filterType) return false;
             if (query && !a.name.toLowerCase().includes(query)) return false;
             return true;
         });
 
-        // 按类型分组
-        var mdArticles = filtered.filter(function(a) { return a.type === 'markdown'; });
-        var htmlArticles = filtered.filter(function(a) { return a.type === 'html'; });
+        let mdArticles = filtered.filter(function(a) { return a.type === 'markdown'; });
+        let htmlArticles = filtered.filter(function(a) { return a.type === 'html'; });
 
-        var html = '';
+        let html = '';
 
-        // Markdown 分组
         html += '<div class="blog-nav-section">';
         html += '<span class="blog-nav-section-title">📘 Markdown <span class="blog-nav-count">' + mdArticles.length + '</span></span>';
         if (mdArticles.length === 0) {
@@ -120,7 +103,7 @@ import { MdViewer } from './md-viewer.js';
         } else {
             html += '<ul class="blog-nav-list">';
             mdArticles.forEach(function(a) {
-                var active = _currentFile === a.name ? ' active' : '';
+                let active = _currentFile === a.name ? ' active' : '';
                 html += '<li><a href="#" class="blog-nav-link' + active + '" data-file="' +
                     Utils.escapeHtml(a.name) + '" data-type="markdown">' +
                     Utils.escapeHtml(a.name) + '</a></li>';
@@ -129,7 +112,6 @@ import { MdViewer } from './md-viewer.js';
         }
         html += '</div>';
 
-        // HTML 分组
         html += '<div class="blog-nav-section">';
         html += '<span class="blog-nav-section-title">📄 HTML <span class="blog-nav-count">' + htmlArticles.length + '</span></span>';
         if (htmlArticles.length === 0) {
@@ -137,7 +119,7 @@ import { MdViewer } from './md-viewer.js';
         } else {
             html += '<ul class="blog-nav-list">';
             htmlArticles.forEach(function(a) {
-                var activeH = _currentFile === a.name ? ' active' : '';
+                let activeH = _currentFile === a.name ? ' active' : '';
                 html += '<li><a href="#" class="blog-nav-link' + activeH + '" data-file="' +
                     Utils.escapeHtml(a.name) + '" data-type="html">' +
                     Utils.escapeHtml(a.name) + '</a></li>';
@@ -153,29 +135,31 @@ import { MdViewer } from './md-viewer.js';
        选中文章 → 内联渲染
        ============================================================ */
     async function selectArticle(filename, type) {
-        // 取消前一个未完成的请求
-        if (_abortController) _abortController.abort();
-        _abortController = new AbortController();
-        var signal = _abortController.signal;
-
-        _currentFile = filename;
-
-        // 更新侧边栏高亮
-        renderSidebar();
-
-        if (!$blogContent || !$blogToc) return;
-
-        // HTML 文件 → 新窗口打开
+        // HTML 文件 → 新标签页打开
         if (type === 'html') {
+            _currentFile = filename;
+            renderSidebar();
             window.open('/Html/' + encodeURIComponent(filename), '_blank');
-            $blogContent.innerHTML = '<div class="blog-content-placeholder">' +
-                '<div class="blog-content-placeholder-icon">📄</div>' +
-                '<div>HTML 文件已在新标签页打开</div>' +
-                '<div class="blog-content-placeholder-hint">' + Utils.escapeHtml(filename) + '</div>' +
-                '</div>';
-            $blogToc.innerHTML = '';
+            if ($blogContent) {
+                $blogContent.innerHTML = '<div class="blog-content-placeholder">' +
+                    '<div class="blog-content-placeholder-icon">📄</div>' +
+                    '<div>HTML 文件已在新标签页打开</div>' +
+                    '<div class="blog-content-placeholder-hint">' + Utils.escapeHtml(filename) + '</div>' +
+                    '</div>';
+            }
+            if ($blogToc) $blogToc.innerHTML = '';
+            if ($blogTitle) $blogTitle.textContent = filename;
             return;
         }
+
+        // 取消前一个未完成的请求
+        if (_abortController) _abortController.abort();
+        let requestId = ++_requestId;
+        let controller = new AbortController();
+        _abortController = controller;
+        let signal = controller.signal;
+
+        if (!$blogContent || !$blogToc) return;
 
         // 更新标题
         if ($blogTitle) $blogTitle.textContent = filename;
@@ -185,44 +169,55 @@ import { MdViewer } from './md-viewer.js';
         $blogToc.innerHTML = '';
 
         try {
-            var resp = await fetch('/Markdown/' + encodeURIComponent(filename), { signal: signal });
+            let resp = await fetch(API.MARKDOWN_FILE + encodeURIComponent(filename), { signal: signal });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-            var raw = await resp.text();
+            let raw = await resp.text();
+            if (requestId !== _requestId) return;
 
             // 调用共享渲染引擎
-            var $article = document.createElement('div');
+            let $article = document.createElement('div');
             $article.className = 'markdown-body';
             $blogContent.innerHTML = '';
             $blogContent.appendChild($article);
 
-            await MdViewer.render(raw, $article);
+            await MarkdownRenderer.render(raw, $article);
+            if (requestId !== _requestId) return;
+
+            // 仅请求成功后才更新当前文件和侧边栏高亮
+            _currentFile = filename;
+            renderSidebar();
 
             // 生成右侧 ToC
             if ($blogToc) {
-                $blogToc.innerHTML = MdViewer.buildToc($article.innerHTML);
-                MdViewer.bindTocLinks($blogToc, null, $blogTocCtrl);
+                $blogToc.innerHTML = MarkdownRenderer.buildTocFromDom($article);
+                MarkdownRenderer.bindTocLinks($blogToc, $blogContent, $blogTocCtrl);
             }
 
             // 滚动到顶部
             $blogContent.scrollTop = 0;
 
         } catch (err) {
-            if (err.name === 'AbortError') return; // 请求被取消，静默忽略
+            if (err.name === 'AbortError') {
+                return;
+            }
+            if (requestId !== _requestId) return;
             console.error('Blog: 渲染失败', err);
             $blogContent.innerHTML = '<div class="md-error">渲染失败: ' +
                 Utils.escapeHtml(err.message) + '</div>';
             if ($blogToc) $blogToc.innerHTML = '';
+        } finally {
+            if (_abortController === controller) _abortController = null;
         }
     }
 
     /* ---- 侧边栏文章点击 ---- */
     function onSidebarClick(e) {
-        var a = e.target.closest('.blog-nav-link');
+        let a = e.target.closest('.blog-nav-link');
         if (!a) return;
         e.preventDefault();
-        var file = a.getAttribute('data-file');
-        var type = a.getAttribute('data-type');
+        let file = a.getAttribute('data-file');
+        let type = a.getAttribute('data-type');
         if (file) selectArticle(file, type);
         // 移动端关闭侧边栏
         if ($blogMenuCtrl) $blogMenuCtrl.checked = false;
@@ -230,7 +225,7 @@ import { MdViewer } from './md-viewer.js';
 
     /* ---- 类型过滤 ---- */
     function onFilterClick(e) {
-        var btn = e.target.closest('.blog-filter-btn');
+        let btn = e.target.closest('.blog-filter-btn');
         if (!btn) return;
         _filterType = btn.getAttribute('data-type') || 'all';
 
@@ -243,6 +238,8 @@ import { MdViewer } from './md-viewer.js';
 
     /* ---- 绑定事件 ---- */
     function bindEvents() {
+        if (_eventsBound) return;
+        _eventsBound = true;
         if ($blogSearch) $blogSearch.addEventListener('input', function() {
             clearTimeout(_debounceTimer);
             _debounceTimer = setTimeout(renderSidebar, 250);
@@ -268,6 +265,13 @@ import { MdViewer } from './md-viewer.js';
     }
 
     function hasArticles() { return _articles.length > 0; }
-    const Blog = { init: init, fetchArticles: fetchArticles, selectArticle: selectArticle, hasArticles: hasArticles };
+    function isLoaded() { return _loaded; }
+    const Blog = {
+        init: init,
+        fetchArticles: fetchArticles,
+        selectArticle: selectArticle,
+        hasArticles: hasArticles,
+        isLoaded: isLoaded
+    };
 
 export { Blog };

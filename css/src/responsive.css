@@ -8,7 +8,6 @@
     .nav-items { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
     .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
     .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
-    .md-content-container { padding: 1rem 0.75rem; }
 }
 
 /* ---- 手机 (< 640px) ---- */
@@ -66,8 +65,6 @@
     .gallery-info  { padding: 0.35rem 0.5rem; }
     .gallery-name  { font-size: 0.72rem; }
 
-    /* MD 阅读器 */
-    .md-content-container { padding: 0.75rem 0.5rem; }
     .markdown-body {
         padding: 1rem !important;
         font-size: 15px;
@@ -75,8 +72,6 @@
     }
     .markdown-body h1 { font-size: 1.4rem; }
     .markdown-body h2 { font-size: 1.2rem; }
-    .md-btn span:not(.md-btn-icon) { display: none; }
-    .md-btn { padding: 0.45rem 0.6rem; min-width: 38px; justify-content: center; }
 
     /* 搜索框 + 标签组合 */
     .section-search { flex-wrap: wrap; }
@@ -97,7 +92,6 @@
 /* ---- 大屏优化 (> 1200px) ---- */
 @media (min-width: 1200px) {
     .nav-items { grid-template-columns: repeat(3, 1fr); }
-    .md-content-container { padding: 2rem; }
 }
 
 /* ============================================================

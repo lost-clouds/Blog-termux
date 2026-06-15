@@ -127,7 +127,7 @@ Blog-termux/
 │   └── github-markdown.min.css      #   GitHub 风格 Markdown 样式
 │
 ├── Markdown/                        # 放 .md 文章
-├── Html/                            # 放 .html 文章
+
 ├── Image/                           # 图片目录
 │   ├── posts/                       #   文章配图（按 article-slug 分目录）
 │   ├── gallery/                     #   独立图库图片
@@ -179,7 +179,7 @@ index.html (单页面)
    ├── lightbox.js      → 无依赖
    ├── dashboard.js     → 无依赖
    ├── navigation.js    → 依赖 utils.js
-   ├── blog.js          → 依赖 utils.js，运行时引用 MdViewer
+   ├── blog.js          → 依赖 utils.js，运行时引用 MarkdownRenderer
    ├── gallery.js       → 依赖 utils.js + lightbox.js
    ├── md-viewer.js     → 依赖 marked (全局) + utils.js + lightbox.js
    └── app.js           → 依赖全部，最后加载，引导入口
@@ -201,7 +201,7 @@ index.html (单页面)
 
 Markdown/          nginx autoindex          /api/md/ (HTML 目录列表)
 Image/             ─────────────────→       /api/images/
-Html/                                       /api/html/
+
                                                     │
                                                     │ JS DOMParser 解析 HTML
                                                     ↓
@@ -307,12 +307,12 @@ Html/                                       /api/html/
 | | |
 |---|---|
 | 全局名 | `window.Blog` |
-| 数据源 | `GET /api/md/` + `GET /api/html/` |
+| 数据源 | `GET /api/md/` |
 | 对外方法 | `init()` `fetchArticles()` `selectArticle(filename, type)` |
 
 桌面端三栏布局：左侧可滚动文章目录 + 搜索/类型过滤 → 中间内联渲染正文 → 右侧自动生成 ToC。
 移动端侧边栏通过 CSS checkbox 滑入，ToC 下拉面板。
-渲染复用 `MdViewer.render()` 和 `MdViewer.buildToc()`，与覆盖层共享引擎。HTML 文章仍新标签页打开。
+渲染复用 `MarkdownRenderer.render()` 和 `MarkdownRenderer.buildTocFromDom()`。
 
 ---
 
@@ -332,7 +332,7 @@ Html/                                       /api/html/
 
 | | |
 |---|---|
-| 全局名 | `window.MdViewer` |
+
 | 数据源 | `GET /Markdown/<filename>` |
 | 对外方法 | `init()` `open(filename)` `close()` |
 
@@ -361,7 +361,7 @@ Html/                                       /api/html/
 ```
 1. Theme.initTheme()        → 应用存储的主题
 2. Lightbox.init()          → 绑定全局灯箱事件
-3. MdViewer.init()          → 预绑定阅读器事件
+
 4. Dashboard.init()         → 开始仪表盘轮询
 5. Navigation.init()        → 加载导航配置 + 渲染
 6. Blog.init()              → 缓存 DOM + 拉取文章列表
@@ -509,7 +509,7 @@ crontab -e
 | 内容类型 | 放入目录 | 发现方式 |
 |----------|----------|----------|
 | Markdown 文章 | `Markdown/` | index.json 优先 → nginx autoindex 降级 |
-| HTML 文章 | `Html/` | index.json 优先 → nginx autoindex 降级 |
+
 | 图片 | `Image/` | index.json 优先 → nginx autoindex 降级 |
 
 文件增删后**刷新页面即可**看到变化。运行 `bash gen_index.sh` 可生成静态索引加速加载，也可加入 cron：`*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux`

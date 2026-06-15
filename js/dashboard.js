@@ -1,3 +1,5 @@
+import { API } from './constants.js';
+
 /* ============================================================
    dashboard.js —— 系统资源仪表盘模块（8 卡片版）
    ────────────────────────────────────────────────────────────
@@ -10,14 +12,14 @@
    ────────────────────────────────────────────────────────────
    卡片顺序：设备 → CPU → 内存 → 储存 → 网络 → 电池 → 服务 → 运行时间
    数据源: GET /api/dashboard → corn.sh 生成
-   依赖: 无
+   依赖: constants (API)
    使用：import { Dashboard } from './dashboard.js'
    ============================================================ */
 
 'use strict';
 
     /* ---- DOM 引用 ---- */
-    var els = {
+    let els = {
         deviceValue:  document.getElementById('deviceValue'),
         deviceSub:    document.getElementById('deviceSub'),
         cpuValue:     document.getElementById('cpuValue'),
@@ -37,11 +39,11 @@
         uptimeValue:  document.getElementById('uptimeValue')
     };
 
-    var _timer = null;
-    var _fetchErrors = 0;
-    var _fetching = false;
-    var _paused = false;
-    var _tabActive = true;  // dashboard 是默认 Tab
+    let _timer = null;
+    let _fetchErrors = 0;
+    let _fetching = false;
+    let _paused = false;
+    let _tabActive = true;  // dashboard 是默认 Tab
 
     function set(el, text) { if (el) el.textContent = text || '--'; }
     function setBar(el, pct) {
@@ -54,11 +56,11 @@
     function update(data) {
         try {
             // 数据新鲜度指示器
-            var ageEl = document.getElementById('dataAge');
+            let ageEl = document.getElementById('dataAge');
             if (data.timestamp && ageEl) {
-                var ts = new Date(data.timestamp).getTime();
-                var age = isNaN(ts) ? -1 : Math.floor((Date.now() - ts) / 1000);
-                var ageText = '', ageClass = '';
+                let ts = new Date(data.timestamp).getTime();
+                let age = isNaN(ts) ? -1 : Math.floor((Date.now() - ts) / 1000);
+                let ageText = '', ageClass = '';
                 if (age >= 0 && age <= 60) { ageText = age + 's 前'; ageClass = 'age-fresh'; }
                 else if (age <= 120) { ageText = Math.floor(age / 60) + 'm 前'; ageClass = 'age-warn'; }
                 else if (age > 120) { ageText = Math.floor(age / 60) + 'm 前'; ageClass = 'age-stale'; }
@@ -68,7 +70,7 @@
             // 1. 设备
             if (data.device) {
                 set(els.deviceValue, data.device.model || '--');
-                var dsub = [];
+                let dsub = [];
                 if (data.device.android) dsub.push('Android ' + data.device.android);
                 if (data.device.kernel)  dsub.push('Kernel ' + data.device.kernel);
                 set(els.deviceSub, dsub.join(' · '));
@@ -76,10 +78,10 @@
 
             // 2. CPU
             if (data.cpu) {
-                var usage = parseFloat(data.cpu.usage) || 0;
+                let usage = parseFloat(data.cpu.usage) || 0;
                 set(els.cpuValue, usage.toFixed(1) + '%');
                 setBar(els.cpuFill, usage);
-                var csub = [];
+                let csub = [];
                 if (data.cpu.cores) csub.push(data.cpu.cores + ' 核');
                 if (data.cpu.model && data.cpu.model !== '?' && data.cpu.model !== 'ARM') csub.push(data.cpu.model);
                 set(els.cpuSub, csub.join(' · '));
@@ -87,18 +89,18 @@
 
             // 3. 内存
             if (data.memory) {
-                var memUsed  = parseFloat(data.memory.used);
-                var memTotal = parseFloat(data.memory.total);
-                var memPct   = memTotal > 0 ? (memUsed / memTotal * 100) : 0;
+                let memUsed  = parseFloat(data.memory.used);
+                let memTotal = parseFloat(data.memory.total);
+                let memPct   = memTotal > 0 ? (memUsed / memTotal * 100) : 0;
                 set(els.memValue, data.memory.used + ' / ' + data.memory.total + ' ' + (data.memory.unit || 'MB'));
                 setBar(els.memFill, memPct);
             }
 
             // 4. 储存
             if (data.disk) {
-                var diskUsed  = parseFloat(data.disk.used);
-                var diskTotal = parseFloat(data.disk.total);
-                var diskPct   = diskTotal > 0 ? (diskUsed / diskTotal * 100) : 0;
+                let diskUsed  = parseFloat(data.disk.used);
+                let diskTotal = parseFloat(data.disk.total);
+                let diskPct   = diskTotal > 0 ? (diskUsed / diskTotal * 100) : 0;
                 set(els.diskValue, data.disk.used + ' / ' + data.disk.total + ' ' + (data.disk.unit || 'GB'));
                 setBar(els.diskFill, diskPct);
             }
@@ -106,7 +108,7 @@
             // 5. 网络（独立卡片）
             if (data.network && data.network.ip && data.network.ip !== '--' && data.network.ip !== '-') {
                 set(els.netValue, data.network.ip);
-                var nsub = [];
+                let nsub = [];
                 if (data.network.iface) nsub.push(data.network.iface);
                 if (data.network.ipv6 && data.network.ipv6 !== '--') nsub.push('IPv6: ' + data.network.ipv6);
                 set(els.netSub, nsub.join(' · '));
@@ -119,9 +121,9 @@
             if (data.battery && data.battery.level !== undefined && data.battery.level >= 0) {
                 set(els.batteryValue, data.battery.level + '%');
                 setBar(els.batteryFill, data.battery.level);
-                var bsub = [];
+                let bsub = [];
                 if (data.battery.status) {
-                    var smap = { CHARGING:'充电中', DISCHARGING:'放电中', FULL:'已充满', NOT_CHARGING:'未充电' };
+                    let smap = { CHARGING:'充电中', DISCHARGING:'放电中', FULL:'已充满', NOT_CHARGING:'未充电' };
                     bsub.push(smap[data.battery.status] || data.battery.status);
                 }
                 if (data.battery.temp && parseFloat(data.battery.temp) > 0) bsub.push(data.battery.temp + '°C');
@@ -134,8 +136,8 @@
 
             // 7. 正在运行的服务
             if (data.services) {
-                var count = data.services.count || 0;
-                var names = data.services.running || [];
+                let count = data.services.count || 0;
+                let names = data.services.running || [];
                 set(els.svcValue, count + ' 个运行中');
                 set(els.svcSub, names.length > 0 ? names.join(', ') : '');
             } else {
@@ -168,9 +170,9 @@
         if (_fetching) return;
         _fetching = true;
         try {
-            var resp = await fetch('/api/dashboard');
+            let resp = await fetch(API.DASHBOARD);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            var json = await resp.json();
+            let json = await resp.json();
             _fetchErrors = 0;
             update(json);
         } catch (err) {
@@ -181,7 +183,7 @@
                 set(els.deviceSub, '检查 corn.sh / nginx /api/dashboard');
             } else if (_fetchErrors <= 5) {
                 // 中间错误状态：更新数据新鲜度指示器显示过期
-                var ageEl = document.getElementById('dataAge');
+                let ageEl = document.getElementById('dataAge');
                 if (ageEl) {
                     ageEl.textContent = '数据可能过期';
                     ageEl.className = 'data-age age-stale';
@@ -228,9 +230,8 @@
         stop();
     }
 
-    /* ---- 初始化 ---- */
+    /* ---- 初始化（仅注册监听器，不启动轮询）---- */
     function init() {
-        start();
         document.addEventListener('visibilitychange', onVisibilityChange);
     }
 

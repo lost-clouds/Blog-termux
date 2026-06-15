@@ -111,7 +111,7 @@ Blog-termux/
 │   └── github-markdown.min.css      #   GitHub-flavored Markdown styles
 │
 ├── Markdown/                        # .md articles
-├── Html/                            # .html articles
+
 ├── Image/                           # Images
 │   ├── posts/                       #   Article images (by slug)
 │   ├── gallery/                     #   Gallery images
@@ -162,7 +162,7 @@ index.html (SPA)
  lightbox.js       → no deps
  dashboard.js      → no deps
  navigation.js     → depends on utils.js
- blog.js           → depends on utils.js, references MdViewer at runtime
+ blog.js           → depends on utils.js, references MarkdownRenderer at runtime
  gallery.js        → depends on utils.js + lightbox.js
  marked.min.js     → Markdown engine
  md-viewer.js      → depends on marked + utils.js + lightbox.js
@@ -185,7 +185,7 @@ System metrics      corn.sh (cron every 30s)     dashboard.json
 
 Markdown/           nginx autoindex             /api/md/ (HTML directory listing)
 Image/              ───────────────────→        /api/images/
-Html/                                           /api/html/
+
                                                          │
                                                          │ JS DOMParser parses HTML
                                                          ↓
@@ -290,12 +290,12 @@ Reads `config.json`, renders service cards grouped by category. Search filters b
 | | |
 |---|---|
 | Global | `window.Blog` |
-| Source | `GET /api/md/` + `GET /api/html/` |
+| Source | `GET /api/md/` |
 | API | `init()` `fetchArticles()` `selectArticle(filename, type)` |
 
 Desktop: scrollable sidebar (article list + search/filter) | inline rendered content | auto-generated ToC.
 Mobile: sidebar slides in via CSS checkbox, ToC drops down from header.
-Rendering reuses `MdViewer.render()` and `MdViewer.buildToc()`, sharing the engine with the fullscreen overlay. HTML articles still open in new tab.
+Rendering reuses `MarkdownRenderer.render()` and `MarkdownRenderer.buildTocFromDom()`.
 
 ---
 
@@ -315,7 +315,7 @@ Thumbnail grid with search. Click → `Lightbox.open(src, name)`. Failed images 
 
 | | |
 |---|---|
-| Global | `window.MdViewer` |
+
 | Source | `GET /Markdown/<filename>` |
 | API | `init()` `open(filename)` `close()` |
 
@@ -344,7 +344,7 @@ Boot sequence:
 ```
 1.  Theme.initTheme()        → apply stored theme
 2.  Lightbox.init()          → bind lightbox events
-3.  MdViewer.init()          → pre-bind reader events
+
 4.  Dashboard.init()         → start dashboard polling
 5.  Navigation.init()        → load nav config + render
 6.  Blog.init()              → cache DOM + fetch articles
@@ -494,7 +494,7 @@ crontab -e
 | Content type | Place in | Discovery |
 |-------------|----------|-----------|
 | Markdown articles | `Markdown/` | nginx autoindex → `GET /api/md/` |
-| HTML articles | `Html/` | nginx autoindex → `GET /api/html/` |
+
 | Images | `Image/` | nginx autoindex → `GET /api/images/` |
 
 Add or remove files and refresh the page — no nginx restart needed.

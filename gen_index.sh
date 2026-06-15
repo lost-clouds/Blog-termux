@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 静态索引生成器：为 Markdown/Html/Image 目录生成 index.json
+# 静态索引生成器：为 Markdown/Image 目录生成 index.json
 # 用法: bash gen_index.sh [项目根目录]
 # ============================================================
 set -euo pipefail

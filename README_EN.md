@@ -83,7 +83,6 @@ Blog-termux/
 ├── css/
 │   ├── style.css                    # Built output — merged full stylesheet
 │   ├── build.sh                     # CSS build script (cat merge)
-│   ├── split.sh                     # CSS split script
 │   └── src/                         # CSS source (modular split)
 │       ├── _header.css
 │       ├── variables.css            #   CSS custom properties
@@ -91,20 +90,32 @@ Blog-termux/
 │       ├── layout.css               #   Page layout
 │       ├── responsive.css           #   Responsive breakpoints
 │       ├── components/              #   Component styles
+│       │   ├── header.css
+│       │   ├── tabs.css
+│       │   ├── dashboard.css
+│       │   ├── navigation.css
+│       │   ├── blog.css
+│       │   ├── gallery.css
+│       │   ├── markdown-content.css
+│       │   ├── image-lightbox.css
+│       │   └── bottom-nav.css
 │       └── themes/
 │           └── dark.css             #   Dark mode overrides
 │
 ├── js/                              # ES Modules
-│   ├── main.js                      #   Module entry — imports all in order
+│   ├── main.js                      #   Module entry — imports app.js
+│   ├── app.js                       #   Main controller (boot, routing, coordination)
 │   ├── theme.js                     #   Theme manager
-│   ├── utils.js                     #   Utilities
+│   ├── utils.js                     #   Utilities (incl. URL safelist validation)
+│   ├── constants.js                 #   Path constants (API + static assets)
+│   ├── sanitizer.js                 #   HTML whitelist sanitizer
+│   ├── footnotes.js                 #   Markdown footnote preprocessor
 │   ├── lightbox.js                  #   Image lightbox
 │   ├── dashboard.js                 #   System dashboard
 │   ├── navigation.js                #   Service navigation
-│   ├── blog.js                      #   Article list + reader
+│   ├── blog.js                      #   Article list + inline rendering
 │   ├── gallery.js                   #   Image gallery
-│   ├── md-viewer.js                 #   Markdown reader (overlay)
-│   └── app.js                       #   Main controller
+│   └── md-viewer.js                 #   Markdown rendering engine
 │
 ├── lib/                             # Third-party libraries (all local, zero CDN)
 │   ├── marked.min.js                #   Markdown parser
@@ -114,7 +125,6 @@ Blog-termux/
 │   └── github-markdown.min.css      #   GitHub-flavored Markdown styles
 │
 ├── Markdown/                        # .md articles
-├── Html/                            # .html articles
 ├── Image/                           # Images (scanned by gen_index.sh → shown in gallery)
 │   ├── posts/                       #   Article images → ✅ shown in gallery
 │   ├── gallery/                     #   Standalone images → ✅ shown in gallery
@@ -144,17 +154,11 @@ index.html (SPA)
   │
   ├─ content area (4 sections, 1 visible at a time)
   │   ├── #sec-dashboard    8 cards: device/CPU/memory/storage/network/battery/services/uptime
-  │   ├── #sec-nav          service group cards, search filter, click to open
-  │   ├── #sec-blog         three-column: sidebar(article list) | content | ToC, search/filter/inline render
+  │   ├── #sec-nav          service group cards, search filter, safe URL routing
+  │   ├── #sec-blog         three-column: sidebar(article list + type filter) | content(inline render) | ToC, HTML articles open in new tab
   │   └── #sec-gallery      image grid, search, click lightbox
   │
-  ├─ md-overlay (fullscreen) ── Markdown reader
-  │   ├── TOC sidebar (slide-in from left)
-  │   ├── reading progress bar
-  │   ├── content area (marked + KaTeX)
-  │   └── image lightbox
-  │
-  └─ lightbox (fullscreen) ──── image lightbox
+  └─ lightbox (fullscreen) ──── image lightbox (shared by Markdown images + gallery)
 ```
 
 ### Script Load Order
@@ -165,11 +169,12 @@ index.html (SPA)
          ├── theme.js       → no deps
          ├── utils.js       → no deps
          ├── lightbox.js    → no deps
-         ├── dashboard.js   → no deps
-         ├── navigation.js  → depends on utils.js
-         ├── blog.js        → depends on utils.js + md-viewer.js
-         ├── gallery.js     → depends on utils.js + lightbox.js
-         └── md-viewer.js   → depends on marked (global) + utils.js
+         ├── dashboard.js   → depends on constants.js
+         ├── navigation.js  → depends on utils.js + constants.js
+         ├── blog.js        → depends on utils.js + md-viewer.js + constants.js
+         ├── gallery.js     → depends on utils.js + lightbox.js + constants.js
+         └── md-viewer.js   → depends on marked (global) + utils.js + constants.js
+                               + sanitizer.js + footnotes.js + lightbox.js
 ```
 
 All business JS uses **ES Modules** (`import`/`export` with explicit dependency declarations). `main.js` is a single line `import './app.js'` — `app.js` manages the entire import chain. The only regular `<script>` is `lib/marked.min.js` (global `marked`). Module scripts auto-defer until DOM is ready.
@@ -187,8 +192,8 @@ System metrics      corn.sh (cron every 30s)     dashboard.json
                                                    → auto-detects running services
 
 Markdown/           nginx autoindex             /api/md/ (HTML directory listing)
-Image/              ───────────────────→        /api/images/
-Html/                                           /api/html/
+Html/               ───────────────────→        /api/html/
+Image/                                         /api/images/
                                                          │
                                                          │ JS DOMParser parses HTML
                                                          ↓
@@ -218,11 +223,12 @@ Toggles `body.dark` class to globally switch CSS variables, updates `<meta name=
 
 | | |
 |---|---|
-| Global | `window.Utils` / `window.downloadFile` |
-| API | `escapeHtml(str)` `formatSize(bytes)` `downloadFile(url, name)` |
+| Global | `import { Utils } from './utils.js'` |
+| API | `escapeHtml(str)` `getSafeUrl(url)` `formatSize(bytes)` `parseAutoindex(resp, ext)` `fetchIndexOrAutoindex(...)` |
 
-`escapeHtml` escapes `& < > "` on all user-controlled filenames before DOM insertion (XSS prevention).
-`downloadFile` uses `fetch → Blob → ObjectURL` to work around cross-origin `<a download>` limitations.
+`escapeHtml` escapes `& < > "` for XSS prevention.
+`getSafeUrl` whitelist-based URL validation — allows `http`/`https`/`mailto` and relative paths, rejects `javascript:` and other dangerous protocols.
+`fetchIndexOrAutoindex` fetches `index.json` first, falls back to parsing nginx autoindex HTML.
 
 ---
 
@@ -293,12 +299,12 @@ Reads `config.json`, renders service cards grouped by category. Search filters b
 | | |
 |---|---|
 | Global | `import { Blog } from './blog.js'` |
-| Source | `index.json` first → nginx autoindex fallback |
-| API | `init()` `fetchArticles()` `selectArticle(name, type)` `hasArticles()` |
+| Source | `index.json` first → nginx autoindex fallback (Markdown + HTML dual directory) |
+| API | `init()` `fetchArticles()` `selectArticle(name, type)` `hasArticles()` `isLoaded()` |
 
-Desktop: scrollable sidebar + search/filter | inline rendering | auto-generated ToC.
-250ms debounced search, `AbortController` cancels stale requests.
-Rendering via `MdViewer.render()` + `MdViewer.buildToc()`. HTML articles in new tab.
+Desktop: scrollable sidebar + type filter (All/Markdown/HTML) | inline rendering | auto-generated ToC.
+250ms debounced search, `AbortController` + `requestId` dual race-condition protection.
+Markdown inline rendering via `MarkdownRenderer.render()` + `MarkdownRenderer.buildTocFromDom()`. HTML files open in new tab.
 
 ---
 
@@ -306,33 +312,33 @@ Rendering via `MdViewer.render()` + `MdViewer.buildToc()`. HTML articles in new 
 
 | | |
 |---|---|
-| Global | `window.Gallery` |
-| Source | `GET /api/images/` |
-| API | `init()` `render()` `fetchImages()` |
+| Global | `import { Gallery } from './gallery.js'` |
+| Source | `index.json` first → nginx autoindex fallback |
+| API | `init()` `fetchImages()` `hasImages()` `isLoaded()` |
 
 Thumbnail grid with search. Click → `Lightbox.open(src, name)`. Failed images auto-hide with no broken icon.
 
 ---
 
-### md-viewer.js — Markdown Reader
+### md-viewer.js — Markdown Rendering Engine
 
 | | |
 |---|---|
-| Global | `import { MdViewer } from './md-viewer.js'` |
-| Source | `GET /Markdown/<filename>` |
-| API | `init()` `render(raw, $el)` `buildToc(html)` `open(fn)` `close()` |
+| Global | `import { MarkdownRenderer } from './md-viewer.js'` |
+| Source | Raw markdown text passed in by caller |
+| API | `render(raw, $el)` `buildTocFromDom($el)` `bindTocLinks($toc, $content, $tocCtrl)` |
 
-Fullscreen overlay with:
+Pure rendering module — no overlay/DOM lifecycle management. Feature set:
 
 | Feature | Implementation |
 |---------|---------------|
 | Markdown parsing | marked engine |
-| Math formulas | KaTeX, lazy-loaded (only when `$$`/`$`/`\[` detected) |
-| TOC | Parses h1–h6, indented, slide-in sidebar |
-| Reading progress | 3px blue progress bar at top |
+| XSS protection | Whitelist HTML sanitizer (tag/attr/URL/class/style five-layer filter) |
+| Footnotes | Preprocesses `[^id]` into footnote sections with backlinks |
+| Math formulas | KaTeX, lazy-loaded on demand |
+| TOC | Parses rendered h1–h6 from DOM, indented hierarchy |
 | Heading anchors | Injects `#` permalink on each heading |
-| Image handling | Relative paths → `/api/images/<name>`, click for lightbox |
-| Shortcuts | ESC closes lightbox first, then reader |
+| Image handling | Relative paths → `/api/images/`, reuses global Lightbox |
 
 ---
 
@@ -347,13 +353,12 @@ Boot sequence:
 ```
 1.  Theme.initTheme()       → apply stored theme
 2.  Lightbox.init()         → bind lightbox events
-3.  MdViewer.init()         → pre-bind reader events
-4.  Dashboard.init()        → start polling (paused when leaving tab)
-5.  Navigation.init()       → load nav config + render
-6.  Blog.init()             → cache DOM + bind events (data lazy-loaded)
-7.  Gallery.init()          → cache DOM + bind events (data lazy-loaded)
-8.  Tab click/keyboard(←→HomeEnd) + theme toggle + hashchange events
-9.  URL hash restore + mobile responsive + Service Worker registration
+3.  Dashboard.init()        → register visibility listener only (polling starts on tab enter)
+4.  Navigation.init()       → load nav config + render
+5.  Blog.init()             → cache DOM + bind events (data lazy-loaded)
+6.  Gallery.init()          → cache DOM + bind events (data lazy-loaded)
+7.  Tab click/keyboard(←→HomeEnd) + theme toggle + hashchange events
+8.  URL hash restore + Service Worker registration
 ```
 
 ---
@@ -496,7 +501,7 @@ crontab -e
 | Content type | Place in | Discovery |
 |-------------|----------|-----------|
 | Markdown articles | `Markdown/` | index.json first → nginx autoindex fallback |
-| HTML articles | `Html/` | index.json first → nginx autoindex fallback |
+| HTML articles | `Html/` | index.json first → nginx autoindex fallback, opens in new tab |
 | Images | `Image/` | index.json first → nginx autoindex fallback |
 
 > **Gallery visibility**: `gen_index.sh` skips `thumbnails/` and `archive/` — images in these directories are **not shown** in the gallery. Images in `posts/` and `gallery/` are indexed and displayed.
@@ -519,10 +524,10 @@ nginx -s reload
 | **Switch tab** | PC/tablet: click top tab bar. Mobile: tap bottom nav bar |
 | **Dark mode** | Click ☀️/🌙 button, preference auto-saved |
 | **Search services** | Nav tab → type in search box (matches name/description/tag) |
-| **Search articles** | Blog tab → type keywords → optional Markdown/HTML filter |
-| **Read article** | Click article card → fullscreen reader → left sidebar for TOC |
+| **Search articles** | Blog tab → type keywords → filter by type: All / Markdown / HTML |
+| **Read article** | Click article → inline rendering in center panel, auto-generated TOC on the right |
 | **Browse images** | Gallery tab → search or scroll → click image for lightbox |
-| **Markdown shortcuts** | In reader: ESC closes lightbox, ESC again closes reader |
+| **Shortcuts** | ESC closes image lightbox |
 
 ---
 

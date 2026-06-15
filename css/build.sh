@@ -24,10 +24,8 @@ cat \
     "$SRC/components/navigation.css" \
     "$SRC/components/blog.css" \
     "$SRC/components/gallery.css" \
-    "$SRC/components/md-overlay.css" \
-    "$SRC/components/toc.css" \
+    "$SRC/components/markdown-content.css" \
     "$SRC/components/image-lightbox.css" \
-    "$SRC/components/progress-bar.css" \
     "$SRC/components/bottom-nav.css" \
     "$SRC/themes/dark.css" \
     "$SRC/responsive.css" \

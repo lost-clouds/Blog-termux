@@ -1,95 +1,14 @@
 /* ============================================================
-   10. Markdown 阅读器覆盖层
+   10. Markdown 正文内容样式（blog 内联渲染共用）
    ============================================================ */
-.md-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    background: var(--bg-primary);
-    display: flex;
-    flex-direction: column;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.25s ease, visibility 0.25s ease;
-}
-.md-overlay.active { opacity: 1; visibility: visible; }
 
-/* 阅读器顶部栏 */
-.md-topbar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1rem;
-    background: var(--glass-bg-strong);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--glass-border);
-    z-index: 10;
-    min-height: 52px;
-}
-
-.md-topbar-left  { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; }
-.md-topbar-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
-
-.md-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.45rem 0.9rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--glass-border-strong);
-    background: var(--glass-bg);
-    font-size: 0.85rem;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: var(--transition);
-    white-space: nowrap;
-    min-height: 38px;
-    font-family: inherit;
-    font-weight: 500;
-}
-.md-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-.md-topbar-title {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
-}
-
-/* 阅读器内容滚动区 */
-.md-content-scroll {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.md-content-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 1.5rem 1rem;
-}
-
-/* Markdown 正文 */
 .markdown-body {
-    background: var(--glass-bg);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem !important;
     color: var(--text-primary);
     font-size: 16px;
     line-height: 1.75;
     word-break: break-word;
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow-sm);
 }
 
-/* 兼容 github-markdown.css 样式微调 */
 .markdown-body h1, .markdown-body h2, .markdown-body h3,
 .markdown-body h4, .markdown-body h5, .markdown-body h6 {
     color: var(--text-primary);
@@ -139,9 +58,7 @@ body:not(.dark) .markdown-body pre {
     background: #f0f0f3;
     border-color: rgba(0,0,0,0.1);
 }
-body:not(.dark) .markdown-body table {
-    background: #fff;
-}
+body:not(.dark) .markdown-body table { background: #fff; }
 body:not(.dark) .markdown-body th {
     background: #e8e8ed;
     color: #1c1c1e !important;
@@ -156,22 +73,12 @@ body:not(.dark) .markdown-body tr:nth-child(even) td {
 body:not(.dark) .markdown-body tr:hover td {
     background: rgba(0,0,0,0.06);
 }
-body:not(.dark) .markdown-body td * {
-    color: #1c1c1e !important;
-}
-body:not(.dark) .markdown-body tr {
-    background: #fff !important;
-}
-body:not(.dark) .markdown-body tr:nth-child(even) {
-    background: #f6f8fa !important;
-}
-body:not(.dark) .markdown-body tr:hover {
-    background: #e8f0fe !important;
-}
-/* 强制覆盖 github-markdown.css */
-.markdown-body td, .markdown-body th {
-    color: var(--text-primary);
-}
+body:not(.dark) .markdown-body td * { color: #1c1c1e !important; }
+body:not(.dark) .markdown-body tr { background: #fff !important; }
+body:not(.dark) .markdown-body tr:nth-child(even) { background: #f6f8fa !important; }
+body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
+
+.markdown-body td, .markdown-body th { color: var(--text-primary); }
 .markdown-body img {
     cursor: zoom-in;
     border-radius: var(--radius-sm);
@@ -196,8 +103,7 @@ body:not(.dark) .markdown-body tr:hover {
 .katex { font-size: 1.05em; }
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5em 0; }
 
-/* 加载 & 错误 */
-.md-loading { text-align: center; padding: 3rem; color: var(--text-secondary); }
+/* 渲染错误 */
 .md-error {
     background: rgba(248,81,73,0.1);
     color: #d32f2f;
@@ -206,4 +112,3 @@ body:not(.dark) .markdown-body tr:hover {
     text-align: center;
     border: 1px solid rgba(248,81,73,0.3);
 }
-

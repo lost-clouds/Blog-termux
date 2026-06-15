@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog-termux — 个人导航 + 博客控制台</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #1a1a1a;
+            color: #ccc;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255,255,255,.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 60%, rgba(255,255,255,.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(255,255,255,.02) 0%, transparent 50%);
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem 5rem;
+        }
+
+        /* ---- 磨砂玻璃卡片 ---- */
+        .card {
+            background: rgba(255,255,255,.06);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 14px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 3rem 2rem;
+        }
+
+        .hero h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -.02em;
+            margin-bottom: .75rem;
+        }
+
+        .hero .tagline {
+            font-size: .95rem;
+            color: #888;
+        }
+
+        .hero .badge-row {
+            display: flex;
+            justify-content: center;
+            gap: .6rem;
+            margin-top: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 20px;
+            padding: .3rem .85rem;
+            font-size: .78rem;
+            color: #aaa;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #eee;
+            margin-bottom: 1rem;
+            padding-bottom: .6rem;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+
+        p { margin-bottom: .85rem; font-size: .92rem; }
+
+        /* ---- 特性网格 ---- */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: .85rem;
+        }
+
+        .feat-item {
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 10px;
+            padding: 1.1rem 1rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .feat-item .icon { font-size: 1.4rem; margin-bottom: .4rem; }
+        .feat-item .name { font-size: .85rem; font-weight: 600; color: #ddd; margin-bottom: .2rem; }
+        .feat-item .desc { font-size: .75rem; color: #888; }
+
+        /* ---- 代码块 ---- */
+        .code-block {
+            background: rgba(0,0,0,.35);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+            font-size: .8rem;
+            color: #aaa;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.6;
+        }
+
+        .code-block .c { color: #666; }
+        .code-block .k { color: #999; }
+
+        /* ---- 列表 ---- */
+        ul { padding-left: 1.2rem; margin-bottom: .85rem; }
+        li { font-size: .9rem; margin-bottom: .35rem; color: #bbb; }
+        li::marker { color: #555; }
+
+        /* ---- 分割线 ---- */
+        hr {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,.06);
+            margin: .5rem 0 1.5rem;
+        }
+
+        /* ---- 页脚 ---- */
+        .footer {
+            text-align: center;
+            font-size: .75rem;
+            color: #555;
+            margin-top: 1rem;
+        }
+
+        .footer a { color: #777; text-decoration: none; }
+        .footer a:hover { color: #aaa; }
+
+        /* ---- 响应式 ---- */
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            .hero { padding: 2rem 1rem; }
+            .hero h1 { font-size: 1.5rem; }
+            .card { padding: 1.25rem; }
+            .features { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-layer"></div>
+
+<div class="container">
+
+    <!-- ====== Hero ====== -->
+    <div class="card hero">
+        <h1>Blog-termux</h1>
+        <p class="tagline">纯静态单页面应用 — 无需 PHP / Node / Python 后端</p>
+        <div class="badge-row">
+            <span class="badge">Nginx</span>
+            <span class="badge">ES Modules</span>
+            <span class="badge">零依赖</span>
+            <span class="badge">响应式</span>
+            <span class="badge">MIT</span>
+        </div>
+    </div>
+
+    <!-- ====== 简介 ====== -->
+    <div class="card">
+        <h2>简介</h2>
+        <p>
+            基于 Nginx 运行的极简控制台，集成 <strong style="color:#ddd;">系统仪表盘</strong>、
+            <strong style="color:#ddd;">服务导航</strong>、<strong style="color:#ddd;">Markdown 博客</strong>、
+            <strong style="color:#ddd;">图片画廊</strong> 四大模块。所有内容通过 nginx autoindex 或预生成的
+            index.json 发现，无需任何后端运行时。
+        </p>
+        <p>
+            本项目衍生自 <a href="https://github.com/bastienwirtz/homer" style="color:#999;">bastienwirtz/homer</a>，
+            在长期使用中逐步演变为当前形态。
+        </p>
+    </div>
+
+    <!-- ====== 四大模块 ====== -->
+    <div class="card">
+        <h2>四大模块</h2>
+        <div class="features">
+            <div class="feat-item">
+                <div class="icon">📊</div>
+                <div class="name">系统仪表盘</div>
+                <div class="desc">8 张实时卡片：设备 / CPU / 内存 / 储存 / 网络 / 电池 / 服务 / 运行时间</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">🧭</div>
+                <div class="name">服务导航</div>
+                <div class="desc">分组卡片展示，搜索过滤，安全 URL 白名单跳转</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">📝</div>
+                <div class="name">博客阅读器</div>
+                <div class="desc">三栏布局，Markdown 内联渲染 + ToC，HTML 文章新标签页打开</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">🖼️</div>
+                <div class="name">图片画廊</div>
+                <div class="desc">网格缩略图，搜索过滤，灯箱放大，加载失败自动隐藏</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 技术栈 ====== -->
+    <div class="card">
+        <h2>技术栈</h2>
+        <ul>
+            <li>所有 JS 使用 <strong style="color:#ddd;">ES Modules</strong>（import / export 显式声明依赖）</li>
+            <li>Markdown 解析：marked 引擎 + 白名单 HTML sanitizer + KaTeX 数学公式</li>
+            <li>CSS 策略：CSS 自定义属性 + 3 个响应式断点（1200 / 640 / 400px）</li>
+            <li>Service Worker：分层缓存（network-only / SWR / network-first / cache-first）</li>
+            <li>仪表盘数据：corn.sh 定时采集系统指标 → dashboard.json → 前端每 10s 轮询</li>
+            <li>文件发现：<code style="color:#999;">gen_index.sh</code> 生成 index.json 优先 → nginx autoindex 降级</li>
+            <li>安全：文件名 escapeHtml 转义 + URL 白名单验证 + HTML sanitizer 五重过滤</li>
+        </ul>
+    </div>
+
+    <!-- ====== 目录结构 ====== -->
+    <div class="card">
+        <h2>目录结构</h2>
+        <div class="code-block"><span class="c"># 一键克隆</span>
+        git clone https://github.com/lost-clouds/Blog-termux.git
+
+        <span class="c"># 下载依赖库</span>
+        <span class="k">cd</span> Blog-termux/lib
+        curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
+        curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
+        curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
+        curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
+        curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+
+        <span class="c"># 配置 Nginx → 添加 cron → 启动</span>
+        <span class="k">cp</span> example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
+        <span class="k">bash</span> gen_index.sh    <span class="c"># 生成静态索引</span>
+        nginx -s reload</div>
+    </div>
+
+    <!-- ====== 快速开始 ====== -->
+    <div class="card">
+        <h2>部署要素</h2>
+        <div class="features">
+            <div class="feat-item">
+                <div class="icon">🖥️</div>
+                <div class="name">Nginx</div>
+                <div class="desc">Web 服务器，提供 autoindex 目录列表和静态文件服务</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">⏱️</div>
+                <div class="name">cron</div>
+                <div class="desc">定时执行 corn.sh 采集系统指标，每 30s 刷新 dashboard.json</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">📁</div>
+                <div class="name">Markdown/</div>
+                <div class="desc">放入 .md 文章，博客标签页自动发现并渲染</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">🖼️</div>
+                <div class="name">Image/</div>
+                <div class="desc">放入图片，画廊标签页自动展示；thumbnails/ 和 archive/ 会被跳过</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 页脚 ====== -->
+    <div class="footer">
+        <p>Blog-termux &copy; MIT License &nbsp;·&nbsp; <a href="https://github.com/lost-clouds/Blog-termux">GitHub</a></p>
+        <p style="margin-top:.4rem;">此页面存放在 Html/ 目录，作为 HTML 文章功能的示例。</p>
+    </div>
+
+</div>
+
+</body>
+</html>

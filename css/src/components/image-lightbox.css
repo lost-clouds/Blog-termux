@@ -1,5 +1,5 @@
 /* ============================================================
-   12. 图片灯箱（全局 + Markdown 内）
+   11. 图片灯箱（全局）
    ============================================================ */
 .lightbox {
     position: fixed;
@@ -53,52 +53,5 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* MD 内图片灯箱（复用 .lightbox 样式，增加独立 ID 控制） */
-.md-lightbox {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.93);
-    backdrop-filter: blur(12px);
-    z-index: 3000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-.md-lightbox.active { opacity: 1; visibility: visible; }
-.md-lightbox img {
-    max-width: 92vw;
-    max-height: 90vh;
-    object-fit: contain;
-    border-radius: 8px;
-    box-shadow: var(--shadow-lg);
-}
-.md-lightbox-close {
-    position: absolute;
-    top: 1rem; right: 1rem;
-    width: 42px; height: 42px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(255,255,255,0.15);
-    color: #fff;
-    font-size: 1.3rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-.md-lightbox-close:hover { background: rgba(255,255,255,0.3); }
-.md-lightbox-name {
-    position: absolute;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    color: rgba(255,255,255,0.7);
-    font-size: 0.85rem;
 }
 

@@ -1,4 +1,5 @@
 import { Utils } from './utils.js';
+import { API } from './constants.js';
 
 /* ============================================================
    navigation.js —— 服务导航模块（替代 Homer iframe）
@@ -23,15 +24,23 @@ import { Utils } from './utils.js';
     /* ---- DOM 引用缓存 ---- */
     let $navGrid, $navSearch;
 
-    /* ---- 加载配置文件 ---- */
-    async function loadConfig() {
-        try {
-            const resp = await fetch('/config.json');
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            _config = await resp.json();
-        } catch (err) {
-            console.error('Navigation: 配置加载失败', err);
-            _config = null;
+    /* ---- 加载配置文件（带指数退避重试）---- */
+    async function loadConfig(retries) {
+        retries = retries || 3;
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const resp = await fetch(API.CONFIG);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                _config = await resp.json();
+                return;
+            } catch (err) {
+                if (attempt === retries) {
+                    console.error('Navigation: 配置加载失败', err);
+                    _config = null;
+                    return;
+                }
+                await new Promise(function(r) { setTimeout(r, 1000 * Math.pow(2, attempt)); });
+            }
         }
     }
 
@@ -68,9 +77,13 @@ import { Utils } from './utils.js';
             html += '<div class="nav-items">';
 
             filtered.forEach(function(item) {
-                html += '<a href="' + Utils.escapeHtml(item.url) + '" ';
-                html += 'class="nav-card" target="_blank" rel="noopener" ';
-                html += 'title="' + Utils.escapeHtml(item.subtitle || item.name) + '">';
+                let safeUrl = Utils.getSafeUrl(item.url);
+                let tag = safeUrl ? 'a' : 'div';
+                html += '<' + tag;
+                if (safeUrl) {
+                    html += ' href="' + Utils.escapeHtml(safeUrl) + '" target="_blank" rel="noopener"';
+                }
+                html += ' class="nav-card" title="' + Utils.escapeHtml(item.subtitle || item.name) + '">';
                 html += '<span class="nav-card-icon">' + Utils.escapeHtml(item.icon || '🔗') + '</span>';
                 html += '<span class="nav-card-body">';
                 html += '<span class="nav-card-name">' + Utils.escapeHtml(item.name) + '</span>';
@@ -81,7 +94,7 @@ import { Utils } from './utils.js';
                 if (item.tag) {
                     html += '<span class="nav-card-tag">' + Utils.escapeHtml(item.tag) + '</span>';
                 }
-                html += '</a>';
+                html += '</' + tag + '>';
             });
 
             html += '</div></div>';

@@ -183,7 +183,6 @@
                     <div class="blog-filter-bar" id="blogFilter">
                         <button class="blog-filter-btn active" data-type="all">全部</button>
                         <button class="blog-filter-btn" data-type="markdown">MD</button>
-                        <button class="blog-filter-btn" data-type="html">HTML</button>
                     </div>
                     <nav class="blog-nav" id="blogNav">
                         <div class="blog-nav-loading">加载中...</div>
@@ -221,7 +220,7 @@
     </div>
 
     <!-- 底部导航栏（移动端） -->
-    <nav class="bottom-nav" id="bottomNav" style="display:none;">
+    <nav class="bottom-nav" id="bottomNav">
         <button class="tab-btn active" data-tab="dashboard">
             <span class="tab-icon">📊</span> <span>仪表盘</span>
         </button>
@@ -241,48 +240,6 @@
         <button class="lightbox-close" aria-label="关闭">✕</button>
         <img src="" alt="" id="lightboxImg">
         <div class="lightbox-name" id="lightboxName"></div>
-    </div>
-
-    <!-- Markdown 阅读器覆盖层 -->
-    <div class="md-overlay" id="mdOverlay">
-        <div class="md-progress-bar" id="mdProgressBar"></div>
-        <div class="toc-overlay" id="tocOverlay"></div>
-        <aside class="toc-sidebar" id="tocSidebar">
-            <div class="toc-header">
-                <span>📑 目录</span>
-                <button class="toc-close-btn" id="tocCloseBtn" aria-label="关闭目录">✕</button>
-            </div>
-            <nav class="toc-nav" id="tocNav">
-                <div class="toc-empty">加载中...</div>
-            </nav>
-        </aside>
-        <div class="md-topbar">
-            <div class="md-topbar-left">
-                <button class="md-btn" id="mdTocBtn" aria-label="目录">
-                    <span class="md-btn-icon">☰</span> <span>目录</span>
-                </button>
-                <span class="md-topbar-title" id="mdTitle">加载中...</span>
-            </div>
-            <div class="md-topbar-right">
-                <button class="md-btn" id="mdCloseBtn" aria-label="关闭">
-                    <span class="md-btn-icon">✕</span> <span>关闭</span>
-                </button>
-            </div>
-        </div>
-        <div class="md-content-scroll">
-            <div class="md-content-container">
-                <div class="markdown-body" id="mdContent">
-                    <div class="md-loading">加载中...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Markdown 内图片灯箱 -->
-    <div class="md-lightbox" id="mdLightbox">
-        <button class="md-lightbox-close" aria-label="关闭">✕</button>
-        <img src="" alt="" id="mdLightboxImg">
-        <div class="md-lightbox-name" id="mdLightboxName"></div>
     </div>
 
     <!-- ============================================================
