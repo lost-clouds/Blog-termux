@@ -54,7 +54,7 @@ scan_dir() {
 
         printf '  {"name":"%s","type":"%s","size":%s,"modified":%s}' \
             "$rel" "$type" "$size" "$modified" >> "$out_tmp"
-    done < <(find "$base_dir" -type f -print0 2>/dev/null || true)
+    done < <(find -L "$base_dir" -type f -print0 2>/dev/null || true)
 
     echo "" >> "$out_tmp"
     echo "]" >> "$out_tmp"
