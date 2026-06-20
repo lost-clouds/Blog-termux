@@ -25,8 +25,12 @@ import { API } from './constants.js';
         cpuValue:     document.getElementById('cpuValue'),
         cpuSub:       document.getElementById('cpuSub'),
         cpuFill:      document.getElementById('cpuFill'),
+        cpuClusters:  document.getElementById('cpuClusters'),
         memValue:     document.getElementById('memValue'),
         memFill:      document.getElementById('memFill'),
+        swapValue:    document.getElementById('swapValue'),
+        swapFill:     document.getElementById('swapFill'),
+        swapRow:      document.getElementById('swapRow'),
         diskValue:    document.getElementById('diskValue'),
         diskFill:     document.getElementById('diskFill'),
         netValue:     document.getElementById('netValue'),
@@ -61,7 +65,8 @@ import { API } from './constants.js';
                 let ts = new Date(data.timestamp).getTime();
                 let age = isNaN(ts) ? -1 : Math.floor((Date.now() - ts) / 1000);
                 let ageText = '', ageClass = '';
-                if (age >= 0 && age <= 60) { ageText = age + 's 前'; ageClass = 'age-fresh'; }
+                if (age < 0) { ageText = ''; ageClass = ''; }
+                else if (age <= 60) { ageText = age + 's 前'; ageClass = 'age-fresh'; }
                 else if (age <= 120) { ageText = Math.floor(age / 60) + 'm 前'; ageClass = 'age-warn'; }
                 else if (age > 120) { ageText = Math.floor(age / 60) + 'm 前'; ageClass = 'age-stale'; }
                 ageEl.textContent = ageText;
@@ -87,6 +92,27 @@ import { API } from './constants.js';
                 set(els.cpuSub, csub.join(' · '));
             }
 
+            // 2.5 CPU 集群信息
+            const clustersEl = els.cpuClusters;
+            if (clustersEl && data.cpu && data.cpu.clusters && Object.keys(data.cpu.clusters).length > 0) {
+                clustersEl.innerHTML = '';
+                for (const [name, info] of Object.entries(data.cpu.clusters)) {
+                    const row = document.createElement('div');
+                    row.className = 'cluster-row';
+                    const cores = info.cores || 0;
+                    const usage = parseFloat(info.usage) || 0;
+                    const fmax = info.freq_max ? (info.freq_max / 1000).toFixed(1) : '?';
+                    row.innerHTML =
+                        '<span class="cluster-label">' + name + '</span>' +
+                        '<span class="cluster-detail">' + cores + ' 核 @ ' + fmax + 'GHz</span>' +
+                        '<span class="cluster-usage">' + usage.toFixed(1) + '%</span>';
+                    clustersEl.appendChild(row);
+                }
+                clustersEl.style.display = '';
+            } else if (clustersEl) {
+                clustersEl.style.display = 'none';
+            }
+
             // 3. 内存
             if (data.memory) {
                 let memUsed  = parseFloat(data.memory.used);
@@ -94,6 +120,20 @@ import { API } from './constants.js';
                 let memPct   = memTotal > 0 ? (memUsed / memTotal * 100) : 0;
                 set(els.memValue, data.memory.used + ' / ' + data.memory.total + ' ' + (data.memory.unit || 'MB'));
                 setBar(els.memFill, memPct);
+
+                // 3.5 SWAP
+                if (els.swapRow && data.memory.swap_total && parseFloat(data.memory.swap_total) > 0) {
+                    let swapUsed  = parseFloat(data.memory.swap_used) || 0;
+                    let swapTotal = parseFloat(data.memory.swap_total);
+                    let swapPct   = swapTotal > 0 ? (swapUsed / swapTotal * 100) : 0;
+                    set(els.swapValue, swapUsed.toFixed(1) + ' / ' + swapTotal.toFixed(1) + ' ' + (data.memory.unit || 'GB'));
+                    if (els.swapFill) {
+                        els.swapFill.style.width = Math.min(100, Math.max(0, swapPct)) + '%';
+                    }
+                    els.swapRow.style.display = '';
+                } else if (els.swapRow) {
+                    els.swapRow.style.display = 'none';
+                }
             }
 
             // 4. 储存

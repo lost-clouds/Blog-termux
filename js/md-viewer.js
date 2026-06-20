@@ -114,7 +114,7 @@ function getHeadingText(heading) {
 function getImageUrl(src) {
     if (!src || /^(https?:|\/\/|data:|\/api\/)/i.test(src)) return src;
 
-    let cleanPath = src.replace(/^\.\/|^\/?Image\//, '');
+    let cleanPath = src.replace(/^\.\/|^\/?Image\//i, '');
     let segments = cleanPath.split('/').filter(Boolean);
     if (!segments.length || segments.indexOf('..') !== -1) return src;
 

@@ -307,6 +307,24 @@ img { max-width: 100%; height: auto; }
     .dash-sub   { font-size: 0.75rem; white-space: normal; overflow: visible; text-overflow: unset; }
 }
 
+/* ---- 集群信息行 ---- */
+.dash-clusters { width: 100%; margin-top: 0.4rem; font-size: 0.72rem; }
+.cluster-row { display: flex; justify-content: space-between; align-items: center;
+               padding: 0.15rem 0; }
+.cluster-row + .cluster-row { border-top: 1px solid rgba(0,0,0,0.04); }
+.cluster-label { color: var(--text-primary); font-weight: 500; min-width: 5.2rem; }
+.cluster-detail { color: var(--text-tertiary); flex: 1; margin: 0 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cluster-usage { font-weight: 600; min-width: 2.8rem; text-align: right; color: var(--text-secondary); }
+
+/* ---- SWAP 子行 ---- */
+.dash-sub-row { width: 100%; display: flex; align-items: center; gap: 0.4rem;
+                margin-top: 0.3rem; font-size: 0.7rem; }
+.sub-label { color: var(--text-tertiary); flex-shrink: 0; }
+.sub-fill-wrap { flex: 1; height: 3px; background: rgba(0,0,0,0.05); border-radius: 2px; overflow: hidden; }
+.sub-fill { display: block; height: 100%; width: 0%; background: var(--accent); opacity: 0.7;
+            border-radius: 2px; transition: width 0.5s ease; }
+.sub-value { color: var(--text-secondary); flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 /* ---- 平板 (2列) ---- */
 @media (min-width: 640px) and (max-width: 1023px) {
     .dashboard-grid { grid-template-columns: repeat(2, 1fr); gap: 0.9rem; }
@@ -1003,7 +1021,7 @@ body.dark .bottom-nav {
    ============================================================ */
 
 /* ---- Pad (640px - 1024px) ---- */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
     .app-container { padding: 0.75rem; }
     .nav-items { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
     .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1012,7 +1030,7 @@ body.dark .bottom-nav {
 
 /* ---- 手机 (< 640px) ---- */
 @media (max-width: 640px) {
-    .app-container { padding: 0.5rem; }
+    .app-container { padding: 0.5rem; padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
 
     .header {
         padding: 0.6rem 0.9rem;

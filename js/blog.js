@@ -139,7 +139,7 @@ import { API } from './constants.js';
         if (type === 'html') {
             _currentFile = filename;
             renderSidebar();
-            window.open('/Html/' + encodeURIComponent(filename), '_blank');
+            window.open('/Html/' + filename.split('/').map(encodeURIComponent).join('/'), '_blank');
             if ($blogContent) {
                 $blogContent.innerHTML = '<div class="blog-content-placeholder">' +
                     '<div class="blog-content-placeholder-icon">📄</div>' +

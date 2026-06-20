@@ -86,9 +86,9 @@ self.addEventListener('fetch', function(e) {
         return;
     }
 
-    // 入口/配置 → network-first
+    // 入口/配置/API → network-first
     if (NETWORK_FIRST.indexOf(url.pathname) !== -1 ||
-        NETWORK_FIRST.some(function(p) { return url.pathname.startsWith(p); })) {
+        NETWORK_FIRST.some(function(p) { return p !== '/' && url.pathname.startsWith(p); })) {
         e.respondWith(networkFirst(e.request));
         return;
     }
