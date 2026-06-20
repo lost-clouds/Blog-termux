@@ -184,9 +184,8 @@ All business JS uses **ES Modules** (`import`/`export` with explicit dependency 
 ```
 System metrics      corn.sh (cron every 30s)     dashboard.json
 (cpufreq/lscpu/      ──────────────────────────→   JSON file on disk
-/proc/stat/top
-fallback chain)
- ifconfig/ps)                                            │
+ /proc/stat/top                                          │
+ fallback chain)                                         │
                                                          │ GET /api/dashboard (nginx alias)
                                                          ↓
                                                    dashboard.js (poll every 10s)
@@ -258,7 +257,7 @@ Renders 8 cards:
 | Card | Content | Bar |
 |------|---------|-----|
 | 📱 Device | brand+model · Android · kernel | — |
-| 🧠 CPU | usage% · cores · processor model | blue |
+| 🧠 CPU | usage% · cores · model · cluster breakdown (Cortex-A73/A53) | blue |
 | 💾 Memory | used / total (GB/MB) + SWAP | blue |
 | 🗄️ Storage | used / total (GB) | blue |
 | 🌐 Network | local IP · interface · IPv6 | — |
