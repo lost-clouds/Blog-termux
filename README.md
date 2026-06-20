@@ -184,9 +184,9 @@ All business JS uses **ES Modules** (`import`/`export` with explicit dependency 
 ```
 System metrics      corn.sh (cron every 30s)     dashboard.json
 (cpufreq/lscpu/      ──────────────────────────→   JSON file on disk
- /proc/stat/top                                          │
- fallback chain)                                         │
-                                                         │ GET /api/dashboard (nginx alias)
+ /proc/stat/top/                                    │
+ uptime loadavg                                     │ GET /api/dashboard (nginx alias)
+ fallback chain)                                    ↓
                                                          ↓
                                                    dashboard.js (poll every 10s)
                                                    → updates 8 dashboard cards

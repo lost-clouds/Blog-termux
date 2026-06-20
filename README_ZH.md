@@ -182,12 +182,10 @@ index.html (单页面)
 
 ```
 系统资源           corn.sh (cron 每30s)      dashboard.json
-(cpufreq/lscpu      ──────────────────────→    磁盘上的 JSON 文件
- /proc/stat/top                                      │
- 多层回退链)
- ifconfig/ps)                                       │
-                                                    │ GET /api/dashboard (nginx alias)
-                                                    ↓
+(cpufreq/lscpu/     ──────────────────────→    磁盘上的 JSON 文件
+ /proc/stat/top/                                  │
+ uptime loadavg                                   │ GET /api/dashboard (nginx alias)
+ 多层回退链)                                      ↓
                                               dashboard.js (每10s 轮询)
                                               → 更新 8 张仪表盘卡片
                                               → 自动检测运行中的服务
