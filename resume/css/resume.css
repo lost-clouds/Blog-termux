@@ -1,0 +1,1014 @@
+/* ============================================================
+   resume.css —— 个人简历页面样式
+   ────────────────────────────────────────────────────────────
+   设计语言：黑白灰 + 磨砂玻璃 + 日夜间双模式
+   断点：PC ≥1024px / Pad 640~1023px / Android <640px
+   依赖：无
+   ============================================================ */
+
+/* ---- 1. CSS 变量 ---- */
+:root {
+    /* 基础配色（浅色） */
+    --accent:       #007aff;
+    --accent-hover: #005fc1;
+    --accent-soft:  rgba(0,122,255,0.1);
+
+    --bg-primary:    #e8e8ed;
+    --bg-secondary:  #f5f5f7;
+    --text-primary:  #1c1c1e;
+    --text-secondary:#636366;
+    /* 磨砂玻璃 */
+    --glass-bg:        rgba(255,255,255,0.72);
+    --glass-bg-strong: rgba(255,255,255,0.88);
+    --glass-border:        rgba(0,0,0,0.06);
+    --glass-border-strong: rgba(0,0,0,0.10);
+
+    /* 阴影 */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.14);
+
+    /* 圆角 */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    --radius-full: 980px;
+
+    /* 字体 */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica,
+                 Arial, sans-serif;
+
+    /* 过渡 */
+    --transition: 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.0);
+}
+
+/* ---- 2. Reset + 全局 ---- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* 过渡动画延迟启用（dom-loaded 后才生效，避免页面加载时动画闪烁） */
+.card, .card-content, .card-title,
+.scroll-down, .scroll-down-icon, .back-to-top,
+.nav-links a, .method-card, .contact-link, .hero-social a {
+    transition: none;
+}
+
+.dom-loaded .card,
+.dom-loaded .card-content,
+.dom-loaded .card-title,
+.dom-loaded .scroll-down,
+.dom-loaded .scroll-down-icon,
+.dom-loaded .back-to-top,
+.dom-loaded .nav-links a,
+.dom-loaded .method-card,
+.dom-loaded .contact-link,
+.dom-loaded .hero-social a {
+    transition: var(--transition);
+}
+
+/* ---- 3. Skip Link（可访问性） ---- */
+.skip-link {
+    position: fixed;
+    top: 2.5rem;
+    left: 50%;
+    transform: translate(-50%, -150%);
+    z-index: 999;
+    background: var(--accent);
+    color: #fff;
+    padding: 0.5rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    border: 2px solid var(--accent);
+}
+
+.skip-link:focus {
+    transform: translate(-50%, 0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ---- 4. 导航栏（磨砂玻璃） ---- */
+nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4rem;
+    z-index: 100;
+}
+
+.nav-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 200%;
+    transform: translateY(-25%);
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+    .nav-backdrop {
+        background: var(--glass-bg-strong);
+    }
+}
+
+.nav-container {
+    position: relative;
+    max-width: 1200px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.nav-logo {
+    font-family: var(--font-sans);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+}
+
+.nav-logo:hover {
+    opacity: 0.8;
+}
+
+.flex-grow {
+    flex: 1;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.nav-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    cursor: pointer;
+    background: none;
+    white-space: nowrap;
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.nav-item.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.nav-separator {
+    width: 1px;
+    height: 1.25em;
+    background: var(--glass-border-strong);
+    margin: 0 0.25rem;
+}
+
+.nav-social {
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+}
+
+.theme-toggle {
+    font-size: 1.1rem;
+    padding: 0.4rem 0.5rem;
+    line-height: 1;
+}
+
+/* 移动端菜单切换按钮 */
+.nav-toggle {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    background: none;
+    cursor: pointer;
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.nav-toggle-text {
+    transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.0);
+}
+
+.nav-toggle-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: currentColor;
+    display: block;
+    transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.0);
+}
+
+.nav-toggle:hover .nav-toggle-text,
+.nav-toggle:hover .nav-toggle-dot {
+    transform: translateX(-0.25rem);
+}
+
+/* ---- 5. Hero 首屏 ---- */
+#index {
+    position: relative;
+    overflow: hidden;
+    min-height: 100vh;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+#index > .container {
+    width: 100%;
+    max-width: 75ch;
+    margin: 0 auto;
+    padding: 5rem 1.25rem 3rem;
+    position: relative;
+}
+
+.hero-layout {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    position: relative;
+    min-height: 50vh;
+}
+
+.hero-text {
+    z-index: 10;
+}
+
+.hero-text h1 {
+    font-family: var(--font-sans);
+    font-size: 2.8rem;
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 1.25rem;
+    color: var(--text-primary);
+    letter-spacing: -0.03em;
+}
+
+.hero-text h1 strong {
+    color: var(--accent);
+    font-weight: 900;
+}
+
+.hero-text .hero-subtitle {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    max-width: 30ch;
+}
+
+.hero-figure {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 0;
+    width: 250px;
+    height: 350px;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    background: var(--bg-secondary);
+}
+
+.hero-figure img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.85;
+}
+
+/* Hero 社交链接（竖排） */
+.hero-social {
+    position: absolute;
+    right: -4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.hero-social a {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.hero-social a:hover {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.hero-social a .social-full { display: none; }
+.hero-social a .social-short { display: inline; }
+.hero-social a:hover .social-full { display: inline; }
+.hero-social a:hover .social-short { display: none; }
+
+.hero-social a svg {
+    width: 1em;
+    height: 1em;
+    opacity: 0.6;
+}
+
+/* ---- 6. Scroll 按钮 + 脉冲动画 ---- */
+.scroll-down-wrap {
+    position: absolute;
+    bottom: 0;
+    left: 1.25rem;
+    width: calc(100% - 2.5rem);
+    padding: 1.25rem 0;
+    display: flex;
+    justify-content: center;
+}
+
+.scroll-down {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    color: var(--text-primary);
+}
+
+.scroll-down:hover {
+    color: var(--accent);
+}
+
+.scroll-down-text {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.2rem;
+    padding: 0.25rem 0;
+}
+
+.scroll-down:hover .scroll-down-text {
+    text-decoration-style: wavy;
+    text-decoration-color: var(--text-secondary);
+}
+
+.scroll-down-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    position: relative;
+}
+
+.scroll-down-icon::after {
+    content: '';
+    position: absolute;
+    inset: -0.75rem;
+    border: 3px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0;
+    animation: scroll-pulse 1.5s ease-out 0.5s infinite;
+}
+
+.scroll-down-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+@keyframes scroll-pulse {
+    0% {
+        opacity: 1;
+        transform: scale(0.85);
+    }
+    80%, 100% {
+        opacity: 0;
+        transform: scale(1.3);
+    }
+}
+
+/* ---- 7. 通用区块样式 ---- */
+section {
+    padding: 3rem 0;
+}
+
+.content {
+    max-width: 75ch;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+}
+
+.content h2 {
+    font-family: var(--font-sans);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 2rem;
+    letter-spacing: -0.02em;
+}
+
+/* ---- 8. 关于区块 ---- */
+.about-content p {
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.about-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* 理念卡片网格 */
+.method-block {
+    max-width: 85ch;
+    margin: 2rem auto 0;
+    padding: 2.5rem 1.25rem;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+    .method-block {
+        background: var(--glass-bg-strong);
+    }
+}
+
+.method-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+}
+
+.method-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 0.5rem;
+}
+
+.method-card:hover {
+    transform: translateY(-2px);
+}
+
+.method-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 50%;
+    margin-bottom: 1rem;
+}
+
+.method-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.method-card h3 {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.method-card p {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ---- 9. 项目区块 ---- */
+.projects-container {
+    max-width: 105ch;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+}
+
+.project-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+/* 项目卡片 */
+.card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+    aspect-ratio: 0.875;
+    cursor: pointer;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.card a {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* 项目图片 */
+.card-figure {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.card-figure img,
+.card-figure .card-placeholder {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+/* 模糊遮罩 */
+.card-overlay-blur {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.card:hover .card-overlay-blur {
+    opacity: 1;
+}
+
+/* 卡片内容 */
+.card-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding: 1.5rem;
+    transform: translateY(0);
+}
+
+@media (pointer: fine) {
+    .card-content {
+        transform: translateY(100%);
+    }
+    .card:hover .card-content {
+        transform: translateY(0);
+    }
+}
+
+.card-title {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.2rem;
+}
+
+@media (pointer: fine) {
+    .card-title {
+        transform: translateY(-320%);
+    }
+    .card:hover .card-title {
+        transform: translateY(0);
+    }
+}
+
+.card:hover .card-title {
+    text-decoration-color: var(--accent);
+    text-decoration-style: wavy;
+}
+
+.card-description {
+    font-size: 0.875rem;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.5;
+}
+
+/* 更多项目卡片 */
+.card-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-soft);
+    border: 2px dashed var(--glass-border-strong);
+}
+
+.card-more a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.card-more .card-title {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.card-more:hover .card-title {
+    text-decoration: underline;
+    text-decoration-style: wavy;
+}
+
+.card-more .card-description {
+    color: var(--text-secondary);
+}
+
+/* ---- 10. 联系区块 ---- */
+.contact-container {
+    max-width: 85ch;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+}
+
+.contact-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.contact-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    white-space: nowrap;
+    justify-content: center;
+}
+
+.contact-link:hover {
+    color: var(--accent);
+    background: var(--accent-soft);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.contact-link svg {
+    width: 1em;
+    height: 1em;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+/* ---- 11. 页脚 ---- */
+footer {
+    padding: 2rem 1rem 3rem;
+    display: flex;
+    justify-content: center;
+}
+
+.back-to-top {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.5rem 0.5rem 1.25rem;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius-full);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
+
+.back-to-top:hover {
+    background: var(--accent-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.back-to-top svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+/* ---- 12. 暗色模式 ---- */
+body.dark {
+    --bg-primary:    #0d0d0f;
+    --bg-secondary:  #1c1c1e;
+    --text-primary:  #f5f5f7;
+    --text-secondary:#aeaeb2;
+
+    --glass-bg:        rgba(28,28,30,0.78);
+    --glass-bg-strong: rgba(28,28,30,0.94);
+    --glass-border:        rgba(255,255,255,0.08);
+    --glass-border-strong: rgba(255,255,255,0.14);
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+
+    background: radial-gradient(circle at 10% 20%, #1c1c1e, #0d0d0f);
+}
+
+body.dark .card-figure img,
+body.dark .card-figure .card-placeholder {
+    opacity: 0.7;
+}
+
+/* ---- 13. 响应式布局 ---- */
+
+/* PC 全尺寸（≥1200px） */
+@media (min-width: 1200px) {
+    .hero-text h1 {
+        font-size: 4.5rem;
+    }
+    .hero-text .hero-subtitle {
+        font-size: 1.5rem;
+    }
+    .hero-figure {
+        width: 450px;
+        height: 350px;
+    }
+}
+
+/* PC（1024~1199px） */
+@media (min-width: 1024px) and (max-width: 1199px) {
+    .hero-text h1 {
+        font-size: 3.8rem;
+    }
+    .hero-figure {
+        width: 380px;
+        height: 320px;
+    }
+}
+
+/* Pad（640~1023px） */
+@media (max-width: 1023px) {
+    .hero-figure {
+        width: 280px;
+        height: 280px;
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        margin: 0 auto 2rem;
+        order: -1;
+    }
+    .hero-layout {
+        flex-direction: column;
+        text-align: center;
+    }
+    .hero-text h1 {
+        font-size: 2.5rem;
+    }
+    .hero-text .hero-subtitle {
+        margin: 0 auto;
+    }
+    .hero-social {
+        display: none;
+    }
+    .project-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .method-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    .contact-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Android 手机（<640px） */
+@media (max-width: 639px) {
+    nav {
+        height: 3.5rem;
+    }
+    .nav-container {
+        padding: 0 0.75rem;
+    }
+    .nav-logo {
+        font-size: 1rem;
+    }
+    .nav-links {
+        position: fixed;
+        top: 3.5rem;
+        left: 0;
+        width: 100%;
+        height: auto;
+        padding: 0.75rem 0.75rem;
+        flex-direction: column;
+        align-items: stretch;
+        background: var(--glass-bg-strong);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border-bottom: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-100%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.0),
+                    opacity 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.0);
+        z-index: 99;
+    }
+    nav.open .nav-links {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .nav-item {
+        justify-content: center;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    .nav-separator {
+        display: none;
+    }
+    .nav-social {
+        display: none;
+    }
+    .nav-toggle {
+        display: flex;
+    }
+    .hero-text h1 {
+        font-size: 2rem;
+    }
+    .hero-text .hero-subtitle {
+        font-size: 1rem;
+        max-width: 100%;
+    }
+    .hero-figure {
+        width: 200px;
+        height: 240px;
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        margin: 0 auto 1.5rem;
+        order: -1;
+    }
+    .hero-layout {
+        flex-direction: column;
+        text-align: center;
+    }
+    .hero-social {
+        display: none;
+    }
+    .scroll-down-wrap {
+        left: 0.75rem;
+        width: calc(100% - 1.5rem);
+    }
+    section {
+        padding: 2rem 0;
+    }
+    .content h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    .about-content p {
+        font-size: 1rem;
+    }
+    .method-block {
+        margin-top: 1.5rem;
+        padding: 1.5rem 0.75rem;
+        border-radius: var(--radius-lg);
+    }
+    .method-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    .project-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .card {
+        aspect-ratio: 1.2;
+    }
+    .contact-container {
+        padding: 0 0.75rem;
+    }
+    .contact-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    .contact-link {
+        font-size: 0.8125rem;
+        padding: 0.625rem 0.75rem;
+    }
+    .back-to-top {
+        font-size: 0.875rem;
+        padding: 0.5rem 1.25rem;
+    }
+}
+
+/* 小屏手机（<400px） */
+@media (max-width: 399px) {
+    .hero-text h1 {
+        font-size: 1.7rem;
+    }
+    .hero-figure {
+        width: 160px;
+        height: 200px;
+    }
+    .contact-grid {
+        grid-template-columns: 1fr;
+    }
+    .card {
+        aspect-ratio: 1.4;
+    }
+}

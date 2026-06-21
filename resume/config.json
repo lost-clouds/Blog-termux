@@ -1,0 +1,84 @@
+{
+  "personal": {
+    "name": "你的姓名",
+    "title": "Web Developer · Open Source Contributor · Lifelong Learner",
+    "bio": "你好，我是 Okiki Ojo（发音 O-key-key O-jo），一名软件工程师。\n\n毕业于 Ontario Tech University 软件工程专业，此前在 Vercel 担任软件工程师。我对 Web 开发和设计充满热情，喜欢创造既实用又精致的数字产品。\n\n我相信简单、可靠和有效的解决方案。这就是为什么我喜欢构建基础组件——它们是一切事物的基石，如果做得好，它们可以用来构建任何你能想象到的东西。",
+    "avatar": "assets/avatar.jpg"
+  },
+  "social": [
+    { "name": "GitHub",   "short": "Git", "url": "https://github.com/" },
+    { "name": "LinkedIn", "short": "In",  "url": "https://linkedin.com/in/" },
+    { "name": "Twitter",  "short": "Tw",  "url": "https://twitter.com/" },
+    { "name": "Email",    "short": "@",   "url": "mailto:" }
+  ],
+  "methods": [
+    {
+      "icon": "bolt",
+      "title": "Speed",
+      "description": "用户需要多快的解决方案，相应地选择什么样的工具来确保高水平的速度。"
+    },
+    {
+      "icon": "waves",
+      "title": "Efficiency",
+      "description": "确保不浪费资源、时间和精力，让用户从最终产品中获得最大价值。"
+    },
+    {
+      "icon": "gavel",
+      "title": "Ease-of-use",
+      "description": "解决方案需要简单且令人愉悦地使用。用户应该真正享受这个解决方案，它应该像手套一样贴合用户的工作流程。"
+    },
+    {
+      "icon": "history",
+      "title": "Impact",
+      "description": "解决方案应该留下深刻的影响，让用户清楚地理解内容、位置、原因和方式。"
+    }
+  ],
+  "projects": [
+    {
+      "title": "BundleJS",
+      "description": "在线 JavaScript bundle 分析与可视化工具，帮助开发者优化打包体积。",
+      "image": "",
+      "url": "https://bundlejs.com"
+    },
+    {
+      "title": "Spring Easing",
+      "description": "弹性动画缓动函数库，为 Web 动画提供自然的弹簧物理效果。",
+      "image": "",
+      "url": "https://github.com/okikio/spring-easing"
+    },
+    {
+      "title": "Animate",
+      "description": "轻量级 JavaScript 动画引擎，支持高性能的 Web 动画编排。",
+      "image": "",
+      "url": "https://github.com/okikio/animate"
+    },
+    {
+      "title": "SharedWorker",
+      "description": "跨浏览器标签页通信的 SharedWorker 封装库。",
+      "image": "",
+      "url": "https://github.com/okikio/sharedworker"
+    },
+    {
+      "title": "Native",
+      "description": "原生 DOM 操作工具集，提供简洁的 API 封装常用 DOM 操作。",
+      "image": "",
+      "url": "https://github.com/okikio/native"
+    },
+    {
+      "title": "Legacy Projects",
+      "description": "早期编程生涯的项目作品，记录了成长历程。查看更多项目请访问 GitHub。",
+      "image": "",
+      "url": "https://github.com/"
+    }
+  ],
+  "contact": [
+    { "name": "LinkedIn",      "url": "https://linkedin.com/in/" },
+    { "name": "Twitter",       "url": "https://twitter.com/" },
+    { "name": "GitHub",        "url": "https://github.com/" },
+    { "name": "Blog",          "url": "https://blog.example.com" },
+    { "name": "Dev.to",        "url": "https://dev.to/" },
+    { "name": "CodePen",       "url": "https://codepen.io/" },
+    { "name": "StackOverflow", "url": "https://stackoverflow.com/" },
+    { "name": "Email",         "url": "mailto:your@email.com" }
+  ]
+}
