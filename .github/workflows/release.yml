@@ -20,7 +20,7 @@ jobs:
 
       - name: Package (tar.gz)
         run: |
-          tar -czf Blog-termux.tar.gz \
+          tar -czf /tmp/Blog-termux.tar.gz \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.claude' \
@@ -36,49 +36,51 @@ jobs:
 
       - name: Package (zip)
         run: |
-          zip -r Blog-termux.zip . \
+          zip -r /tmp/Blog-termux.zip . \
             -x '.git/*' '.github/*' '.claude/*' '.editorconfig' '.gitignore' \
             '*.bak' '*.tmp' '**/index.json' 'dashboard.json' \
             'css/src/*' 'example/*.conf'
 
-      - name: Generate checksums
+      - name: Generate checksums and release body
         run: |
-          sha256sum Blog-termux.tar.gz Blog-termux.zip > checksums.txt
+          sha256sum /tmp/Blog-termux.tar.gz /tmp/Blog-termux.zip > /tmp/checksums.txt
+          cat > /tmp/body.md << 'BODYEOF'
+          ## 安装
+
+          ```bash
+          curl -sSLO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Blog-termux.tar.gz
+          tar -xzf Blog-termux.tar.gz -C ~/Blog-termux
+          ```
+
+          ### 下载依赖库
+
+          ```bash
+          cd ~/Blog-termux/lib
+          curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
+          curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
+          curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
+          curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
+          curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+          ```
+
+          ### 继续部署
+
+          参考 [README](https://github.com/${{ github.repository }}#deployment-guide) 从第 3 步开始。
+
+          ## 校验
+
+          ```
+          BODYEOF
+          cat /tmp/checksums.txt >> /tmp/body.md
+          echo '```' >> /tmp/body.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
-          body: |
-            ## 安装
-
-            ```bash
-            curl -sSLO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Blog-termux.tar.gz
-            tar -xzf Blog-termux.tar.gz -C ~/Blog-termux
-            ```
-
-            ### 下载依赖库
-
-            ```bash
-            cd ~/Blog-termux/lib
-            curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
-            curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
-            curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
-            curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
-            curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
-            ```
-
-            ### 继续部署
-
-            参考 [README](https://github.com/${{ github.repository }}#deployment-guide) 从第 3 步开始。
-
-            ## 校验
-
-            ```
-            $(cat checksums.txt)
-            ```
+          body_path: /tmp/body.md
           files: |
-            Blog-termux.tar.gz
-            Blog-termux.zip
-            checksums.txt
+            /tmp/Blog-termux.tar.gz
+            /tmp/Blog-termux.zip
+            /tmp/checksums.txt
           generate_release_notes: true
