@@ -27,7 +27,6 @@ const SHELL = [
     '/js/constants.js',
     '/js/main.js?v=3',
     '/js/app.js',
-    '/js/update-widget.js',
     '/lib/marked.min.js?v=2',
     '/lib/github-markdown.min.css?v=2',
     '/lib/katex.min.css?v=2',
