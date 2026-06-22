@@ -1,31 +1,25 @@
 # Blog-termux — Personal Dashboard + Blog Console
-[简体中文](README_ZH.md) | [English](README.md)  
 
-A pure static single-page application powered by Nginx. No PHP, Node.js, Python, or any backend runtime required. Integrates **system dashboard**, **service navigation**, **Markdown blog reader**, and **image gallery** into one page, with responsive layout for PC, tablet, and mobile.
+[简体中文](README_ZH.md) | [English](README.md)
 
-![screenshot](example/example.png)
-![screenshot](example/example0.png)
-![screenshot](example/example1.png)
+A pure static single-page application powered by Nginx. No PHP, Node.js, Python, or any backend runtime. Integrates **system dashboard**, **service navigation**, **Markdown blog reader**, and **image gallery** into one page — responsive across PC, tablet, and mobile.
 
-> Share my way about make your phone as a little Homelab[termux的使用总结](Markdown/termux使用总结.md)  
-> Originally forked from [bastienwirtz/homer](https://github.com/bastienwirtz/homer.git), extensively rewritten over time into its current form.
+![Dashboard + Navigation](example/example.png)
+![Blog — light theme](example/example0.png)
+![Blog — dark theme](example/example1.png)
+
+> Originally forked from [bastienwirtz/homer](https://github.com/bastienwirtz/homer), extensively rewritten into its current form.
+> See also: [Termux usage notes](Markdown/termux使用总结.md)
 
 ---
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [Directory Structure](#directory-structure)
 - [Architecture](#architecture)
+- [Directory Structure](#directory-structure)
 - [Module Reference](#module-reference)
 - [Deployment Guide](#deployment-guide)
-  - [1. Requirements](#1-requirements)
-  - [2. Download Dependencies](#2-download-dependencies)
-  - [3. Configure Nginx](#3-configure-nginx)
-  - [4. Configure Service Navigation](#4-configure-service-navigation)
-  - [5. Setup Dashboard Cron](#5-setup-dashboard-cron)
-  - [6. Add Content](#6-add-content)
-  - [7. Launch](#7-launch)
 - [Usage](#usage)
 - [FAQ](#faq)
 
@@ -34,7 +28,7 @@ A pure static single-page application powered by Nginx. No PHP, Node.js, Python,
 ## Quick Start
 
 ```bash
-# 1. Clone to your server
+# 1. Clone
 git clone https://github.com/lost-clouds/Blog-termux.git ~/Blog-termux
 
 # 2. Download frontend dependencies (one-time)
@@ -45,25 +39,83 @@ curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
 
-# 3. Copy nginx config, update paths
+# 3. Copy nginx config and update paths
 cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
-# Edit: replace /path/to/Blog-termux with your actual absolute path
+# Edit: replace /path/to/Blog-termux with the actual absolute path
 
 # 4. Setup dashboard cron (every 30s)
-# corn.sh takes output path as first argument (default: /path/to/Blog-termux/dashboard.json)
-# Add crontab:
-#   crontab -e
+# Add to crontab:
 #   * * * * * ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 #   * * * * * sleep 30; ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 
-# 5. (Optional) Generate static index for faster article/image loading
+# 5. (Optional) Generate static indexes for faster loading
 bash ~/Blog-termux/gen_index.sh ~/Blog-termux
-# Add to cron for periodic updates: */5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux
+# Add to cron: */5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux
 
 # 6. Reload nginx and open
 nginx -s reload
-# Visit https://127.0.0.1:7443 in browser
+# Visit https://127.0.0.1:7443
 ```
+
+---
+
+## Architecture
+
+### Layout
+
+```
+index.html (SPA)
+  │
+  ├─ header ─── brand title + theme toggle (☀/☾)
+  │
+  ├─ tab-bar ── [Dashboard] [Nav] [Blog] [Gallery]
+  │             top bar on PC/tablet | bottom-fixed on mobile
+  │
+  ├─ content (4 sections, 1 visible)
+  │   ├── #sec-dashboard    8 cards: device / CPU / memory / storage / network / battery / services / uptime
+  │   ├── #sec-nav          grouped service cards with search filter
+  │   ├── #sec-blog         3-column: sidebar | inline render | ToC, HTML articles open in new tab
+  │   └── #sec-gallery      image grid with search + lightbox
+  │
+  └─ lightbox ─── shared by Markdown images + gallery
+```
+
+### Script Load Chain
+
+```
+main.js  →  app.js  →  theme.js, utils.js, lightbox.js
+                    →  dashboard.js   (constants.js)
+                    →  navigation.js  (utils.js, constants.js)
+                    →  blog.js        (utils.js, md-viewer.js, constants.js)
+                    →  gallery.js     (utils.js, lightbox.js, constants.js)
+                    →  md-viewer.js   (utils.js, sanitizer.js, footnotes.js, lightbox.js, constants.js)
+```
+
+All business JS uses **ES Modules** with explicit `import`/`export`. `main.js` is a single line `import './app.js'`. The only regular `<script>` is `lib/marked.min.js` (global `marked`). Module scripts auto-defer until DOM is ready.
+
+### Data Flow
+
+```
+                    gen_index.sh (optional)
+                    ─────────────────────→  Markdown/index.json
+                                            Html/index.json
+                    corn.sh (cron every 30s)   Image/index.json
+                    ─────────────────────→  dashboard.json
+                                               │
+                                               │ primary: fetch index.json
+                                               │ fallback: DOMParser parse nginx autoindex HTML
+                                               ↓
+Markdown/Html/Image/ ── nginx autoindex ──→  /api/md/ | /api/html/ | /api/images/
+                                               │
+GET /api/dashboard ───────────────────────────┘
+                                               │
+                                               ↓
+dashboard.js (poll every 30s)     blog.js / gallery.js
+→ updates 8 dashboard cards       → renders article list / image grid
+→ auto-detects running services
+```
+
+Core idea: **gen_index.sh generates `index.json` as primary data source, with nginx autoindex fallback**. Frontend fetches the structured JSON index first (fast, reliable), falling back to `DOMParser`-based autoindex HTML parsing if the index is missing (404).
 
 ---
 
@@ -71,215 +123,117 @@ nginx -s reload
 
 ```
 Blog-termux/
-├── index.html                       # Single entry point — tabbed SPA
-├── config.json                      # Service navigation config
-├── corn.sh                          # System metrics collector (no root)
-├── gen_index.sh                     # Static index generator (index.json)
-├── sw.js                            # Service Worker (offline cache + SWR)
+├── index.html                  # Single entry point — tabbed SPA
+├── config.json                 # Service navigation config
+├── corn.sh                     # System metrics collector (no root)
+├── gen_index.sh                # Static index generator
+├── sw.js                       # Service Worker (offline cache + SWR)
 ├── .gitignore
-├── LICENSE                          # MIT
+├── LICENSE                     # MIT
 ├── favicon.ico
 │
 ├── css/
-│   ├── style.css                    # Built output — merged full stylesheet
-│   ├── build.sh                     # CSS build script (cat merge)
-│   └── src/                         # CSS source (modular split)
-│       ├── _header.css
-│       ├── variables.css            #   CSS custom properties
-│       ├── base.css                 #   Reset + typography
-│       ├── layout.css               #   Page layout
-│       ├── responsive.css           #   Responsive breakpoints
-│       ├── components/              #   Component styles
-│       │   ├── header.css
-│       │   ├── tabs.css
-│       │   ├── dashboard.css
-│       │   ├── navigation.css
-│       │   ├── blog.css
-│       │   ├── gallery.css
-│       │   ├── markdown-content.css
-│       │   ├── image-lightbox.css
-│       │   └── bottom-nav.css
-│       └── themes/
-│           └── dark.css             #   Dark mode overrides
+│   ├── style.css               # Built output — merged full stylesheet
+│   ├── build.sh                # CSS build script (cat merge)
+│   └── src/
+│       ├── variables.css       #   CSS custom properties
+│       ├── base.css            #   Reset + typography
+│       ├── layout.css          #   Page layout
+│       ├── responsive.css      #   Responsive breakpoints
+│       ├── components/         #   9 component stylesheets
+│       └── themes/dark.css     #   Dark mode overrides
 │
-├── js/                              # ES Modules
-│   ├── main.js                      #   Module entry — imports app.js
-│   ├── app.js                       #   Main controller (boot, routing, coordination)
-│   ├── theme.js                     #   Theme manager
-│   ├── utils.js                     #   Utilities (incl. URL safelist validation)
-│   ├── constants.js                 #   Path constants (API + static assets)
-│   ├── sanitizer.js                 #   HTML whitelist sanitizer
-│   ├── footnotes.js                 #   Markdown footnote preprocessor
-│   ├── lightbox.js                  #   Image lightbox
-│   ├── dashboard.js                 #   System dashboard
-│   ├── navigation.js                #   Service navigation
-│   ├── blog.js                      #   Article list + inline rendering
-│   ├── gallery.js                   #   Image gallery
-│   └── md-viewer.js                 #   Markdown rendering engine
+├── js/                         # ES Modules (13 files)
+│   ├── main.js                 #   Entry — imports app.js
+│   ├── app.js                  #   Main controller (boot, routing, coordination)
+│   ├── theme.js                #   Theme manager
+│   ├── utils.js                #   Utilities + URL safelist validation
+│   ├── constants.js            #   Path constants
+│   ├── sanitizer.js            #   HTML whitelist sanitizer
+│   ├── footnotes.js            #   Markdown footnote preprocessor
+│   ├── lightbox.js             #   Image lightbox
+│   ├── dashboard.js            #   System dashboard
+│   ├── navigation.js           #   Service navigation
+│   ├── blog.js                 #   Article list + inline rendering
+│   ├── gallery.js              #   Image gallery
+│   └── md-viewer.js            #   Markdown rendering engine
 │
-├── lib/                             # Third-party libraries (all local, zero CDN)
-│   ├── marked.min.js                #   Markdown parser
-│   ├── katex.min.js                 #   LaTeX math rendering
-│   ├── katex.min.css                #   KaTeX styles
-│   ├── auto-render.min.js           #   KaTeX auto-render
-│   └── github-markdown.min.css      #   GitHub-flavored Markdown styles
+├── lib/                        # Vendored third-party libraries (zero CDN at runtime)
+│   ├── marked.min.js
+│   ├── katex.min.js + .css
+│   ├── auto-render.min.js
+│   └── github-markdown.min.css
 │
-├── Markdown/                        # .md articles
-├── Image/                           # Images (scanned by gen_index.sh → shown in gallery)
-│   ├── posts/                       #   Article images → ✅ shown in gallery
-│   ├── gallery/                     #   Standalone images → ✅ shown in gallery
-│   ├── thumbnails/                  #   Thumbnail cache → ❌ skipped (gen_index.sh excludes)
-│   └── archive/unused/              #   Orphan images → ❌ skipped (gen_index.sh excludes)
+├── Markdown/                   # .md articles
+├── Image/
+│   ├── posts/                  #   Article images (shown in gallery)
+│   ├── gallery/                #   Standalone images (shown in gallery)
+│   ├── thumbnails/             #   Thumbnail cache (skipped by gen_index.sh)
+│   └── archive/unused/         #   Orphan images (skipped by gen_index.sh)
 │
-└── example/
-    ├── Blog.conf                    # Nginx config template
-    ├── example.png                  # Screenshot (dashboard + nav)
-    ├── example0.png                 # Screenshot (blog layout - light)
-    └── example1.png                 # Screenshot (blog layout - dark)
+├── example/
+│   ├── Blog.conf               # Nginx config template
+│   └── example*.png            # Screenshots
+│
+└── resume/                     # Standalone resume sub-site
+    ├── index.html
+    ├── config.json
+    ├── css/resume.css
+    └── js/resume.js
 ```
-
----
-
-## Architecture
-
-### Overall Layout
-
-```
-index.html (SPA)
-  │
-  ├─ header ─── brand title + theme toggle (☀️/🌙)
-  │
-  ├─ tab-bar ── [📊Dashboard] [🧭Nav] [📝Blog] [🖼️Gallery]
-  │              PC/tablet top | mobile bottom-fixed
-  │
-  ├─ content area (4 sections, 1 visible at a time)
-  │   ├── #sec-dashboard    8 cards: device/CPU/memory/storage/network/battery/services/uptime
-  │   ├── #sec-nav          service group cards, search filter, safe URL routing
-  │   ├── #sec-blog         three-column: sidebar(article list + type filter) | content(inline render) | ToC, HTML articles open in new tab
-  │   └── #sec-gallery      image grid, search, click lightbox
-  │
-  └─ lightbox (fullscreen) ──── image lightbox (shared by Markdown images + gallery)
-```
-
-### Script Load Order
-
-```
- main.js           → ES Module entry (<script type="module">)
-   └── app.js           → main controller, explicitly imports all modules:
-         ├── theme.js       → no deps
-         ├── utils.js       → no deps
-         ├── lightbox.js    → no deps
-         ├── dashboard.js   → depends on constants.js
-         ├── navigation.js  → depends on utils.js + constants.js
-         ├── blog.js        → depends on utils.js + md-viewer.js + constants.js
-         ├── gallery.js     → depends on utils.js + lightbox.js + constants.js
-         └── md-viewer.js   → depends on marked (global) + utils.js + constants.js
-                               + sanitizer.js + footnotes.js + lightbox.js
-```
-
-All business JS uses **ES Modules** (`import`/`export` with explicit dependency declarations). `main.js` is a single line `import './app.js'` — `app.js` manages the entire import chain. The only regular `<script>` is `lib/marked.min.js` (global `marked`). Module scripts auto-defer until DOM is ready.
-
-### Data Flow
-
-```
-System metrics      corn.sh (cron every 30s)     dashboard.json
-(cpufreq/lscpu/      ──────────────────────────→   JSON file on disk
- /proc/stat/top/                                    │
- uptime loadavg                                     │ GET /api/dashboard (nginx alias)
- fallback chain)                                    ↓
-                                                         ↓
-                                                   dashboard.js (poll every 10s)
-                                                   → updates 8 dashboard cards
-                                                   → auto-detects running services
-
-Markdown/           nginx autoindex             /api/md/ (HTML directory listing)
-Html/               ───────────────────→        /api/html/
-Image/                                         /api/images/
-                                                         │
-                                                         │ JS DOMParser parses HTML
-                                                         ↓
-                                                   blog.js / gallery.js
-                                                   → renders article list / image grid
-```
-
-Core idea: **gen_index.sh generates index.json as primary data source, with nginx autoindex fallback**. The frontend first fetches `Markdown/index.json` / `Image/index.json` (fast, structured), falling back to DOMParser-based autoindex parsing if the index is missing (404). `gen_index.sh` can be run manually or added to cron for periodic updates.
 
 ---
 
 ## Module Reference
 
-### theme.js — Theme Manager
+### Overview
 
-| | |
-|---|---|
-| Global | `window.Theme` |
-| Storage | `localStorage["app-theme"]` |
-| API | `initTheme()` `toggleTheme()` `applyTheme(theme)` `getStoredTheme()` |
+| Module | Role | Dependencies | Key Implementation |
+|--------|------|-------------|-------------------|
+| `app.js` | Boot, tab routing, keyboard nav, SW registration | All modules | Ordered init sequence, lazy-loads blog/gallery on first visit |
+| `theme.js` | Light/dark toggle | — | `localStorage` persistence, `prefers-color-scheme` fallback, meta theme-color update |
+| `utils.js` | Shared utilities | — | `escapeHtml`, `getSafeUrl` (whitelist validation), `formatSize`, `fetchIndexOrAutoindex` (dual-source loader) |
+| `constants.js` | Path registry | — | All API routes + library paths in one place |
+| `sanitizer.js` | HTML sanitizer | — | 5-layer whitelist: tags, attributes, URLs, class names, inline styles |
+| `footnotes.js` | Footnote preprocessor | — | Extracts `[^id]` definitions, injects numbered footnotes with backlinks |
+| `lightbox.js` | Image lightbox | — | Click/ESC/backdrop close, focus restoration |
+| `dashboard.js` | System dashboard | `constants.js` | 8-card view, 30s polling with 8s AbortController timeout, page visibility pause, progressive error degradation |
+| `navigation.js` | Service launcher | `utils.js`, `constants.js` | Renders grouped service cards from `config.json`, 250ms debounced search |
+| `blog.js` | Article reader | `utils.js`, `md-viewer.js`, `constants.js` | 3-column Hugo Book-style layout, `Promise.allSettled` dual-directory fetch, `AbortController` + request ID race protection |
+| `gallery.js` | Image gallery | `utils.js`, `lightbox.js`, `constants.js` | Thumbnail grid, lazy-loaded images, 250ms debounced search |
+| `md-viewer.js` | Markdown renderer | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | Full render pipeline: footnotes → math extraction → marked → sanitize → image paths → anchors → KaTeX |
+| `sw.js` | Service Worker | — | Cache-first (static), SWR (articles/images), network-first (entry), network-only (dashboard/summary) |
 
-Toggles `body.dark` class to globally switch CSS variables, updates `<meta name="theme-color">` for browser chrome, and toggles button icon (☀️/🌙).
+### Core Modules
 
----
+#### dashboard.js — System Dashboard
 
-### utils.js — Utilities
+Polls `GET /api/dashboard` every **30 seconds** with an **8-second AbortController timeout**. Polling pauses when the tab is inactive or the page is hidden. Progressive error degradation: 1 error shows a hint, 2–5 errors show a stale indicator, 5+ errors reset all cards to `--`.
 
-| | |
-|---|---|
-| Global | `import { Utils } from './utils.js'` |
-| API | `escapeHtml(str)` `getSafeUrl(url)` `formatSize(bytes)` `parseAutoindex(resp, ext)` `fetchIndexOrAutoindex(...)` |
+**8 cards:**
 
-`escapeHtml` escapes `& < > "` for XSS prevention.
-`getSafeUrl` whitelist-based URL validation — allows `http`/`https`/`mailto` and relative paths, rejects `javascript:` and other dangerous protocols.
-`fetchIndexOrAutoindex` fetches `index.json` first, falls back to parsing nginx autoindex HTML.
+| Card | Content | Progress Bar |
+|------|---------|:---:|
+| Device | Brand + model, Android version, kernel | — |
+| CPU | Usage %, cores, model, per-cluster breakdown (Cortex-A73/A53) | blue |
+| Memory | Used / total + SWAP row (hidden when SWAP = 0) | blue |
+| Storage | Used / total | blue |
+| Network | Local IP, interface, IPv6 | — |
+| Battery | Level %, charging status, temperature | green |
+| Services | Count + process name list (auto-scanned via `ps -e`) | — |
+| Uptime | e.g. "3d 12h 30m" | — |
 
----
+`dashboard.json` schema (generated by `corn.sh`):
 
-### lightbox.js — Image Lightbox
-
-| | |
-|---|---|
-| Global | `window.Lightbox` |
-| API | `init()` `open(src, name)` `close()` |
-
-Close via background click / close button / ESC. Gallery and Markdown images share the same lightbox instance.
-
----
-
-### dashboard.js — System Dashboard
-
-| | |
-|---|---|
-| Global | `import { Dashboard } from './dashboard.js'` |
-| Source | `GET /api/dashboard` (every 10s, paused when leaving tab) |
-| API | `init()` `update(data)` `fetchData()` `onTabEnter()` `onTabLeave()` |
-
-Renders 8 cards:
-
-| Card | Content | Bar |
-|------|---------|-----|
-| 📱 Device | brand+model · Android · kernel | — |
-| 🧠 CPU | usage% · cores · model · cluster breakdown (Cortex-A73/A53) | blue |
-| 💾 Memory | used / total (GB/MB) + SWAP | blue |
-| 🗄️ Storage | used / total (GB) | blue |
-| 🌐 Network | local IP · interface · IPv6 | — |
-| 🔋 Battery | level% · charging status · temp | green |
-| 🔧 Services | N running · process name list | — |
-| ⏱️ Uptime | e.g. "3d 12h 30m" | — |
-
-> CPU card now shows per-cluster breakdown (e.g. Cortex-A73 / Kryo-V2) with core count, frequency range, and usage. Memory card includes SWAP usage when available.
-
-> Services card uses `ps -e` to auto-scan all processes with noise filtering. New services are detected without script changes.
-
-`dashboard.json` format (generated by corn.sh):
 ```json
 {
+  "timestamp": "2026-06-12T14:30:00+08:00",
   "device": {"model": "OnePlus KB2000", "android": "14", "kernel": "4.19"},
   "cpu": {
-    "usage": 46.6,
-    "cores": 8,
-    "model": "kona",
+    "usage": 46.6, "cores": 8, "model": "kona",
     "clusters": {
       "Cortex-A73": {"cores": 4, "usage": 95.5, "freq_max": 2400, "freq_min": 300},
-      "Cortex-A53": {"cores": 4, "usage": 0.0,  "freq_max": 1900, "freq_min": 300}
+      "Cortex-A53": {"cores": 4, "usage": 0.0,  "freq_max": 1901, "freq_min": 300}
     }
   },
   "memory": {"used": 4.3, "total": 11.2, "unit": "GB", "swap_used": 2.0, "swap_total": 8.0},
@@ -291,90 +245,38 @@ Renders 8 cards:
 }
 ```
 
-> `cpu.clusters` is optional (absent on systems without cpufreq/lscpu). `cpu.model` uses `ro.board.platform` on Android, falls back to CPU ABI. Cluster names are extracted from `lscpu` Model name or `/proc/cpuinfo` CPU part → ARM Cortex/X map.
+> `cpu.clusters` is optional (absent on systems without cpufreq/lscpu). Cluster names derived from `lscpu` Model name or `/proc/cpuinfo` CPU part → ARM Cortex/X map. `memory.swap_*` is 0 when SWAP is off.
 
-> `memory.swap_used`/`swap_total` may be 0 if SWAP is off or not available. Shares `unit` with RAM.
+#### blog.js — Blog Reader
 
----
+Hugo Book-style three-column layout. Fetches Markdown and HTML article lists simultaneously via **`Promise.allSettled`** (one directory failing doesn't block the other). Uses `AbortController` + request ID counter for dual race-condition protection. Articles are sorted alphabetically.
 
-### navigation.js — Service Navigation
+| Feature | Detail |
+|---------|--------|
+| Data source | `index.json` first → nginx autoindex fallback (Markdown + HTML dual directory) |
+| Filter | All / Markdown / HTML type toggle |
+| Search | 250ms debounced, matches filename |
+| Markdown | Inline rendered via `MarkdownRenderer.render()` with auto-generated ToC |
+| HTML | Opens in new tab |
 
-| | |
-|---|---|
-| Global | `window.Navigation` |
-| Source | `GET /config.json` |
-| API | `init()` `render()` `search()` |
+#### md-viewer.js — Markdown Rendering Engine
 
-Reads `config.json`, renders service cards grouped by category. Search filters by name, subtitle, and tag. Cards open URLs with `target="_blank"`.
+Pure rendering module — no DOM lifecycle management. Full pipeline:
 
----
+| Step | Implementation |
+|------|---------------|
+| 1. Footnotes | Preprocess `[^id]` definitions → numbered footnotes with backlinks |
+| 2. Math extraction | 3-phase: `$$...$$` → `\[...\]` → `\(...\)`, split→aligned normalization, double-backslash escaping |
+| 3. Markdown parsing | `marked.parse()` with math placeholders |
+| 4. XSS sanitization | 5-layer whitelist (tags, attrs, URLs, classes, styles) |
+| 5. Image paths | Relative paths rewritten to `/api/images/` |
+| 6. Heading anchors | Auto-injected `#` permalinks with CJK-capable slug generation |
+| 7. KaTeX rendering | Lazy-loaded on demand, graceful degradation on load failure (retryable) |
+| 8. Image binding | Delegated click → shared `Lightbox` |
 
-### blog.js — Blog (Hugo Book-style three-column layout)
+#### navigation.js — Service Navigation
 
-| | |
-|---|---|
-| Global | `import { Blog } from './blog.js'` |
-| Source | `index.json` first → nginx autoindex fallback (Markdown + HTML dual directory) |
-| API | `init()` `fetchArticles()` `selectArticle(name, type)` `hasArticles()` `isLoaded()` |
-
-Desktop: scrollable sidebar + type filter (All/Markdown/HTML) | inline rendering | auto-generated ToC.
-250ms debounced search, `AbortController` + `requestId` dual race-condition protection.
-Markdown inline rendering via `MarkdownRenderer.render()` + `MarkdownRenderer.buildTocFromDom()`. HTML files open in new tab.
-
----
-
-### gallery.js — Image Gallery
-
-| | |
-|---|---|
-| Global | `import { Gallery } from './gallery.js'` |
-| Source | `index.json` first → nginx autoindex fallback |
-| API | `init()` `fetchImages()` `hasImages()` `isLoaded()` |
-
-Thumbnail grid with search. Click → `Lightbox.open(src, name)`. Failed images auto-hide with no broken icon.
-
----
-
-### md-viewer.js — Markdown Rendering Engine
-
-| | |
-|---|---|
-| Global | `import { MarkdownRenderer } from './md-viewer.js'` |
-| Source | Raw markdown text passed in by caller |
-| API | `render(raw, $el)` `buildTocFromDom($el)` `bindTocLinks($toc, $content, $tocCtrl)` |
-
-Pure rendering module — no overlay/DOM lifecycle management. Feature set:
-
-| Feature | Implementation |
-|---------|---------------|
-| Markdown parsing | marked engine |
-| XSS protection | Whitelist HTML sanitizer (tag/attr/URL/class/style five-layer filter) |
-| Footnotes | Preprocesses `[^id]` into footnote sections with backlinks |
-| Math formulas | KaTeX, lazy-loaded on demand |
-| TOC | Parses rendered h1–h6 from DOM, indented hierarchy |
-| Heading anchors | Injects `#` permalink on each heading |
-| Image handling | Relative paths → `/api/images/`, reuses global Lightbox |
-
----
-
-### app.js — Main Controller
-
-| | |
-|---|---|
-| Global | import chain root, not attached to window |
-| Role | Import all modules → ordered init → tab routing → keyboard nav → Service Worker |
-
-Boot sequence:
-```
-1.  Theme.initTheme()       → apply stored theme
-2.  Lightbox.init()         → bind lightbox events
-3.  Dashboard.init()        → register visibility listener only (polling starts on tab enter)
-4.  Navigation.init()       → load nav config + render
-5.  Blog.init()             → cache DOM + bind events (data lazy-loaded)
-6.  Gallery.init()          → cache DOM + bind events (data lazy-loaded)
-7.  Tab click/keyboard(←→HomeEnd) + theme toggle + hashchange events
-8.  URL hash restore + Service Worker registration
-```
+Reads `config.json`, renders service cards grouped by category. Search filters by `name`, `subtitle`, and `tag` with 250ms debounce. URLs validated via `Utils.getSafeUrl()` — unsafe URLs render as inert `<div>`. External links use `target="_blank" rel="noopener"`.
 
 ---
 
@@ -382,10 +284,10 @@ Boot sequence:
 
 ### 1. Requirements
 
-| Component | Purpose | Notes |
-|-----------|---------|-------|
-| Nginx | Web server | Termux: `pkg install nginx` |
-| cron / crond | Run corn.sh on schedule | Termux: `pkg install cronie termux-services` |
+| Component | Purpose | Install |
+|-----------|---------|---------|
+| Nginx | Web server | `pkg install nginx` |
+| cron / crond | Schedule corn.sh | `pkg install cronie termux-services` |
 | curl | Download dependencies | One-time use |
 | termux-api (optional) | Battery info | `pkg install termux-api` |
 
@@ -393,65 +295,35 @@ Boot sequence:
 
 ### 2. Download Dependencies
 
-The following 5 files must be placed in `lib/`. **Download once, then fully offline.**
+Place these 5 files in `lib/`. **Download once, then fully offline.**
 
 ```bash
-mkdir -p ~/Blog-termux/lib
-cd ~/Blog-termux/lib
+mkdir -p ~/Blog-termux/lib && cd ~/Blog-termux/lib
 
-# marked — Markdown parser
 curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
-
-# KaTeX — math rendering (core + auto-render + styles)
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
-
-# GitHub-flavored Markdown styles
 curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
 
-# Verify
-ls -lh lib/
-# Should show 5 files, ~370KB total
+ls -lh lib/   # Should show 5 files, ~370KB total
 ```
 
 ### 3. Configure Nginx
 
-**Step 1 — Copy config template**
-
 ```bash
 cp ~/Blog-termux/example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
-```
+sed -i 's|/path/to/Blog-termux|/your/real/path|g' $PREFIX/etc/nginx/conf.d/Blog.conf
 
-**Step 2 — Update paths**
+# Ensure nginx.conf includes site configs:
+#   http { include conf.d/*.conf; }
 
-Edit `$PREFIX/etc/nginx/conf.d/Blog.conf`, replace all `/path/to/Blog-termux` with your actual path:
-
-```bash
-sed -i 's|/path/to/Blog-termux|/your/real/path/to/Blog-termux|g' $PREFIX/etc/nginx/conf.d/Blog.conf
-```
-
-**Step 3 — Ensure nginx includes site configs**
-
-Edit `$PREFIX/etc/nginx/nginx.conf`, make sure the `http` block includes:
-
-```nginx
-http {
-    include conf.d/*.conf;
-    # ... other config ...
-}
-```
-
-**Step 4 — Test and reload**
-
-```bash
-nginx -t                # validate syntax
-nginx -s reload         # reload
+nginx -t && nginx -s reload
 ```
 
 ### 4. Configure Service Navigation
 
-Edit `config.json` with your own services:
+Edit `config.json`:
 
 ```json
 {
@@ -459,14 +331,14 @@ Edit `config.json` with your own services:
   "services": [
     {
       "name": "Server",
-      "icon": "🖥️",
+      "icon": "🖥",
       "items": [
         {
           "name": "Display Name",
           "icon": "🤖",
           "subtitle": "Short description",
           "tag": "Tag",
-          "url": "https://your-server.local:8443/path/"
+          "url": "https://your-server.local:8443/"
         }
       ]
     }
@@ -476,58 +348,43 @@ Edit `config.json` with your own services:
 
 | Field | Description |
 |-------|-------------|
-| `name` | Service display name |
-| `icon` | Emoji icon (no Font Awesome needed) |
-| `subtitle` | Card subtitle (description) |
-| `tag` | Small badge in corner |
-| `url` | Target URL on click |
+| `name` | Display name |
+| `icon` | Emoji (no icon font needed) |
+| `subtitle` | Card description |
+| `tag` | Corner badge |
+| `url` | Target URL |
 
-Refresh the page to apply changes.
+Refresh the page to apply.
 
 ### 5. Setup Dashboard Cron
 
-**Step 1 — Update corn.sh output path**
-
 ```bash
-sed -i 's|/path/to/Blog-termux|/your/real/path/to/Blog-termux|g' ~/Blog-termux/corn.sh
-```
-
-**Step 2 — Run manually to verify**
-
-```bash
-bash ~/Blog-termux/corn.sh
+# Test manually
+bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 cat ~/Blog-termux/dashboard.json
-# Should output JSON like {"device":{"model":"Xiaomi 14",...},...}
+
+# Add to crontab (every 30 seconds):
+# * * * * * bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+# * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 ```
 
-**Step 3 — Configure crontab**
-
-```bash
-crontab -e
-# Add these two lines (runs every 30 seconds):
-# * * * * * /path/to/Blog-termux/corn.sh
-# * * * * * sleep 30; /path/to/Blog-termux/corn.sh
-```
-
-> **Termux note**: Start cron service first. `sv-enable crond` (termux-services) or run `crond` manually.
+> **Termux**: Start cron service first — `sv-enable crond` (termux-services) or run `crond` manually.
 
 ### 6. Add Content
 
-| Content type | Place in | Discovery |
-|-------------|----------|-----------|
-| Markdown articles | `Markdown/` | index.json first → nginx autoindex fallback |
-| HTML articles | `Html/` | index.json first → nginx autoindex fallback, opens in new tab |
-| Images | `Image/` | index.json first → nginx autoindex fallback |
+| Content type | Directory | Discovery |
+|-------------|-----------|-----------|
+| Markdown | `Markdown/` | `index.json` → autoindex fallback |
+| HTML | `Html/` | `index.json` → autoindex fallback, opens in new tab |
+| Images | `Image/` | `index.json` → autoindex fallback |
 
-> **Gallery visibility**: `gen_index.sh` skips `thumbnails/` and `archive/` — images in these directories are **not shown** in the gallery. Images in `posts/` and `gallery/` are indexed and displayed.
-
-Add or remove files and refresh the page. Run `bash gen_index.sh` to rebuild static indexes for faster loading; add `*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux` to cron for periodic updates.
+> `gen_index.sh` skips `thumbnails/` and `archive/` — images there are not shown in the gallery. Run `bash gen_index.sh ~/Blog-termux` to rebuild indexes, optionally add to cron: `*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux`
 
 ### 7. Launch
 
 ```bash
 nginx -s reload
-# Open https://127.0.0.1:7443 in browser
+# Open https://127.0.0.1:7443
 ```
 
 ---
@@ -536,72 +393,56 @@ nginx -s reload
 
 | Action | How |
 |--------|-----|
-| **Switch tab** | PC/tablet: click top tab bar. Mobile: tap bottom nav bar |
-| **Dark mode** | Click ☀️/🌙 button, preference auto-saved |
-| **Search services** | Nav tab → type in search box (matches name/description/tag) |
-| **Search articles** | Blog tab → type keywords → filter by type: All / Markdown / HTML |
-| **Read article** | Click article → inline rendering in center panel, auto-generated TOC on the right |
-| **Browse images** | Gallery tab → search or scroll → click image for lightbox |
-| **Shortcuts** | ESC closes image lightbox |
+| Switch tab | PC/tablet: click top tab bar. Mobile: tap bottom nav |
+| Dark mode | Click ☀/☾ button, preference auto-saved |
+| Search services | Nav tab → type in search box (matches name/description/tag) |
+| Search articles | Blog tab → type keywords → filter by type: All / Markdown / HTML |
+| Read article | Click article → inline render in center panel, auto-generated ToC on right |
+| Browse images | Gallery tab → search or scroll → click to open lightbox |
+| Shortcuts | `←` `→` cycle tabs, `Home` `End` jump to first/last, `ESC` close lightbox |
 
 ---
 
 ## FAQ
 
-### Q: Blog / Gallery / Nav shows "Loading..." with no data?
-
-Check three things:
+### Blog / Gallery / Nav shows "Loading..." with no data?
 
 ```bash
-# 1. Is nginx autoindex working?
-curl http://127.0.0.1:7443/api/md/
-
-# 2. Are the directories empty?
-ls ~/Blog-termux/Markdown/
-ls ~/Blog-termux/Image/
-
-# 3. Browser console (F12) — any fetch errors? Usually a path mismatch in nginx config.
+curl http://127.0.0.1:7443/api/md/     # Is autoindex working?
+ls ~/Blog-termux/Markdown/              # Are directories empty?
+# Check browser console (F12) for fetch errors — usually a path mismatch in nginx config.
 ```
 
-### Q: Dashboard cards show "--"?
+### Dashboard cards show "--"?
 
 ```bash
-# Check dashboard.json exists and is valid JSON
-cat ~/Blog-termux/dashboard.json
-
-# Run the collector manually
-bash ~/Blog-termux/corn.sh
-
-# Verify cron is running
-ps aux | grep crond
+cat ~/Blog-termux/dashboard.json        # Exists and valid JSON?
+bash ~/Blog-termux/corn.sh              # Run manually
+ps aux | grep crond                     # Is cron running?
 ```
 
-Also check the device card for error hints: "No data / Check corn.sh/nginx" means the fetch is failing.
+### Battery card shows "--"?
 
-### Q: Battery card shows "--"?
-
-Install `termux-api` package (also install Termux:API app on Android and grant permissions):
+Install `termux-api` (also install Termux:API app on Android and grant permissions):
 
 ```bash
 pkg install termux-api
 ```
 
-Without it, the battery card shows `--` placeholders without affecting other functionality.
+Without it, the battery card shows `--` without affecting other functionality.
 
-### Q: How to change the port?
+### How to change the port?
 
-Edit `listen 7443;` in nginx config to your desired port, then `nginx -s reload`.
+Edit `listen 7443;` in nginx config → `nginx -s reload`.
 
-### Q: Images in Markdown not displaying?
+### Images in Markdown not displaying?
 
-Two approaches:
+1. Place images in `Image/` directory, reference by filename (reader auto-rewrites paths to `/api/images/<filename>`)
+2. Or use absolute paths: `/api/images/<filename>`
 
-1. Put images in `Image/` directory, reference by filename in the article (reader auto-rewrites paths to `/api/images/<filename>`)
-2. Use absolute paths in Markdown: `/api/images/<filename>`
+### Math formulas render as raw text?
 
-### Q: Math formulas render as raw text?
-
-Verify `katex.min.js` and `auto-render.min.js` exist in `lib/`. KaTeX only loads when math delimiters are detected. Check browser console for 404 errors.
+Verify `katex.min.js` and `auto-render.min.js` exist in `lib/`. KaTeX loads on demand when math delimiters are detected (`$$`, `\[`, `\(`). Check browser console for 404 errors.
 
 ---
 
@@ -609,16 +450,17 @@ Verify `katex.min.js` and `auto-render.min.js` exist in `lib/`. KaTeX only loads
 
 | Feature | Implementation |
 |---------|---------------|
-| Zero backend | nginx autoindex directory listings, `DOMParser` parsing |
+| Zero backend | nginx autoindex + `DOMParser` parsing |
 | Zero external deps | All libraries vendored in `lib/` |
-| No root | `corn.sh` uses `lscpu`/cpufreq sysfs/`/proc/stat`/`top`/`free`/`uptime`/`getprop`/`ps` (no root needed) |
+| No root | `corn.sh` uses `lscpu`/cpufreq sysfs/`/proc/stat`/`top`/`free`/`getprop`/`ps` |
 | Service detection | Auto-scan `ps -e` all processes, noise filter + dedup + name resolution |
-| Security | Filename `escapeHtml` escaping, XSS prevention |
-| Theming | CSS variables + `body.dark` toggle |
-| Responsive | 3 breakpoints (1200/640/400px) |
-| Lazy loading | Inactive tabs don't fetch; KaTeX loads on demand |
-| Cache busting | `?v=N` query strings on JS/CSS + nginx `no-cache` headers |
-| Compatibility | `backdrop-filter` solid-color fallback, `-webkit-` prefixes |
+| Security | 5-layer HTML sanitizer, URL whitelist validation, `escapeHtml` on user content |
+| Offline | Service Worker: cache-first (static), SWR (articles/images), network-only (dashboard/summary) |
+| Theming | CSS custom properties + `body.dark` toggle, `prefers-color-scheme` auto-detect |
+| Responsive | 3 breakpoints (1024px / 639px / 400px), top tabs → bottom nav on mobile |
+| Lazy loading | Inactive tabs don't fetch, KaTeX loads on demand |
+| Race protection | `AbortController` + request ID counter, `Promise.allSettled` for multi-source |
+| Compatibility | `-webkit-backdrop-filter`, `@supports not (backdrop-filter)` solid-color fallbacks |
 
 ---
 

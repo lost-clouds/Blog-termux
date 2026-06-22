@@ -205,17 +205,22 @@ import { API } from './constants.js';
         set(els.uptimeValue, '--');
     }
 
-    /* ---- 获取数据（含请求去重）---- */
+    /* ---- 获取数据（含请求去重 + 8s 超时）---- */
     async function fetchData() {
         if (_fetching) return;
         _fetching = true;
+        let controller = new AbortController();
+        let timeout = setTimeout(function() { controller.abort(); }, 8000);
         try {
-            let resp = await fetch(API.DASHBOARD);
+            let resp = await fetch(API.DASHBOARD, { signal: controller.signal });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             let json = await resp.json();
             _fetchErrors = 0;
             update(json);
         } catch (err) {
+            if (err.name === 'AbortError') {
+                console.warn('Dashboard: 请求超时');
+            }
             _fetchErrors++;
             console.warn('Dashboard: 获取失败 (' + _fetchErrors + ') — ' + err.message);
             if (_fetchErrors === 1) {
@@ -232,6 +237,7 @@ import { API } from './constants.js';
                 reset();
             }
         } finally {
+            clearTimeout(timeout);
             _fetching = false;
         }
     }
@@ -239,9 +245,10 @@ import { API } from './constants.js';
     /* ---- 启动轮询 ---- */
     function start() {
         _paused = false;
+        _fetchErrors = 0;
         fetchData();
         if (_timer) clearInterval(_timer);
-        _timer = setInterval(fetchData, 10000);
+        _timer = setInterval(fetchData, 30000);
     }
 
     /* ---- 停止轮询 ---- */

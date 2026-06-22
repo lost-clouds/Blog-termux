@@ -40,7 +40,7 @@
 
     /* ---- 格式化文件大小为可读字符串 ---- */
     function formatSize(bytes) {
-        if (!bytes || bytes === '?') return '?';
+        if (bytes === null || bytes === undefined || bytes === '' || bytes === '?') return '?';
         const units = ['B', 'KB', 'MB', 'GB', 'TB'];
         let i = 0, val = parseFloat(bytes);
         if (isNaN(val)) return String(bytes);

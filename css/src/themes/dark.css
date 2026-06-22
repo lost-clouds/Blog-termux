@@ -1,5 +1,5 @@
 /* ============================================================
-   15. 深色模式覆盖
+   13. 深色模式覆盖
    ============================================================ */
 body.dark {
     --bg-primary:    #0d0d0f;
@@ -28,6 +28,11 @@ body.dark .markdown-body {
     background: rgba(28,28,30,0.88);
     border-color: rgba(255,255,255,0.12);
     box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+body.dark .blog-content .markdown-body {
+    background: none;
+    border: none;
+    box-shadow: none;
 }
 body.dark .markdown-body code {
     background: rgba(255,255,255,0.08);

@@ -13,9 +13,10 @@
      9.  图片画廊 (gallery)
      10. Markdown 正文内容 (markdown-content)
      11. 图片灯箱 (lightbox)
-     12. 深色模式覆盖
-     13. 底部导航栏 (bottom-nav)
+     12. 底部导航栏 (bottom-nav)
+     13. 深色模式覆盖
      14. 响应式断点
+     15. 浏览器兼容回退
    ============================================================ */
 
 /* ============================================================
@@ -876,6 +877,7 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
     inset: 0;
     background: rgba(0,0,0,0.92);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     z-index: 2000;
     display: flex;
     align-items: center;
@@ -926,7 +928,7 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
 }
 
 /* ============================================================
-   14. 底部导航栏（移动端）
+   12. 底部导航栏（移动端）
    ============================================================ */
 .bottom-nav {
     display: none;  /* 默认隐藏，移动端显示 */
@@ -955,7 +957,7 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
 .bottom-nav .tab-btn .tab-icon { font-size: 1.3rem; }
 
 /* ============================================================
-   15. 深色模式覆盖
+   13. 深色模式覆盖
    ============================================================ */
 body.dark {
     --bg-primary:    #0d0d0f;
@@ -984,6 +986,11 @@ body.dark .markdown-body {
     background: rgba(28,28,30,0.88);
     border-color: rgba(255,255,255,0.12);
     box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+body.dark .blog-content .markdown-body {
+    background: none;
+    border: none;
+    box-shadow: none;
 }
 body.dark .markdown-body code {
     background: rgba(255,255,255,0.08);
@@ -1017,7 +1024,7 @@ body.dark .bottom-nav {
 }
 
 /* ============================================================
-   16. 响应式断点
+   14. 响应式断点
    ============================================================ */
 
 /* ---- Pad (640px - 1024px) ---- */
@@ -1029,7 +1036,7 @@ body.dark .bottom-nav {
 }
 
 /* ---- 手机 (< 640px) ---- */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
     .app-container { padding: 0.5rem; padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
 
     .header {
@@ -1113,7 +1120,7 @@ body.dark .bottom-nav {
 }
 
 /* ============================================================
-   17. 浏览器兼容：backdrop-filter 回退
+   15. 浏览器兼容：backdrop-filter 回退
    ============================================================ */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     body:not(.dark) .header,
@@ -1121,9 +1128,12 @@ body.dark .bottom-nav {
     body:not(.dark) .dash-card,
     body:not(.dark) .nav-card,
     body:not(.dark) .blog-sidebar,
-	    body:not(.dark) .blog-content,
+    body:not(.dark) .blog-content,
     body:not(.dark) .gallery-card,
-    body:not(.dark) .markdown-body {
+    body:not(.dark) .markdown-body,
+    body:not(.dark) .bottom-nav,
+    body:not(.dark) .theme-toggle-btn,
+    body:not(.dark) .search-input {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         background: rgba(255,255,255,0.95) !important;
@@ -1133,10 +1143,14 @@ body.dark .bottom-nav {
     body.dark .dash-card,
     body.dark .nav-card,
     body.dark .blog-sidebar,
-	    body.dark .blog-content,
+    body.dark .blog-content,
     body.dark .gallery-card,
-    body.dark .markdown-body {
+    body.dark .markdown-body,
+    body.dark .bottom-nav,
+    body.dark .theme-toggle-btn,
+    body.dark .search-input {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         background: rgba(28,28,30,0.98) !important;
     }
+}

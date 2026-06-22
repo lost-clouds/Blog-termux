@@ -623,6 +623,12 @@ section {
     transition: opacity 0.3s ease;
 }
 
+@supports not (backdrop-filter: blur(1px)) {
+    .card-overlay-blur {
+        background: rgba(0,0,0,0.4);
+    }
+}
+
 .card:hover .card-overlay-blur {
     opacity: 1;
 }
@@ -739,6 +745,12 @@ section {
     border: 1px solid var(--glass-border);
     white-space: nowrap;
     justify-content: center;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+    .contact-link {
+        background: var(--glass-bg-strong);
+    }
 }
 
 .contact-link:hover {
@@ -905,6 +917,14 @@ body.dark .card-figure .card-placeholder {
         transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.0),
                     opacity 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.0);
         z-index: 99;
+    }
+    @supports not (backdrop-filter: blur(1px)) {
+        .nav-links {
+            background: rgba(255,255,255,0.95);
+        }
+        body.dark .nav-links {
+            background: rgba(28,28,30,0.98);
+        }
     }
     nav.open .nav-links {
         transform: translateY(0);

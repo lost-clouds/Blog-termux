@@ -1,5 +1,5 @@
 /* ============================================================
-   16. 响应式断点
+   14. 响应式断点
    ============================================================ */
 
 /* ---- Pad (640px - 1024px) ---- */
@@ -11,7 +11,7 @@
 }
 
 /* ---- 手机 (< 640px) ---- */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
     .app-container { padding: 0.5rem; padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
 
     .header {
@@ -95,7 +95,7 @@
 }
 
 /* ============================================================
-   17. 浏览器兼容：backdrop-filter 回退
+   15. 浏览器兼容：backdrop-filter 回退
    ============================================================ */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     body:not(.dark) .header,
@@ -103,9 +103,12 @@
     body:not(.dark) .dash-card,
     body:not(.dark) .nav-card,
     body:not(.dark) .blog-sidebar,
-	    body:not(.dark) .blog-content,
+    body:not(.dark) .blog-content,
     body:not(.dark) .gallery-card,
-    body:not(.dark) .markdown-body {
+    body:not(.dark) .markdown-body,
+    body:not(.dark) .bottom-nav,
+    body:not(.dark) .theme-toggle-btn,
+    body:not(.dark) .search-input {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         background: rgba(255,255,255,0.95) !important;
@@ -115,9 +118,12 @@
     body.dark .dash-card,
     body.dark .nav-card,
     body.dark .blog-sidebar,
-	    body.dark .blog-content,
+    body.dark .blog-content,
     body.dark .gallery-card,
-    body.dark .markdown-body {
+    body.dark .markdown-body,
+    body.dark .bottom-nav,
+    body.dark .theme-toggle-btn,
+    body.dark .search-input {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         background: rgba(28,28,30,0.98) !important;

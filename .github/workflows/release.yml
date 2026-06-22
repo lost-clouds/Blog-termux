@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build CSS
+        run: bash css/build.sh
+
+      - name: Package (tar.gz)
+        run: |
+          tar -czf Blog-termux.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.claude' \
+            --exclude='.editorconfig' \
+            --exclude='.gitignore' \
+            --exclude='*.bak' \
+            --exclude='*.tmp' \
+            --exclude='**/index.json' \
+            --exclude='dashboard.json' \
+            --exclude='css/src' \
+            --exclude='example/*.conf' \
+            .
+
+      - name: Package (zip)
+        run: |
+          zip -r Blog-termux.zip . \
+            -x '.git/*' '.github/*' '.claude/*' '.editorconfig' '.gitignore' \
+            '*.bak' '*.tmp' '**/index.json' 'dashboard.json' \
+            'css/src/*' 'example/*.conf'
+
+      - name: Generate checksums
+        run: |
+          sha256sum Blog-termux.tar.gz Blog-termux.zip > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: |
+            ## 安装
+
+            ```bash
+            curl -sSLO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Blog-termux.tar.gz
+            tar -xzf Blog-termux.tar.gz -C ~/Blog-termux
+            ```
+
+            ### 下载依赖库
+
+            ```bash
+            cd ~/Blog-termux/lib
+            curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
+            curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
+            curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
+            curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
+            curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+            ```
+
+            ### 继续部署
+
+            参考 [README](https://github.com/${{ github.repository }}#deployment-guide) 从第 3 步开始。
+
+            ## 校验
+
+            ```
+            $(cat checksums.txt)
+            ```
+          files: |
+            Blog-termux.tar.gz
+            Blog-termux.zip
+            checksums.txt
+          generate_release_notes: true

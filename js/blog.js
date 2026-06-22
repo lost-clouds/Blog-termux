@@ -54,12 +54,15 @@ import { API } from './constants.js';
         $blogNav.innerHTML = '<div class="blog-nav-loading">加载中...</div>';
 
         try {
-            let results = await Promise.all([
+            let results = await Promise.allSettled([
                 fetchIndexOrAutoindex(API.MARKDOWN_INDEX, API.MARKDOWN_LIST, 'markdown'),
                 fetchIndexOrAutoindex(API.HTML_INDEX, API.HTML_LIST, 'html')
             ]);
 
-            _articles = results[0].concat(results[1]).sort(function(a, b) {
+            let markdownArticles = results[0].status === 'fulfilled' ? results[0].value : [];
+            let htmlArticles     = results[1].status === 'fulfilled' ? results[1].value : [];
+
+            _articles = markdownArticles.concat(htmlArticles).sort(function(a, b) {
                 return a.name.localeCompare(b.name);
             });
             _loaded = true;

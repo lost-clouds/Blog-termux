@@ -20,19 +20,36 @@ const _imageBound = new WeakSet();
 
 function extractMathBlocks(text) {
     const blocks = [];
-    const protected_ = text.replace(
-        /\$\$([\s\S]*?)\$\$/g,
-        function(match, content) {
-            content = content
-                .replace(/\\begin\{split\}/g, '\\begin{aligned}')
-                .replace(/\\end\{split\}/g, '\\end{aligned}')
-                .replace(/\\\\/g, '\\\\\\\\');
-            const idx = blocks.length;
-            blocks.push('$$' + content + '$$');
-            return '<span class="math-' + idx + '"></span>';
-        }
-    );
-    return { text: protected_, blocks: blocks };
+
+    function processContent(content) {
+        return content
+            .replace(/\\begin\{split\}/g, '\\begin{aligned}')
+            .replace(/\\end\{split\}/g, '\\end{aligned}')
+            .replace(/\\\\/g, '\\\\\\\\');
+    }
+
+    // Phase 1: $$...$$
+    let result = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match, content) {
+        var idx = blocks.length;
+        blocks.push('$$' + processContent(content) + '$$');
+        return '<span class="math-' + idx + '"></span>';
+    });
+
+    // Phase 2: \[...\]
+    result = result.replace(/\\\[([\s\S]*?)\\\]/g, function(match, content) {
+        var idx = blocks.length;
+        blocks.push('\\[' + processContent(content) + '\\]');
+        return '<span class="math-' + idx + '"></span>';
+    });
+
+    // Phase 3: \(...\)
+    result = result.replace(/\\\(([\s\S]*?)\\\)/g, function(match, content) {
+        var idx = blocks.length;
+        blocks.push('\\(' + processContent(content) + '\\)');
+        return '<span class="math-' + idx + '"></span>';
+    });
+
+    return { text: result, blocks: blocks };
 }
 
 function restoreMathBlocks(container, blocks) {
@@ -70,11 +87,13 @@ function ensureKatex() {
                 resolve();
             };
             autoRenderScript.onerror = function() {
+                _katexPromise = null;
                 reject(new Error('KaTeX auto-render 加载失败'));
             };
             document.head.appendChild(autoRenderScript);
         };
         katexScript.onerror = function() {
+            _katexPromise = null;
             reject(new Error('KaTeX 核心库加载失败'));
         };
         document.head.appendChild(katexScript);

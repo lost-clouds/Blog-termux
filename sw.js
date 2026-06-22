@@ -27,6 +27,7 @@ const SHELL = [
     '/js/constants.js',
     '/js/main.js?v=3',
     '/js/app.js',
+    '/js/update-widget.js',
     '/lib/marked.min.js?v=2',
     '/lib/github-markdown.min.css?v=2',
     '/lib/katex.min.css?v=2',
@@ -76,6 +77,12 @@ self.addEventListener('fetch', function(e) {
 
     // /api/dashboard 不缓存
     if (url.pathname === '/api/dashboard') {
+        e.respondWith(fetch(e.request));
+        return;
+    }
+
+    // /api/summary 不缓存 (simple-daily-termux 集成)
+    if (url.pathname === '/api/summary') {
         e.respondWith(fetch(e.request));
         return;
     }

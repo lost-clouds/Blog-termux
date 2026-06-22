@@ -322,10 +322,8 @@ if command -v ifconfig &>/dev/null; then
     fi
 fi
 
-# 公网 IPv6（仅在有非回环 IPv6 地址时请求，避免无效超时）
-if [ -f /proc/net/if_inet6 ] && grep -qv '^00000000000000000000000000000001 ' /proc/net/if_inet6 2>/dev/null; then
-    IPV6_ADDR=$(curl -6 -s --connect-timeout 2 ifconfig.me 2>/dev/null || echo "")
-fi
+# 公网 IPv6（直接 curl，短超时；Termux 无 root 无法预检查 /proc 或 ifconfig）
+IPV6_ADDR=$(curl -6 -s --connect-timeout 1 ifconfig.me 2>/dev/null || echo "")
 
 # ============================================================
 # 3. CPU 信息
@@ -437,7 +435,7 @@ add_svc() {
 }
 
 # 噪音列表（basename 后匹配，不视为服务的进程）
-NOISE="bash|zsh|sh|dash|fish|su|sudo|login|ps|grep|awk|sed|find|cat|ls|top|head|tail|wc|sort|uniq|xargs|cut|tr|sleep|echo|pstree|pgrep|kill|killall|tmux|screen|dbus-daemon|logcat|getprop|erl_child_setup|inet_gethost|epmd|disksup"
+NOISE="bash|zsh|sh|dash|fish|-bash|-zsh|-sh|su|sudo|login|ps|grep|awk|sed|find|cat|ls|top|head|tail|wc|sort|uniq|xargs|cut|tr|sleep|echo|pstree|pgrep|kill|killall|tmux|screen|dbus-daemon|logcat|getprop|erl_child_setup|inet_gethost|epmd|disksup"
 
 detect_services() {
     local seen="" comm raw name pid
