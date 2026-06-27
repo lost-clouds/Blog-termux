@@ -8,7 +8,7 @@
      / /index.html /config.json → network-first（入口保证新鲜）
      其余静态资源            → cache-first
    ============================================================ */
-const CACHE = 'blog-v3';
+const CACHE = 'blog-v4';
 const SHELL = [
     '/',
     '/index.html',
