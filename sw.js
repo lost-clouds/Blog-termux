@@ -8,7 +8,7 @@
      / /index.html /config.json → network-first（入口保证新鲜）
      其余静态资源            → cache-first
    ============================================================ */
-const CACHE = 'blog-v4';
+const CACHE = 'blog-v5';
 const SHELL = [
     '/',
     '/index.html',
@@ -32,6 +32,7 @@ const SHELL = [
     '/lib/katex.min.css?v=2',
     '/lib/katex.min.js?v=2',
     '/lib/auto-render.min.js?v=2',
+    '/lib/mermaid.min.js',
     '/favicon.ico'
 ];
 

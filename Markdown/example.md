@@ -330,4 +330,63 @@ Nginx 配置路径：`/api/dashboard` → `dashboard.json`。
 
 ---
 
-> **本文档完整覆盖**：多级标题（TOC 生成）、文字样式、图片引用（相对/绝对/子目录）、KaTeX 数学公式（行内/块级/多种分隔符）、代码块（语法高亮）、表格（对齐/混合内容）、列表（无序/有序/任务）、嵌套引用、链接（外部/名词解释）、分隔线、HTML 标签白名单、XSS 安全过滤。可据此验证阅读器的全部渲染能力。
+## 14. Mermaid 图表渲染
+
+阅读器在检测到 ` ```mermaid ` 代码块时**按需加载 Mermaid 库**（~3.4MB），将其渲染为 SVG 矢量图表。无图表的文章不受影响。
+
+### 14.1 流程图
+
+```mermaid
+graph TD
+    A[开始] --> B{判断条件}
+    B -->|是| C[执行操作]
+    B -->|否| D[跳过]
+    C --> E[结束]
+    D --> E
+```
+
+### 14.2 序列图
+
+```mermaid
+sequenceDiagram
+    participant 浏览器
+    participant Nginx
+    participant 文件系统
+
+    浏览器->>Nginx: GET /Markdown/example.md
+    Nginx->>文件系统: 读取文件
+    文件系统-->>Nginx: 返回内容
+    Nginx-->>浏览器: 200 OK
+    浏览器->>浏览器: 渲染 Markdown + Mermaid
+```
+
+### 14.3 类图
+
+```mermaid
+classDiagram
+    class Blog {
+        -_articles[]
+        -_currentFile
+        +fetchArticles()
+        +selectArticle(name, type)
+    }
+    class MarkdownRenderer {
+        +render(raw, target)
+        +buildTocFromDom(container)
+    }
+    Blog --> MarkdownRenderer : uses
+```
+
+### 14.4 语法错误 — 降级显示
+
+语法错误时保留源码并显示错误提示，不影响页面正常使用：
+
+```mermaid
+graph TD
+    A --> B
+    B -->|未闭合
+```
+
+---
+
+> **本文档完整覆盖**：多级标题（TOC 生成）、文字样式、图片引用（相对/绝对/子目录）、KaTeX 数学公式（行内/块级/多种分隔符）、代码块（语法高亮）、Mermaid 图表（流程图/序列图/类图/降级处理）、表格（对齐/混合内容）、列表（无序/有序/任务）、嵌套引用、链接（外部/名词解释）、分隔线、HTML 标签白名单、XSS 安全过滤。可据此验证阅读器的全部渲染能力。

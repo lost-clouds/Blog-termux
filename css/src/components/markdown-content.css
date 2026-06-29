@@ -112,3 +112,34 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
     text-align: center;
     border: 1px solid rgba(248,81,73,0.3);
 }
+
+/* Mermaid 图表容器（mermaid.run() 将内部替换为 SVG）*/
+.mermaid {
+    display: flex;
+    justify-content: center;
+    margin: 1.5em 0;
+    overflow-x: auto;
+}
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Mermaid 渲染失败降级：显示源码 + 错误提示 */
+.mermaid-error {
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.25);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+.mermaid-error pre {
+    margin: 0 0 0.5em 0;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.mermaid-error-msg {
+    color: #d32f2f;
+    font-size: 0.85em;
+    text-align: center;
+}
