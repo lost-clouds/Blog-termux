@@ -3,14 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog-termux — 个人导航 + 博客控制台</title>
+    <title>Blog-termux — 个人控制台 + 博客系统</title>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+        :root {
+            --bg: #1a1a1a;
+            --text: #ccc;
+            --text-dim: #888;
+            --text-faint: #555;
+            --card-bg: rgba(255,255,255,.06);
+            --card-border: rgba(255,255,255,.08);
+            --inner-bg: rgba(255,255,255,.04);
+            --inner-border: rgba(255,255,255,.06);
+            --code-bg: rgba(0,0,0,.35);
+            --accent: #ddd;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #1a1a1a;
-            color: #ccc;
+            background: var(--bg);
+            color: var(--text);
             line-height: 1.7;
             min-height: 100vh;
         }
@@ -35,10 +48,10 @@
 
         /* ---- 磨砂玻璃卡片 ---- */
         .card {
-            background: rgba(255,255,255,.06);
+            background: var(--card-bg);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255,255,255,.08);
+            border: 1px solid var(--card-border);
             border-radius: 14px;
             padding: 2rem;
             margin-bottom: 1.5rem;
@@ -59,7 +72,7 @@
 
         .hero .tagline {
             font-size: .95rem;
-            color: #888;
+            color: var(--text-dim);
         }
 
         .hero .badge-row {
@@ -88,7 +101,7 @@
             color: #eee;
             margin-bottom: 1rem;
             padding-bottom: .6rem;
-            border-bottom: 1px solid rgba(255,255,255,.08);
+            border-bottom: 1px solid var(--card-border);
         }
 
         p { margin-bottom: .85rem; font-size: .92rem; }
@@ -101,8 +114,8 @@
         }
 
         .feat-item {
-            background: rgba(255,255,255,.04);
-            border: 1px solid rgba(255,255,255,.06);
+            background: var(--inner-bg);
+            border: 1px solid var(--inner-border);
             border-radius: 10px;
             padding: 1.1rem 1rem;
             backdrop-filter: blur(10px);
@@ -110,13 +123,13 @@
         }
 
         .feat-item .icon { font-size: 1.4rem; margin-bottom: .4rem; }
-        .feat-item .name { font-size: .85rem; font-weight: 600; color: #ddd; margin-bottom: .2rem; }
-        .feat-item .desc { font-size: .75rem; color: #888; }
+        .feat-item .name { font-size: .85rem; font-weight: 600; color: var(--accent); margin-bottom: .2rem; }
+        .feat-item .desc { font-size: .75rem; color: var(--text-dim); }
 
         /* ---- 代码块 ---- */
         .code-block {
-            background: rgba(0,0,0,.35);
-            border: 1px solid rgba(255,255,255,.06);
+            background: var(--code-bg);
+            border: 1px solid var(--inner-border);
             border-radius: 8px;
             padding: 1rem 1.2rem;
             font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
@@ -133,12 +146,19 @@
         /* ---- 列表 ---- */
         ul { padding-left: 1.2rem; margin-bottom: .85rem; }
         li { font-size: .9rem; margin-bottom: .35rem; color: #bbb; }
-        li::marker { color: #555; }
+        li::marker { color: var(--text-faint); }
+
+        /* ---- 表格 ---- */
+        table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+        th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--inner-border); }
+        th { color: var(--accent); font-weight: 600; }
+        td { color: #bbb; }
+        td code { color: #999; }
 
         /* ---- 分割线 ---- */
         hr {
             border: none;
-            border-top: 1px solid rgba(255,255,255,.06);
+            border-top: 1px solid var(--card-border);
             margin: .5rem 0 1.5rem;
         }
 
@@ -146,7 +166,7 @@
         .footer {
             text-align: center;
             font-size: .75rem;
-            color: #555;
+            color: var(--text-faint);
             margin-top: 1rem;
         }
 
@@ -176,9 +196,9 @@
         <div class="badge-row">
             <span class="badge">Nginx</span>
             <span class="badge">ES Modules</span>
-            <span class="badge">零依赖</span>
+            <span class="badge">零后端</span>
+            <span class="badge">离线可用</span>
             <span class="badge">响应式</span>
-            <span class="badge">MIT</span>
         </div>
     </div>
 
@@ -186,14 +206,15 @@
     <div class="card">
         <h2>简介</h2>
         <p>
-            基于 Nginx 运行的极简控制台，集成 <strong style="color:#ddd;">系统仪表盘</strong>、
-            <strong style="color:#ddd;">服务导航</strong>、<strong style="color:#ddd;">Markdown 博客</strong>、
-            <strong style="color:#ddd;">图片画廊</strong> 四大模块。所有内容通过 nginx autoindex 或预生成的
+            基于 Nginx 运行的极简控制台，集成 <strong style="color:var(--accent);">系统仪表盘</strong>、
+            <strong style="color:var(--accent);">服务导航</strong>、<strong style="color:var(--accent);">Markdown 博客</strong>、
+            <strong style="color:var(--accent);">图片画廊</strong> 四大模块。所有内容通过 nginx autoindex 或预生成的
             index.json 发现，无需任何后端运行时。
         </p>
         <p>
             本项目衍生自 <a href="https://github.com/bastienwirtz/homer" style="color:#999;">bastienwirtz/homer</a>，
-            在长期使用中逐步演变为当前形态。
+            在长期使用中逐步演变为当前形态。所有 JS 使用 ES Modules 显式声明依赖，
+            配合 JSDoc + ESLint + Stylelint + ShellCheck 的 CI 门禁保证代码质量。
         </p>
     </div>
 
@@ -204,22 +225,22 @@
             <div class="feat-item">
                 <div class="icon">📊</div>
                 <div class="name">系统仪表盘</div>
-                <div class="desc">8 张实时卡片：设备 / CPU / 内存 / 储存 / 网络 / 电池 / 服务 / 运行时间</div>
+                <div class="desc">8 张卡片：设备 / CPU（含集群）/ 内存（含 SWAP）/ 储存 / 网络 / 电池 / 服务 / 运行时间，30s 轮询</div>
             </div>
             <div class="feat-item">
                 <div class="icon">🧭</div>
                 <div class="name">服务导航</div>
-                <div class="desc">分组卡片展示，搜索过滤，安全 URL 白名单跳转</div>
+                <div class="desc">config.json 分组渲染，250ms 防抖搜索，URL 白名单安全跳转</div>
             </div>
             <div class="feat-item">
                 <div class="icon">📝</div>
                 <div class="name">博客阅读器</div>
-                <div class="desc">三栏布局，Markdown 内联渲染 + ToC，HTML 文章新标签页打开</div>
+                <div class="desc">三栏布局，Markdown 内联渲染 + ToC + KaTeX 数学公式，HTML 文章新标签页打开</div>
             </div>
             <div class="feat-item">
                 <div class="icon">🖼️</div>
                 <div class="name">图片画廊</div>
-                <div class="desc">网格缩略图，搜索过滤，灯箱放大，加载失败自动隐藏</div>
+                <div class="desc">缩略图网格，懒加载，250ms 防抖搜索，灯箱放大（ESC / 点击背景关闭）</div>
             </div>
         </div>
     </div>
@@ -228,37 +249,68 @@
     <div class="card">
         <h2>技术栈</h2>
         <ul>
-            <li>所有 JS 使用 <strong style="color:#ddd;">ES Modules</strong>（import / export 显式声明依赖）</li>
-            <li>Markdown 解析：marked 引擎 + 白名单 HTML sanitizer + KaTeX 数学公式</li>
-            <li>CSS 策略：CSS 自定义属性 + 3 个响应式断点（1200 / 640 / 400px）</li>
-            <li>Service Worker：分层缓存（network-only / SWR / network-first / cache-first）</li>
-            <li>仪表盘数据：corn.sh 定时采集系统指标 → dashboard.json → 前端每 10s 轮询</li>
-            <li>文件发现：<code style="color:#999;">gen_index.sh</code> 生成 index.json 优先 → nginx autoindex 降级</li>
+            <li>所有 JS 使用 <strong style="color:var(--accent);">ES Modules</strong>（12 业务模块 + 1 入口，import/export 显式声明依赖）</li>
+            <li>Markdown 渲染：marked 引擎 + 五层白名单 sanitizer + KaTeX 数学公式（按需懒加载）</li>
+            <li>md-viewer.js 完整 8 步管道：脚注 → 数学提取 → 解析 → XSS 清理 → 图片路径 → 锚点 → KaTeX → 灯箱绑定</li>
+            <li>CSS 策略：CSS 自定义属性 + 3 个响应式断点（1024 / 639 / 400px），<code style="color:#999;">build.sh</code> 合并 15 个源文件</li>
+            <li>Service Worker：分层缓存（network-only 实时 / SWR 文章图片 / network-first 入口 / cache-first 静态）</li>
+            <li>仪表盘数据：corn.sh 定时采集系统指标（零 root）→ dashboard.json → 前端每 30s 轮询 + 8s 超时</li>
+            <li>文件发现：<code style="color:#999;">gen_index.sh</code> 生成 index.json（Markdown/Html/Image 三目录）→ nginx autoindex 降级</li>
+            <li>竞态防护：<code style="color:#999;">AbortController</code> + 请求 ID 计数器，<code style="color:#999;">Promise.allSettled</code> 多源容错</li>
             <li>安全：文件名 escapeHtml 转义 + URL 白名单验证 + HTML sanitizer 五重过滤</li>
         </ul>
     </div>
 
-    <!-- ====== 目录结构 ====== -->
+    <!-- ====== 仪表盘卡片表 ====== -->
     <div class="card">
-        <h2>目录结构</h2>
-        <div class="code-block"><span class="c"># 一键克隆</span>
-        git clone https://github.com/lost-clouds/Blog-termux.git
-
-        <span class="c"># 下载依赖库</span>
-        <span class="k">cd</span> Blog-termux/lib
-        curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
-        curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
-        curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
-        curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
-        curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
-
-        <span class="c"># 配置 Nginx → 添加 cron → 启动</span>
-        <span class="k">cp</span> example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
-        <span class="k">bash</span> gen_index.sh    <span class="c"># 生成静态索引</span>
-        nginx -s reload</div>
+        <h2>仪表盘 8 张卡片</h2>
+        <table>
+            <tr><th>卡片</th><th>内容</th><th>进度条</th></tr>
+            <tr><td>📱 设备</td><td>品牌型号 · Android 版本 · 内核版本</td><td>—</td></tr>
+            <tr><td>🧠 CPU</td><td>使用率% · 核心数 · 型号 · 集群负载</td><td>蓝色</td></tr>
+            <tr><td>💾 内存</td><td>used / total + SWAP（SWAP=0 时隐藏）</td><td>蓝色</td></tr>
+            <tr><td>🗄️ 储存</td><td>used / total</td><td>蓝色</td></tr>
+            <tr><td>🌐 网络</td><td>局域网 IP · 接口 · IPv6</td><td>—</td></tr>
+            <tr><td>🔋 电池</td><td>电量% · 充电状态 · 温度</td><td>绿色</td></tr>
+            <tr><td>⚙️ 服务</td><td>N 个运行中 · 进程名列表</td><td>—</td></tr>
+            <tr><td>⏱️ 运行时间</td><td>如 "3d 12h 30m"</td><td>—</td></tr>
+        </table>
+        <p style="margin-top:.85rem; font-size:.8rem; color:var(--text-dim);">
+            离开标签页或页面不可见时暂停轮询；错误渐进降级（1 次提示 → 2–5 次过期指示 → 5 次以上重置）。
+        </p>
     </div>
 
     <!-- ====== 快速开始 ====== -->
+    <div class="card">
+        <h2>快速开始</h2>
+        <div class="code-block"><span class="c"># 1. 克隆</span>
+<span class="k">git</span> clone https://github.com/lost-clouds/Blog-termux.git ~/Blog-termux
+
+<span class="c"># 2. 下载前端依赖（一次性，后续完全离线）</span>
+<span class="k">cd</span> ~/Blog-termux/lib
+<span class="k">curl</span> -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
+<span class="k">curl</span> -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
+<span class="k">curl</span> -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
+<span class="k">curl</span> -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
+<span class="k">curl</span> -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+
+<span class="c"># 3. 配置 Nginx（参考 README 中的 server 配置块）</span>
+<span class="c">#    将所有 /path/to/Blog-termux 替换为实际路径</span>
+
+<span class="c"># 4. 配置仪表盘定时采集（每 30 秒）</span>
+<span class="c"># crontab 添加：</span>
+<span class="c">#   * * * * *    bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json</span>
+<span class="c">#   * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json</span>
+
+<span class="c"># 5.（可选）生成静态索引，加速加载</span>
+<span class="k">bash</span> ~/Blog-termux/gen_index.sh ~/Blog-termux
+
+<span class="c"># 6. 重载 Nginx 并访问</span>
+<span class="k">nginx</span> -s reload
+<span class="c"># 浏览器打开 https://127.0.0.1:7443</span></div>
+    </div>
+
+    <!-- ====== 部署要素 ====== -->
     <div class="card">
         <h2>部署要素</h2>
         <div class="features">
@@ -275,19 +327,97 @@
             <div class="feat-item">
                 <div class="icon">📁</div>
                 <div class="name">Markdown/</div>
-                <div class="desc">放入 .md 文章，博客标签页自动发现并渲染</div>
+                <div class="desc">放入 .md 文章，博客标签页自动发现并内联渲染</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">📄</div>
+                <div class="name">Html/</div>
+                <div class="desc">放入 .html 文章，博客标签页展示，新标签页打开</div>
             </div>
             <div class="feat-item">
                 <div class="icon">🖼️</div>
                 <div class="name">Image/</div>
-                <div class="desc">放入图片，画廊标签页自动展示；thumbnails/ 和 archive/ 会被跳过</div>
+                <div class="desc">放入图片，画廊标签页自动展示；thumbnails/ 和 archive/ 被跳过</div>
+            </div>
+            <div class="feat-item">
+                <div class="icon">📦</div>
+                <div class="name">lib/</div>
+                <div class="desc">第三方库本地化，一次下载完全离线（marked / KaTeX / github-markdown）</div>
             </div>
         </div>
     </div>
 
+    <!-- ====== 数据流 ====== -->
+    <div class="card">
+        <h2>数据流</h2>
+        <div class="code-block"><span class="c">gen_index.sh (可选定时) → Markdown/index.json | Html/index.json | Image/index.json</span>
+<span class="c">corn.sh (cron 每 30s)  → dashboard.json</span>
+                                 <span class="c">│</span>
+                                 <span class="c">│</span> 优先: <span class="k">fetch</span> index.json
+                                 <span class="c">│</span> 降级: DOMParser 解析 nginx autoindex HTML
+                                 <span class="k">↓</span>
+Markdown/Html/Image/ <span class="c">── nginx autoindex ──→</span> /api/md/ | /api/html/ | /api/images/
+                                 <span class="c">│</span>
+GET /api/dashboard ──<span class="c">─────────────────────────────</span><span class="c">┘</span>
+                                 <span class="k">↓</span>
+dashboard.js (30s 轮询)      blog.js / gallery.js
+ 更新 8 张仪表盘卡片          → 渲染文章列表 / 图片网格</div>
+        <p style="margin-top:.85rem; font-size:.8rem; color:var(--text-dim);">
+            核心设计：index.json 优先 → nginx autoindex 降级。前端先 fetch 结构化 JSON（快速可靠），若索引未生成（404）则降级为 DOMParser 解析 autoindex HTML，实现零后端的文件发现。
+        </p>
+    </div>
+
+    <!-- ====== 目录结构 ====== -->
+    <div class="card">
+        <h2>目录结构</h2>
+        <div class="code-block">Blog-termux/
+├── index.html                  <span class="c"># SPA 唯一入口 — 标签页</span>
+├── config.json                 <span class="c"># 服务导航配置</span>
+├── corn.sh                      <span class="c"># 系统指标采集脚本（零 root）</span>
+├── gen_index.sh                 <span class="c"># 静态索引生成器</span>
+├── sw.js                        <span class="c"># Service Worker（离线缓存）</span>
+├── styleguide.md                <span class="c"># 代码规范</span>
+│
+├── css/
+│   ├── style.css                <span class="c"># 构建产物（build.sh 合并，禁止手改）</span>
+│   ├── build.sh                 <span class="c"># 合并脚本</span>
+│   └── src/                     <span class="c"># 唯一可编辑的 CSS 源（15 个文件）</span>
+│       ├── variables.css        <span class="c">#   CSS 自定义属性</span>
+│       ├── base.css             <span class="c">#   重置 + 排版</span>
+│       ├── layout.css           <span class="c">#   页面布局</span>
+│       ├── responsive.css       <span class="c">#   响应式断点</span>
+│       ├── components/          <span class="c">#   9 个组件样式</span>
+│       └── themes/dark.css      <span class="c">#   深色模式覆盖</span>
+│
+├── js/                          <span class="c"># ES Modules（12 业务模块 + 1 入口）</span>
+│   ├── main.js                  <span class="c">#   入口（import './app.js'）</span>
+│   ├── app.js                   <span class="c">#   主控制器（引导、路由、协调）</span>
+│   ├── theme.js                 <span class="c">#   主题管理</span>
+│   ├── utils.js                 <span class="c">#   工具 + URL 安全验证</span>
+│   ├── constants.js             <span class="c">#   路径常量</span>
+│   ├── sanitizer.js             <span class="c">#   HTML 白名单清理器</span>
+│   ├── footnotes.js             <span class="c">#   脚注预处理器</span>
+│   ├── lightbox.js              <span class="c">#   图片灯箱</span>
+│   ├── dashboard.js             <span class="c">#   系统仪表盘</span>
+│   ├── navigation.js            <span class="c">#   服务导航</span>
+│   ├── blog.js                  <span class="c">#   文章列表 + 内联渲染</span>
+│   ├── gallery.js               <span class="c">#   图片画廊</span>
+│   └── md-viewer.js             <span class="c">#   Markdown 渲染引擎</span>
+│
+├── Html/                        <span class="c"># HTML 页面（由 gen_index.sh 索引）</span>
+├── Image/                       <span class="c"># 图片资源（posts / gallery / thumbnails）</span>
+├── Markdown/                    <span class="c"># .md 文章</span>
+│
+├── lib/                         <span class="c"># 第三方库（本地化，零 CDN 运行时依赖）</span>
+├── resume/                      <span class="c"># 独立简历子站点（自含入口）</span>
+└── .github/workflows/
+    ├── lint.yml                  <span class="c"># PR 门禁：JS/CSS/Shell 检查</span>
+    └── release.yml              <span class="c"># tag 发布：lint → 构建 → 打包 → Release</span></div>
+    </div>
+
     <!-- ====== 页脚 ====== -->
     <div class="footer">
-        <p>Blog-termux &copy; MIT License &nbsp;·&nbsp; <a href="https://github.com/lost-clouds/Blog-termux">GitHub</a></p>
+        <p>Blog-termux &nbsp;·&nbsp; <a href="https://github.com/lost-clouds/Blog-termux">GitHub</a></p>
         <p style="margin-top:.4rem;">此页面存放在 Html/ 目录，作为 HTML 文章功能的示例。</p>
     </div>
 
