@@ -562,6 +562,35 @@ img { max-width: 100%; height: auto; }
     font-weight: 500;
 }
 
+/* ---- 可折叠书(目录)节点 ---- */
+.blog-nav-book { margin: 0; }
+.blog-nav-book > summary { list-style: none; }
+.blog-nav-book > summary::-webkit-details-marker { display: none; }
+.blog-nav-book-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1rem 0.45rem 1.5rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: var(--transition);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.blog-nav-book-title:hover { color: var(--text-primary); background: var(--accent-soft); }
+.blog-nav-book-icon {
+    display: inline-block;
+    font-size: 0.7rem;
+    transition: transform 0.15s ease;
+}
+.blog-nav-book[open] > .blog-nav-book-title { color: var(--text-primary); }
+.blog-nav-book[open] > .blog-nav-book-title .blog-nav-book-icon { transform: rotate(90deg); }
+.blog-nav-book .blog-nav-list .blog-nav-link { padding-left: 2.4rem; }
+
 /* ---- 中间文章正文 ---- */
 .blog-content {
     flex: 1;
@@ -868,6 +897,37 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
     border-radius: var(--radius-md);
     text-align: center;
     border: 1px solid rgba(248,81,73,0.3);
+}
+
+/* Mermaid 图表容器（mermaid.run() 将内部替换为 SVG）*/
+.mermaid {
+    display: flex;
+    justify-content: center;
+    margin: 1.5em 0;
+    overflow-x: auto;
+}
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Mermaid 渲染失败降级：显示源码 + 错误提示 */
+.mermaid-error {
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.25);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+.mermaid-error pre {
+    margin: 0 0 0.5em 0;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.mermaid-error-msg {
+    color: #d32f2f;
+    font-size: 0.85em;
+    text-align: center;
 }
 /* ============================================================
    11. 图片灯箱（全局）

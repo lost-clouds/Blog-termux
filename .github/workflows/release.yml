@@ -24,6 +24,8 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.claude' \
+            --exclude='CLAUDE.md' \
+            --exclude='AGENT.md' \
             --exclude='.editorconfig' \
             --exclude='.gitignore' \
             --exclude='*.bak' \
@@ -37,7 +39,7 @@ jobs:
       - name: Package (zip)
         run: |
           zip -r /tmp/Blog-termux.zip . \
-            -x '.git/*' '.github/*' '.claude/*' '.editorconfig' '.gitignore' \
+            -x '.git/*' '.github/*' '.claude/*' 'CLAUDE.md' 'AGENT.md' '.editorconfig' '.gitignore' \
             '*.bak' '*.tmp' '**/index.json' 'dashboard.json' \
             'css/src/*' 'example/*.conf'
 
@@ -61,6 +63,7 @@ jobs:
           curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
           curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
           curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+          curl -sSLO https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
           ```
 
           ### 继续部署

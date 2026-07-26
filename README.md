@@ -305,8 +305,9 @@ curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+curl -sSLO https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
 
-ls -lh lib/   # Should show 5 files, ~370KB total
+ls -lh lib/   # Should show 6 files, ~2.3MB total
 ```
 
 ### 3. Configure Nginx

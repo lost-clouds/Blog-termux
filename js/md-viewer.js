@@ -2,6 +2,7 @@ import { Utils } from './utils.js';
 import { Lightbox } from './lightbox.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { processFootnotes } from './footnotes.js';
+import { prepareMermaidBlocks, ensureMermaid, renderMermaid } from './mermaid-renderer.js';
 import { API, LIBS } from './constants.js';
 
 /* ============================================================
@@ -263,12 +264,29 @@ async function render(rawMarkdown, target) {
     let html = marked.parse(protectedText);
 
     target.innerHTML = sanitizeHtml(html);
+
+    // 将 marked 生成的 <pre><code class="language-mermaid"> 转换为
+    // <div class="mermaid">，供 mermaid.run() 渲染
+    // 必须在 sanitize 之后、其他 DOM 操作之前执行
+    let hasMermaid = prepareMermaidBlocks(target);
+
     fixImagePaths(target);
     injectAnchors(target);
     bindMarkdownImages(target);
 
     restoreMathBlocks(target, mathBlocks);
 
+    // Mermaid 图表渲染（懒加载，检测到图表才加载库）
+    if (hasMermaid) {
+        try {
+            await ensureMermaid();
+            await renderMermaid(target);
+        } catch (err) {
+            console.warn('Mermaid 渲染失败:', err.message);
+        }
+    }
+
+    // KaTeX 数学公式渲染（懒加载，检测到公式才加载库）
     if (mathBlocks.length > 0) {
         try {
             await ensureKatex();

@@ -23,6 +23,7 @@ const LIBS = {
     KATEX_CSS:        'lib/katex.min.css',
     KATEX_JS:         'lib/katex.min.js',
     KATEX_AUTORENDER: 'lib/auto-render.min.js',
+    MERMAID_JS:       'lib/mermaid.min.js',
     GITHUB_MD_CSS:    'lib/github-markdown.min.css',
 };
 

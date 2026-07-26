@@ -18,6 +18,8 @@ dashboard.json
 
 # Claude Code
 .claude/
+CLAUDE.md
+AGENT.md
 
 # 临时文件
 *.tmp

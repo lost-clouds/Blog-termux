@@ -87,6 +87,7 @@ import { API } from './constants.js';
         if (!$blogSidebar) return;
 
         let query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
+        let queryActive = !!query;
 
         let filtered = _articles.filter(function(a) {
             if (_filterType !== 'all' && a.type !== _filterType) return false;
@@ -101,37 +102,89 @@ import { API } from './constants.js';
 
         html += '<div class="blog-nav-section">';
         html += '<span class="blog-nav-section-title">📘 Markdown <span class="blog-nav-count">' + mdArticles.length + '</span></span>';
-        if (mdArticles.length === 0) {
-            html += '<div class="blog-nav-empty">无匹配</div>';
-        } else {
-            html += '<ul class="blog-nav-list">';
-            mdArticles.forEach(function(a) {
-                let active = _currentFile === a.name ? ' active' : '';
-                html += '<li><a href="#" class="blog-nav-link' + active + '" data-file="' +
-                    Utils.escapeHtml(a.name) + '" data-type="markdown">' +
-                    Utils.escapeHtml(a.name) + '</a></li>';
-            });
-            html += '</ul>';
-        }
+        html += renderArticleGroup(mdArticles, 'markdown', queryActive);
         html += '</div>';
 
         html += '<div class="blog-nav-section">';
         html += '<span class="blog-nav-section-title">📄 HTML <span class="blog-nav-count">' + htmlArticles.length + '</span></span>';
-        if (htmlArticles.length === 0) {
-            html += '<div class="blog-nav-empty">无匹配</div>';
-        } else {
-            html += '<ul class="blog-nav-list">';
-            htmlArticles.forEach(function(a) {
-                let activeH = _currentFile === a.name ? ' active' : '';
-                html += '<li><a href="#" class="blog-nav-link' + activeH + '" data-file="' +
-                    Utils.escapeHtml(a.name) + '" data-type="html">' +
-                    Utils.escapeHtml(a.name) + '</a></li>';
-            });
-            html += '</ul>';
-        }
+        html += renderArticleGroup(htmlArticles, 'html', queryActive);
         html += '</div>';
 
         $blogNav.innerHTML = html;
+    }
+
+    /* ---- 按顶层目录分组：散落文件 + 书(目录→子项) ---- */
+    function groupArticles(list) {
+        let loose = [];
+        let books = {};
+        let bookOrder = [];
+
+        list.forEach(function(a) {
+            let slash = a.name.indexOf('/');
+            if (slash === -1) {
+                loose.push(a);
+            } else {
+                let dir = a.name.slice(0, slash);
+                if (!books[dir]) { books[dir] = []; bookOrder.push(dir); }
+                books[dir].push(a);
+            }
+        });
+
+        let numeric = { numeric: true, sensitivity: 'base' };
+        loose.sort(function(a, b) { return a.name.localeCompare(b.name, undefined, numeric); });
+        bookOrder.sort(function(a, b) { return a.localeCompare(b, undefined, numeric); });
+        bookOrder.forEach(function(dir) {
+            books[dir].sort(function(a, b) {
+                return a.name.slice(a.name.lastIndexOf('/') + 1)
+                    .localeCompare(b.name.slice(b.name.lastIndexOf('/') + 1), undefined, numeric);
+            });
+        });
+
+        return {
+            loose: loose,
+            books: bookOrder.map(function(d) { return { name: d, items: books[d] }; })
+        };
+    }
+
+    /* ---- 渲染一组：散落文件平铺 + 目录作可折叠书 ---- */
+    function renderArticleGroup(list, type, queryActive) {
+        let g = groupArticles(list);
+        if (g.loose.length === 0 && g.books.length === 0) {
+            return '<div class="blog-nav-empty">无匹配</div>';
+        }
+
+        let parts = '';
+
+        if (g.loose.length > 0) {
+            parts += '<ul class="blog-nav-list">';
+            g.loose.forEach(function(a) {
+                let active = _currentFile === a.name ? ' active' : '';
+                parts += '<li><a href="#" class="blog-nav-link' + active + '" data-file="' +
+                    Utils.escapeHtml(a.name) + '" data-type="' + type + '">' +
+                    Utils.escapeHtml(a.name) + '</a></li>';
+            });
+            parts += '</ul>';
+        }
+
+        g.books.forEach(function(book) {
+            let open = queryActive || book.items.some(function(a) { return _currentFile === a.name; });
+            parts += '<details class="blog-nav-book"' + (open ? ' open' : '') + '>';
+            parts += '<summary class="blog-nav-book-title"><span class="blog-nav-book-icon">▸</span>' +
+                Utils.escapeHtml(book.name) +
+                ' <span class="blog-nav-count">' + book.items.length + '</span></summary>';
+            parts += '<ul class="blog-nav-list">';
+            book.items.forEach(function(a) {
+                let active = _currentFile === a.name ? ' active' : '';
+                let label = a.name.slice(a.name.lastIndexOf('/') + 1);
+                parts += '<li><a href="#" class="blog-nav-link' + active + '" data-file="' +
+                    Utils.escapeHtml(a.name) + '" data-type="' + type + '">' +
+                    Utils.escapeHtml(label) + '</a></li>';
+            });
+            parts += '</ul>';
+            parts += '</details>';
+        });
+
+        return parts;
     }
 
     /* ============================================================
@@ -172,7 +225,7 @@ import { API } from './constants.js';
         $blogToc.innerHTML = '';
 
         try {
-            let resp = await fetch(API.MARKDOWN_FILE + encodeURIComponent(filename), { signal: signal });
+            let resp = await fetch(API.MARKDOWN_FILE + filename.split('/').map(encodeURIComponent).join('/'), { signal: signal });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
             let raw = await resp.text();
