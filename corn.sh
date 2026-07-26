@@ -1,9 +1,11 @@
 #!/bin/bash
-# ============================================================
-# 系统资源采集脚本（Termux 零 root 版）
-# 用法: bash corn.sh [输出路径]
-# crontab: 每 30 秒执行一次
-# ============================================================
+#
+# corn.sh — 系统指标采集器
+#
+# 用途：采集 CPU/内存/存储/网络/电池/服务/运行时长，输出为 dashboard.json
+# 用法：corn.sh [输出路径，默认 ./dashboard.json]
+# 依赖：lscpu / cpufreq sysfs / /proc/stat / top / free / uptime / getprop / ps（无需 root）
+# 由 cron 每 30 秒调用一次
 
 OUTPUT="${1:-./dashboard.json}"
 

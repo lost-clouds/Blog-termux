@@ -1,37 +1,43 @@
-# Blog-termux — 个人导航 + 博客控制台
+# Blog-termux — 个人控制台 + 博客系统
 
 [简体中文](README_ZH.md) | [English](README.md)
 
-纯静态单页面应用，基于 Nginx 运行，无需 PHP / Node.js / Python 等后端运行时。集成 **系统仪表盘**、**服务导航**、**Markdown 博客阅读器**、**图片画廊** 四大模块，自适应 PC / 平板 / 手机。
+> 纯静态单页面应用，Nginx 驱动，**零后端运行时**（无 PHP/Node.js/Python）。
+> 集成仪表盘、服务导航、Markdown 博客、图片画廊四大模块，自适应 PC/平板/手机。
 
 ![仪表盘 + 导航](example/example.png)
 ![博客三栏布局 — 浅色](example/example0.png)
 ![博客三栏布局 — 深色](example/example1.png)
 
-> 项目最初 fork 自 [bastienwirtz/homer](https://github.com/bastienwirtz/homer)，经长期使用中不断修改，最终演变为现在的形态。
+---
+
+## ✨ 特性一览
+
+| 特性 | 说明 |
+|------|------|
+| 🔋 **零后端** | 纯静态文件，仅依赖 Nginx 的 autoindex 模块 |
+| 📊 **系统仪表盘** | CPU/内存/存储/网络/电池/服务/运行时间，30 秒轮询 |
+| 🧭 **服务导航** | 可配置的分组服务卡片，一键跳转 |
+| 📝 **Markdown 博客** | 三栏 Hugo Book 风格阅读器，内联渲染 + ToC + KaTeX 数学公式 |
+| 🖼️ **图片画廊** | 网格展示 + 搜索 + 灯箱 |
+| 🌙 **深色模式** | 一键切换，自动保存偏好 |
+| 📡 **离线可用** | Service Worker 缓存策略，文章/图片离线可读 |
+| 🛡️ **安全** | 五层 HTML 白名单、URL 安全验证、用户内容转义 |
+| 🔧 **零 root** | 所有系统指标采集无需 root 权限 |
+| 🧹 **代码质量** | ES Modules + JSDoc + ESLint + Prettier + Stylelint + CI 门禁 |
+
+> 项目最初 fork 自 [bastienwirtz/homer](https://github.com/bastienwirtz/homer)，经长期使用持续改造，最终演变为独立形态。
 > 附：[Termux 使用总结](Markdown/termux使用总结.md)
 
 ---
 
-## 目录
-
-- [快速开始](#快速开始)
-- [架构设计](#架构设计)
-- [目录结构](#目录结构)
-- [模块详解](#模块详解)
-- [部署教程](#部署教程)
-- [使用指南](#使用指南)
-- [常见问题](#常见问题)
-
----
-
-## 快速开始
+## 🚀 快速开始
 
 ```bash
-# 1. 克隆项目
+# 1. 克隆
 git clone https://github.com/lost-clouds/Blog-termux.git ~/Blog-termux
 
-# 2. 下载前端依赖库（一次性）
+# 2. 下载前端依赖（一次性，后续完全离线）
 cd ~/Blog-termux/lib
 curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
@@ -39,34 +45,34 @@ curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
 curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
 curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
 
-# 3. 复制 nginx 配置并修改路径
+# 3. 配置 Nginx
 cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
-# 编辑：将所有 /path/to/Blog-termux 替换为实际绝对路径
+# 编辑：将所有 /path/to/Blog-termux 替换为实际路径
 
 # 4. 配置仪表盘定时采集（每 30 秒）
-# 添加 crontab：
-#   * * * * * ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
-#   * * * * * sleep 30; ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+# crontab 添加：
+#   * * * * * bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+#   * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
 
-# 5. （可选）生成静态索引，加速文章/图片加载
+# 5. （可选）生成静态索引，加速加载
 bash ~/Blog-termux/gen_index.sh ~/Blog-termux
 # 可加入 cron：*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux
 
-# 6. 重载 nginx 并访问
+# 6. 重载 Nginx 并访问
 nginx -s reload
 # 浏览器打开 https://127.0.0.1:7443
 ```
 
 ---
 
-## 架构设计
+## 🏗️ 架构设计
 
 ### 整体布局
 
 ```
-index.html (单页面)
+index.html (SPA 唯一入口)
   │
-  ├─ header ─── 品牌标题 + 主题切换按钮 (☀/☾)
+  ├─ header ─── 品牌标题 + 主题切换按钮
   │
   ├─ tab-bar ── [仪表盘] [导航] [博客] [图库]
   │             PC/平板顶部 | 手机底部固定
@@ -91,16 +97,16 @@ main.js  →  app.js  →  theme.js, utils.js, lightbox.js
                     →  md-viewer.js   (utils.js, sanitizer.js, footnotes.js, lightbox.js, constants.js)
 ```
 
-所有业务 JS 使用 **ES Modules**（`import`/`export` 显式声明依赖）。`main.js` 精简为单行 `import './app.js'`。唯一保留的常规 `<script>` 是 `lib/marked.min.js`（提供全局 `marked`）。Module 脚本自动延迟到 DOM 就绪后执行。
+所有业务 JS 使用 **ES Modules**（`import`/`export` 显式声明依赖）。`main.js` 仅一行 `import './app.js'`。唯一保留的常规 `<script>` 是 `lib/marked.min.js`。
 
 ### 数据流
 
 ```
-                    gen_index.sh (可选)
-                    ─────────────────────→  Markdown/index.json
-                                            Html/index.json
+                    gen_index.sh (可选定时)
+                    ──────────────────────→  Markdown/index.json
+                                              Html/index.json
                     corn.sh (cron 每30s)       Image/index.json
-                    ─────────────────────→  dashboard.json
+                    ──────────────────────→  dashboard.json
                                                │
                                                │ 优先: fetch index.json
                                                │ 降级: DOMParser 解析 nginx autoindex HTML
@@ -108,34 +114,30 @@ main.js  →  app.js  →  theme.js, utils.js, lightbox.js
 Markdown/Html/Image/ ── nginx autoindex ──→  /api/md/ | /api/html/ | /api/images/
                                                │
 GET /api/dashboard ───────────────────────────┘
-                                               │
                                                ↓
-dashboard.js (每30s 轮询)        blog.js / gallery.js
-→ 更新 8 张仪表盘卡片              → 渲染文章列表 / 图片网格
-→ 自动检测运行中的服务
+dashboard.js (30s 轮询)         blog.js / gallery.js
+→ 更新 8 张仪表盘卡片             → 渲染文章列表 / 图片网格
 ```
 
-核心思路：**gen_index.sh 生成 `index.json` 优先 + nginx autoindex 降级**。前端优先 fetch 结构化 JSON 索引（快速、可靠），若索引未生成（404）则降级为 `DOMParser` 解析 nginx autoindex HTML，实现零后端的文件发现。
+**核心设计**：`index.json` 优先 → nginx autoindex 降级。前端先 fetch 结构化 JSON（快速可靠），若索引未生成（404）则降级为 `DOMParser` 解析 autoindex HTML，实现零后端的文件发现。
 
 ---
 
-## 目录结构
+## 📁 目录结构
 
 ```
 Blog-termux/
 ├── index.html                  # 唯一入口 — 标签页 SPA
 ├── config.json                 # 服务导航配置
-├── corn.sh                     # 系统资源采集脚本（零 root）
+├── corn.sh                     # 系统指标采集脚本（零 root）
 ├── gen_index.sh                # 静态索引生成器
-├── sw.js                       # Service Worker（离线缓存 + SWR 策略）
-├── .gitignore
-├── LICENSE                     # MIT 许可证
-├── favicon.ico
+├── sw.js                       # Service Worker（离线缓存）
+├── styleguide.md               # 代码规范（命名/注释/模块边界/工具链）
 │
 ├── css/
-│   ├── style.css               # 构建产物 — 合并后的全站样式
-│   ├── build.sh                # CSS 构建脚本（cat 合并）
-│   └── src/
+│   ├── style.css               # 构建产物（由 build.sh 合并生成，禁止手改）
+│   ├── build.sh                # 合并脚本
+│   └── src/                    # 唯一可编辑的 CSS 源
 │       ├── variables.css       #   CSS 自定义属性
 │       ├── base.css            #   重置 + 排版
 │       ├── layout.css          #   页面布局
@@ -143,14 +145,14 @@ Blog-termux/
 │       ├── components/         #   9 个组件样式
 │       └── themes/dark.css     #   深色模式覆盖
 │
-├── js/                         # ES Modules (13 个文件)
-│   ├── main.js                 #   入口 — 导入 app.js
+├── js/                         # ES Modules（12 业务模块 + 1 入口）
+│   ├── main.js                 #   入口（import './app.js'）
 │   ├── app.js                  #   主控制器（引导、路由、协调）
 │   ├── theme.js                #   主题管理
 │   ├── utils.js                #   工具函数 + URL 安全验证
 │   ├── constants.js            #   路径常量
 │   ├── sanitizer.js            #   HTML 白名单清理器
-│   ├── footnotes.js            #   Markdown 脚注预处理器
+│   ├── footnotes.js            #   脚注预处理器
 │   ├── lightbox.js             #   图片灯箱
 │   ├── dashboard.js            #   系统仪表盘
 │   ├── navigation.js           #   服务导航
@@ -158,72 +160,73 @@ Blog-termux/
 │   ├── gallery.js              #   图片画廊
 │   └── md-viewer.js            #   Markdown 渲染引擎
 │
+├── Html/                       # HTML 页面（由 gen_index.sh 索引）
+├── Image/                      # 图片资源（posts / gallery / thumbnails）
+├── Markdown/                   # .md 文章
+│
 ├── lib/                        # 第三方库（本地化，零 CDN 运行时依赖）
 │   ├── marked.min.js
 │   ├── katex.min.js + .css
 │   ├── auto-render.min.js
 │   └── github-markdown.min.css
 │
-├── Markdown/                   # .md 文章
-├── Image/
-│   ├── posts/                  #   文章配图（图库展示）
-│   ├── gallery/                #   独立图片（图库展示）
-│   ├── thumbnails/             #   缩略图缓存（gen_index.sh 跳过）
-│   └── archive/unused/         #   未使用图片（gen_index.sh 跳过）
-│
 ├── example/
 │   ├── Blog.conf               # Nginx 配置模板
 │   └── example*.png            # 界面截图
 │
-└── resume/                     # 独立简历子站点
-    ├── index.html
-    ├── config.json
-    ├── css/resume.css
-    └── js/resume.js
+├── resume/                     # 独立简历子站点（自含入口）
+│   ├── index.html
+│   ├── config.json
+│   ├── css/resume.css
+│   └── js/resume.js
+│
+└── .github/workflows/
+    ├── lint.yml                # PR 门禁：JS/CSS/Shell 检查
+    └── release.yml             # tag 发布：构建 + 打包 + Release
 ```
 
 ---
 
-## 模块详解
+## 📦 模块详解
 
 ### 总览
 
 | 模块 | 职责 | 依赖 | 关键实现 |
 |------|------|------|----------|
-| `app.js` | 引导、标签路由、键盘导航、SW 注册 | 全部模块 | 有序初始化序列，首次访问时懒加载博客/画廊数据 |
-| `theme.js` | 浅色/深色切换 | — | `localStorage` 持久化，`prefers-color-scheme` 回退，meta theme-color 更新 |
-| `utils.js` | 共享工具 | — | `escapeHtml`、`getSafeUrl`（白名单验证）、`formatSize`、`fetchIndexOrAutoindex`（双源加载器） |
+| `app.js` | 启动、标签路由、键盘导航、SW 注册 | 全部模块 | 有序初始化，首次访问懒加载博客/画廊 |
+| `theme.js` | 浅色/深色切换 | — | `localStorage` 持久化，`prefers-color-scheme` 回退 |
+| `utils.js` | 共享工具 | — | `escapeHtml`、`getSafeUrl`（白名单）、`fetchIndexOrAutoindex`（双源加载） |
 | `constants.js` | 路径注册 | — | 所有 API 路由 + 库路径集中管理 |
-| `sanitizer.js` | HTML 清理 | — | 五层白名单：标签、属性、URL、class 名、style 属性 |
-| `footnotes.js` | 脚注预处理 | — | 提取 `[^id]` 定义，生成带返回链接的编号脚注 |
-| `lightbox.js` | 图片灯箱 | — | 点击/ESC/背景 关闭，焦点恢复 |
-| `dashboard.js` | 系统仪表盘 | `constants.js` | 8 卡片视图，30s 轮询 + 8s AbortController 超时，页面可见性暂停，渐进式错误降级 |
-| `navigation.js` | 服务导航 | `utils.js`, `constants.js` | 从 `config.json` 按分组渲染卡片，250ms 防抖搜索 |
-| `blog.js` | 博客阅读器 | `utils.js`, `md-viewer.js`, `constants.js` | 三栏 Hugo Book 风格布局，`Promise.allSettled` 双目录获取，`AbortController` + 请求 ID 竞态防护 |
-| `gallery.js` | 图片画廊 | `utils.js`, `lightbox.js`, `constants.js` | 缩略图网格，懒加载图片，250ms 防抖搜索 |
-| `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学提取 → marked → 清理 → 图片路径 → 锚点 → KaTeX |
-| `sw.js` | Service Worker | — | Cache-first（静态）、SWR（文章/图片）、Network-first（入口）、Network-only（dashboard/summary） |
+| `sanitizer.js` | HTML 清理 | — | 五层白名单：标签、属性、URL、class、style |
+| `footnotes.js` | 脚注预处理 | — | `[^id]` 定义 → 编号脚注 + 返回链接 |
+| `lightbox.js` | 图片灯箱 | — | 点击/ESC/背景关闭，焦点恢复 |
+| `dashboard.js` | 系统仪表盘 | `constants.js` | 8 卡片，30s 轮询 + 8s 超时，页面可见性暂停，渐进错误降级 |
+| `navigation.js` | 服务导航 | `utils.js`, `constants.js` | `config.json` 分组渲染，250ms 防抖搜索 |
+| `blog.js` | 博客阅读器 | `utils.js`, `md-viewer.js`, `constants.js` | 三栏布局，`Promise.allSettled` 双目录，请求 ID 竞态防护 |
+| `gallery.js` | 图片画廊 | `utils.js`, `lightbox.js`, `constants.js` | 缩略图网格，懒加载，250ms 防抖搜索 |
+| `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学 → marked → 清理 → 图片路径 → 锚点 → KaTeX |
+| `sw.js` | Service Worker | — | Cache-first（静态）、SWR（文章/图片）、Network-first（入口）、Network-only（实时） |
 
-### 核心模块
+### 核心模块详解
 
 #### dashboard.js — 系统仪表盘
 
-每 **30 秒**轮询 `GET /api/dashboard`，带 **8 秒 AbortController 超时**。离开标签页或页面隐藏时暂停轮询。渐进式错误降级：1 次失败显示提示，2–5 次显示过期指示，5 次以上全部重置为 `--`。
+每 **30 秒** 轮询 `GET /api/dashboard`，带 **8 秒 AbortController 超时**。离开标签页或页面不可见时暂停轮询。错误降级：1 次失败 → 提示，2–5 次 → 过期指示，5 次以上 → 全部重置。
 
 **8 张卡片：**
 
 | 卡片 | 内容 | 进度条 |
 |------|------|:---:|
-| 设备 | 品牌+型号 · Android 版本 · 内核版本 | — |
-| CPU | 使用率% · 核心数 · 型号 · 集群负载（Cortex-A73/A53） | 蓝色 |
-| 内存 | used / total + SWAP 行（SWAP=0 时隐藏） | 蓝色 |
-| 储存 | used / total | 蓝色 |
-| 网络 | 局域网 IP · 接口 · IPv6 | — |
-| 电池 | 电量% · 充电状态 · 温度 | 绿色 |
-| 服务 | N 个运行中 · 进程名列表（`ps -e` 自动扫描） | — |
-| 运行时间 | 如 "3d 12h 30m" | — |
+| 📱 设备 | 品牌型号 · Android 版本 · 内核版本 | — |
+| 🧠 CPU | 使用率% · 核心数 · 型号 · 集群负载 | 蓝色 |
+| 💾 内存 | used / total + SWAP（SWAP=0 时隐藏） | 蓝色 |
+| 🗄️ 储存 | used / total | 蓝色 |
+| 🌐 网络 | 局域网 IP · 接口 · IPv6 | — |
+| 🔋 电池 | 电量% · 充电状态 · 温度 | 绿色 |
+| ⚙️ 服务 | N 个运行中 · 进程名列表 | — |
+| ⏱️ 运行时间 | 如 "3d 12h 30m" | — |
 
-`dashboard.json` 格式（由 corn.sh 生成）：
+`dashboard.json` 由 `corn.sh` 生成，格式示例：
 
 ```json
 {
@@ -240,56 +243,57 @@ Blog-termux/
   "disk": {"used": 64.8, "total": 224.5, "unit": "GB"},
   "network": {"ip": "192.168.1.5", "ipv6": "240e:...", "iface": "wlan0"},
   "battery": {"level": 85, "status": "FULL", "temp": 40.0},
-  "services": {"running": ["nginx","crond","sshd","vaultwarden"], "count": 4},
+  "services": {"running": ["nginx", "crond", "sshd", "vaultwarden"], "count": 4},
   "uptime": "2 weeks, 1 day, 4h"
 }
 ```
 
-> `cpu.clusters` 为可选字段（无 cpufreq/lscpu 时不出现）。集群名优先从 `lscpu` Model name 获取，其次 `/proc/cpuinfo` CPU part → ARM Cortex/X 映射。`memory.swap_*` 在 SWAP 未开启时为 0。
+> `cpu.clusters` 为可选字段（无 cpufreq/lscpu 时不出现）。集群名优先从 `lscpu` Model name 获取，其次 `/proc/cpuinfo` CPU part → ARM Cortex/X 映射。
 
 #### blog.js — 博客阅读器
 
-Hugo Book 风格三栏布局。通过 **`Promise.allSettled`** 同时获取 Markdown 和 HTML 文章列表（一个目录失败不影响另一个）。`AbortController` + 请求 ID 计数器双重竞态防护。文章按名称排序。
+Hugo Book 风格三栏布局。`Promise.allSettled` 同时获取 Markdown + HTML 双目录（一个失败不影响另一个）。`AbortController` + 请求 ID 计数器双重竞态防护。
 
 | 特性 | 说明 |
 |------|------|
 | 数据源 | `index.json` 优先 → nginx autoindex 降级（Markdown + HTML 双目录） |
 | 过滤 | 全部 / Markdown / HTML 类型切换 |
 | 搜索 | 250ms 防抖，匹配文件名 |
-| Markdown | 内联渲染 `MarkdownRenderer.render()` + 自动生成 ToC |
+| Markdown | 内联渲染 + 自动生成 ToC |
 | HTML | 新标签页打开 |
 
 #### md-viewer.js — Markdown 渲染引擎
 
-纯渲染模块，不管理 DOM 生命周期。完整管道：
+纯渲染模块，不管理 DOM 生命周期。完整 8 步管道：
 
 | 步骤 | 实现 |
 |------|------|
 | 1. 脚注 | 预处理 `[^id]` 定义 → 编号脚注 + 返回链接 |
-| 2. 数学提取 | 三阶段：`$$...$$` → `\[...\]` → `\(...\)`，split→aligned 标准化，双反斜杠转义 |
+| 2. 数学提取 | 三阶段：`$$` → `\[` → `\(`，split→aligned 标准化 |
 | 3. Markdown 解析 | `marked.parse()` + 数学占位符 |
 | 4. XSS 清理 | 五层白名单（标签、属性、URL、class、style） |
 | 5. 图片路径 | 相对路径重写为 `/api/images/` |
 | 6. 标题锚点 | 自动注入 `#` 链接，支持中文 slug |
-| 7. KaTeX 渲染 | 按需懒加载，加载失败时优雅降级（可重试） |
+| 7. KaTeX 渲染 | 按需懒加载，加载失败优雅降级 |
 | 8. 图片绑定 | 委托点击 → 共享 `Lightbox` |
 
 #### navigation.js — 服务导航
 
-读取 `config.json`，按分组渲染服务卡片。搜索匹配 `name`、`subtitle`、`tag`，250ms 防抖。URL 经 `Utils.getSafeUrl()` 安全验证 — 不安全 URL 渲染为无操作 `<div>`。外部链接使用 `target="_blank" rel="noopener"`。
+读取 `config.json`，按分组渲染服务卡片。搜索匹配 `name`、`subtitle`、`tag`，250ms 防抖。URL 经 `Utils.getSafeUrl()` 安全验证 — 不安全 URL 渲染为不可点击的 `<div>`。外部链接使用 `target="_blank" rel="noopener"`。
 
 ---
 
-## 部署教程
+## 📋 部署教程
 
-### 1. 环境要求
+### 环境要求
 
 | 组件 | 用途 | 安装 |
 |------|------|------|
 | Nginx | Web 服务器 | `pkg install nginx` |
 | cron / crond | 定时执行 corn.sh | `pkg install cronie termux-services` |
-| curl | 下载依赖库 | 一次性使用 |
-| termux-api (可选) | 电池信息 | `pkg install termux-api` |
+| curl | 下载依赖库（一次性） | 已有 |
+| Node.js + npm | 代码检查（可选） | `pkg install nodejs-lts` |
+| termux-api | 电池信息（可选） | `pkg install termux-api` |
 
 > **无需**：PHP、Node.js、Python、MySQL、Docker。
 
@@ -328,17 +332,16 @@ nginx -t && nginx -s reload
 
 ```json
 {
-  "title": "我的控制台",
   "services": [
     {
       "name": "Server",
-      "icon": "🖥",
+      "icon": "🖥️",
       "items": [
         {
-          "name": "显示名称",
+          "name": "示例服务",
           "icon": "🤖",
           "subtitle": "简短描述",
-          "tag": "标签",
+          "tag": "AI",
           "url": "https://your-server.local:8443/"
         }
       ]
@@ -357,114 +360,110 @@ nginx -t && nginx -s reload
 
 修改后刷新页面即可生效。
 
-### 5. 配置仪表盘定时更新
+### 添加内容
 
-```bash
-# 手动测试
-bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
-cat ~/Blog-termux/dashboard.json
+| 内容类型 | 放入目录 | 发现方式 |
+|----------|----------|----------|
+| Markdown | `Markdown/` | `index.json` → autoindex 降级 |
+| HTML | `Html/` | `index.json` → autoindex 降级，新标签页打开 |
+| 图片 | `Image/` | `index.json` → autoindex 降级 |
 
-# 添加 crontab（每 30 秒）：
-# * * * * * bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
-# * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
-```
-
-> **Termux 注意**：先启动 cron 服务 — `sv-enable crond` (termux-services) 或手动 `crond`。
-
-### 6. 添加内容
-
-| 内容类型 | 目录 | 发现方式 |
-|----------|------|----------|
-| Markdown | `Markdown/` | `index.json` 优先 → autoindex 降级 |
-| HTML | `Html/` | `index.json` 优先 → autoindex 降级，新标签页打开 |
-| 图片 | `Image/` | `index.json` 优先 → autoindex 降级 |
-
-> `gen_index.sh` 跳过 `thumbnails/` 和 `archive/`，这两目录下的图片不会在图库中展示。运行 `bash gen_index.sh ~/Blog-termux` 生成静态索引，可选加入 cron：`*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux`
-
-### 7. 启动
-
-```bash
-nginx -s reload
-# 浏览器打开 https://127.0.0.1:7443
-```
+> `gen_index.sh` 自动跳过 `thumbnails/` 和 `archive/` 目录。运行 `bash gen_index.sh ~/Blog-termux` 生成静态索引，可选加入 cron：`*/5 * * * * bash ~/Blog-termux/gen_index.sh ~/Blog-termux`
 
 ---
 
-## 使用指南
+## 🎮 使用指南
 
 | 操作 | 方式 |
 |------|------|
 | 切换标签 | PC/平板：点击顶部标签栏。手机：点击底部导航栏 |
 | 深色模式 | 点击右上角 ☀/☾ 按钮，偏好自动保存 |
-| 搜索服务 | "导航"标签 → 搜索框输入（匹配名称/描述/标签） |
-| 搜索文章 | "博客"标签 → 搜索框输入 → 类型过滤：全部 / Markdown / HTML |
-| 阅读文章 | 点击文章 → 正文内联渲染在中间栏，右侧自动生成目录 |
-| 浏览图片 | "图库"标签 → 搜索或滚动 → 点击灯箱放大 |
+| 搜索服务 | 「导航」标签 → 搜索框输入（匹配名称/描述/标签） |
+| 搜索文章 | 「博客」标签 → 搜索框输入 → 类型过滤 |
+| 阅读文章 | 点击文章 → 正文内联渲染 + 自动生成目录 |
+| 浏览图片 | 「图库」标签 → 搜索或滚动 → 点击灯箱放大 |
 | 快捷键 | `←` `→` 切换标签，`Home` `End` 跳转首/末，`ESC` 关闭灯箱 |
 
 ---
 
-## 常见问题
+## ❓ 常见问题
 
-### 博客 / 图库 / 导航显示"加载中"，没有数据？
+### 博客/图库/导航显示"加载中"？
 
 ```bash
 curl http://127.0.0.1:7443/api/md/     # autoindex 是否正常？
 ls ~/Blog-termux/Markdown/              # 目录是否为空？
-# 检查浏览器控制台 (F12) 有无 fetch 错误 — 通常是 nginx 路径配置问题
+# 检查浏览器控制台 (F12) — 通常是 nginx 路径配置问题
 ```
 
 ### 仪表盘卡片显示 "--"？
 
 ```bash
-cat ~/Blog-termux/dashboard.json        # 是否存在且为有效 JSON？
+cat ~/Blog-termux/dashboard.json        # 文件存在且为有效 JSON？
 bash ~/Blog-termux/corn.sh              # 手动执行一次
 ps aux | grep crond                     # cron 是否运行？
 ```
 
 ### 电池卡片显示 "--"？
 
-安装 `termux-api`（Android 上还需安装 Termux:API 应用并授权）：
+安装 `termux-api`（Android 还需安装 Termux:API 应用并授权），未安装时不影响其他功能。
 
-```bash
-pkg install termux-api
-```
+### Markdown 图片不显示？
 
-未安装时电池卡片显示 `--` 占位符，不影响其他功能。
-
-### 如何修改端口？
-
-编辑 nginx 配置中的 `listen 7443;` → `nginx -s reload`。
-
-### Markdown 中图片不显示？
-
-1. 将图片放入 `Image/` 目录，文章中引用文件名（阅读器自动重写为 `/api/images/<文件名>`）
-2. 或使用绝对路径：`/api/images/<文件名>`
+将图片放入 `Image/` 目录，文章中引用文件名即可（阅读器自动重写路径为 `/api/images/<文件名>`）。
 
 ### 数学公式显示为原始文本？
 
-确认 `lib/` 中存在 `katex.min.js` 和 `auto-render.min.js`。KaTeX 仅在检测到数学分隔符时按需加载（支持 `$$`、`\[`、`\(`）。检查浏览器控制台有无 404 错误。
+确认 `lib/` 中存在 `katex.min.js` 和 `auto-render.min.js`。KaTeX 按需加载，检查浏览器控制台有无 404。
 
 ---
 
-## 技术要点
+## 🔧 开发
+
+### 代码规范
+
+项目提供 [`styleguide.md`](styleguide.md) 定义完整的代码规范，包括：
+
+- **模块边界** — 各目录读写规则（`lib/` 只读、`css/style.css` 构建产物等）
+- **JavaScript 规范** — ES Modules、命名约定、JSDoc 注释模板
+- **CSS 规范** — 变量命名、组件分区、BEM 命名
+- **Shell 脚本规范** — 头部格式、fallback 链注释
+- **HTML 规范** — 区块注释格式
+- **工具链** — ESLint + Prettier + Stylelint + ShellCheck
+- **模块清单** — 所有模块的暴露方式、依赖、职责
+
+```bash
+npm install     # 安装开发依赖
+npm run lint    # JS/CSS/Shell 代码检查
+npm run format  # 自动格式化
+```
+
+### CI 工作流
+
+| Workflow | 触发条件 | 检查内容 |
+|----------|----------|----------|
+| `lint.yml` | PR 推送（仅 JS/CSS/Shell 变更时） | ESLint + Stylelint + ShellCheck |
+| `release.yml` | tag 推送 | lint 检查通过后构建打包发布 |
+
+---
+
+## 📄 技术要点
 
 | 特性 | 实现方式 |
 |------|----------|
-| 零后端 | nginx autoindex 生成目录列表，`DOMParser` 解析 |
-| 零外部依赖 | 所有库本地化在 `lib/` |
-| 无 root | `corn.sh` 使用 `lscpu`/cpufreq sysfs/`/proc/stat`/`top`/`free`/`getprop`/`ps` |
-| 服务检测 | 自动扫描 `ps -e` 全部进程，噪音过滤 + 去重 + 通用名解析 |
-| 安全 | 五层 HTML 白名单清理、URL 白名单验证、用户内容 `escapeHtml` 转义 |
-| 离线 | Service Worker：cache-first（静态）、SWR（文章/图片）、network-only（dashboard/summary） |
-| 主题 | CSS 自定义属性 + `body.dark` 切换，`prefers-color-scheme` 自动检测 |
-| 响应式 | 3 个断点（1024px / 639px / 400px），顶部标签 → 底部导航 |
-| 懒加载 | 非活跃标签不请求数据，KaTeX 按需加载 |
-| 竞态防护 | `AbortController` + 请求 ID 计数器，`Promise.allSettled` 多源容错 |
-| 兼容性 | `-webkit-backdrop-filter`，`@supports not (backdrop-filter)` 纯色降级 |
+| 🔌 零后端 | nginx autoindex + `DOMParser` 降级解析 |
+| 📦 零外部依赖 | 所有库本地化在 `lib/`，一次下载完全离线 |
+| 🔒 无 root | `corn.sh` 使用 `/proc/stat` / `free` / `df` / `ps` / `getprop` |
+| 🛡️ 安全 | 五层 HTML 白名单 + URL 白名单 + `escapeHtml` 转义 |
+| 📡 离线 | Service Worker 四策略：cache-first、SWR、network-first、network-only |
+| 🌙 主题 | CSS 自定义属性 + `body.dark` 切换，系统偏好自动检测 |
+| 📱 响应式 | 3 断点（1024px / 639px / 400px），顶部标签 → 底部导航 |
+| ⚡ 性能 | 非活跃标签不请求，KaTeX 按需加载，dashboard 可见性暂停 |
+| 🛡️ 竞态防护 | `AbortController` + 请求 ID 计数器，`Promise.allSettled` 多源容错 |
+| 🧹 代码质量 | JSDoc 全覆盖、ES Modules、ESLint + Prettier + Stylelint + CI 门禁 |
 
 ---
 
-## 友链
+## 🔗 友链
 
 [linux.do](https://linux.do)

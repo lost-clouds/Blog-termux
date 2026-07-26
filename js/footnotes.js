@@ -1,13 +1,15 @@
-/* ============================================================
-   footnotes.js —— Markdown 脚注预处理器
-   ────────────────────────────────────────────────────────────
-   将 [^id] 引用和 [^id]: 定义转换为 HTML 上标/脚注区
-   用法：import { processFootnotes } from './footnotes.js'
-   ============================================================ */
+/**
+ * @module footnotes
+ * @description Markdown 脚注预处理器：将 [^id] 引用和 [^id]: 定义转换为 HTML 上标/脚注区
+ * @requires none
+ *
+ * 使用：import { processFootnotes } from './footnotes.js'
+ */
+
 
 'use strict';
 
-    function slugifyFootnoteId(id) {
+    function _slugifyFootnoteId(id) {
         let slug = String(id || '')
             .trim()
             .toLowerCase()
@@ -16,7 +18,7 @@
         return slug || 'note';
     }
 
-    function processFootnotes(raw) {
+    function _processFootnotes(raw) {
         let footnotes = {};
         let counter = 0;
         let usedIds = {};
@@ -24,7 +26,7 @@
         // 收集定义行 [^id]: content
         raw = raw.replace(/^\[\^([^\]]+)\]:\s*(.+?)\r?$/gm, function(m, id, content) {
             if (!footnotes[id]) {
-                let base = slugifyFootnoteId(id);
+                let base = _slugifyFootnoteId(id);
                 let safeId = base;
                 let i = 2;
                 while (usedIds[safeId]) {
@@ -64,4 +66,4 @@
         return raw;
     }
 
-export { processFootnotes };
+export { _processFootnotes as processFootnotes };

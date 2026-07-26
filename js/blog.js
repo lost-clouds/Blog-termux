@@ -2,19 +2,16 @@ import { Utils } from './utils.js';
 import { MarkdownRenderer } from './md-viewer.js';
 import { API } from './constants.js';
 
-/* ============================================================
-   blog.js —— 博客模块（Hugo Book 风格三栏布局）
-   ────────────────────────────────────────────────────────────
-   生命周期：
-     [init]  缓存 DOM → 绑定事件
-     [load]  fetchArticles() → 获取文章列表 → 渲染侧边栏 → 自动加载第一篇
-     [render] 渲染左侧文章列表（搜索）
-     [select] 点击文章 → 中间内联渲染正文 + 右侧生成 ToC
-   ────────────────────────────────────────────────────────────
-   依赖：Utils (escapeHtml/formatSize/parseAutoindex),
-        MarkdownRenderer (render/buildToc/bindTocLinks)
-   使用：import { Blog } from './blog.js'
-   ============================================================ */
+/**
+ * @module blog
+ * @description 博客模块：Hugo Book 风格三栏布局，文章列表 + 内联渲染 + ToC
+ * @requires module:utils
+ * @requires module:md-viewer
+ * @requires module:constants
+ *
+ * 使用：import { Blog } from './blog.js'
+ */
+
 
 'use strict';
 
@@ -37,7 +34,7 @@ import { API } from './constants.js';
     const HTML_EXTS = /\.(html?|htm)$/i;
 
     /* ---- 优先 fetch index.json，404 时降级为解析 autoindex（委托 Utils.fetchIndexOrAutoindex）---- */
-    async function fetchIndexOrAutoindex(indexUrl, autoindexUrl, type) {
+    async function _fetchIndexOrAutoindex(indexUrl, autoindexUrl, type) {
         let ext = type === 'markdown' ? MD_EXTS : HTML_EXTS;
         return Utils.fetchIndexOrAutoindex(indexUrl, autoindexUrl, ext, function(item) {
             item.type = type;
@@ -47,7 +44,10 @@ import { API } from './constants.js';
     /* ============================================================
        获取文章列表（index.json 优先，autoindex 降级）
        ============================================================ */
-    async function fetchArticles() {
+    /**
+     * 获取文章列表（index.json 优先，autoindex 降级），合并 Markdown 和 HTML。
+     * @returns {Promise<void>}
+     */ async function _fetchArticles() {
         if (_fetching || _loaded) return;
         if (!$blogNav) return;
         _fetching = true;
@@ -55,8 +55,8 @@ import { API } from './constants.js';
 
         try {
             let results = await Promise.allSettled([
-                fetchIndexOrAutoindex(API.MARKDOWN_INDEX, API.MARKDOWN_LIST, 'markdown'),
-                fetchIndexOrAutoindex(API.HTML_INDEX, API.HTML_LIST, 'html')
+                _fetchIndexOrAutoindex(API.MARKDOWN_INDEX, API.MARKDOWN_LIST, 'markdown'),
+                _fetchIndexOrAutoindex(API.HTML_INDEX, API.HTML_LIST, 'html')
             ]);
 
             let markdownArticles = results[0].status === 'fulfilled' ? results[0].value : [];
@@ -67,10 +67,10 @@ import { API } from './constants.js';
             });
             _loaded = true;
 
-            renderSidebar();
+            _renderSidebar();
 
             let firstMd = _articles.find(function(a) { return a.type === 'markdown'; });
-            if (firstMd) selectArticle(firstMd.name, firstMd.type);
+            if (firstMd) _selectArticle(firstMd.name, firstMd.type);
 
         } catch (err) {
             console.error('Blog: 加载失败', err);
@@ -83,7 +83,7 @@ import { API } from './constants.js';
     /* ============================================================
        渲染左侧文章列表
        ============================================================ */
-    function renderSidebar() {
+    function _renderSidebar() {
         if (!$blogSidebar) return;
 
         let query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
@@ -102,19 +102,19 @@ import { API } from './constants.js';
 
         html += '<div class="blog-nav-section">';
         html += '<span class="blog-nav-section-title">📘 Markdown <span class="blog-nav-count">' + mdArticles.length + '</span></span>';
-        html += renderArticleGroup(mdArticles, 'markdown', queryActive);
+        html += _renderArticleGroup(mdArticles, 'markdown', queryActive);
         html += '</div>';
 
         html += '<div class="blog-nav-section">';
         html += '<span class="blog-nav-section-title">📄 HTML <span class="blog-nav-count">' + htmlArticles.length + '</span></span>';
-        html += renderArticleGroup(htmlArticles, 'html', queryActive);
+        html += _renderArticleGroup(htmlArticles, 'html', queryActive);
         html += '</div>';
 
         $blogNav.innerHTML = html;
     }
 
     /* ---- 按顶层目录分组：散落文件 + 书(目录→子项) ---- */
-    function groupArticles(list) {
+    function _groupArticles(list) {
         let loose = [];
         let books = {};
         let bookOrder = [];
@@ -147,8 +147,8 @@ import { API } from './constants.js';
     }
 
     /* ---- 渲染一组：散落文件平铺 + 目录作可折叠书 ---- */
-    function renderArticleGroup(list, type, queryActive) {
-        let g = groupArticles(list);
+    function _renderArticleGroup(list, type, queryActive) {
+        let g = _groupArticles(list);
         if (g.loose.length === 0 && g.books.length === 0) {
             return '<div class="blog-nav-empty">无匹配</div>';
         }
@@ -190,11 +190,16 @@ import { API } from './constants.js';
     /* ============================================================
        选中文章 → 内联渲染
        ============================================================ */
-    async function selectArticle(filename, type) {
+    /**
+     * 选中并渲染一篇文章。HTML 在新标签页打开；Markdown 内联渲染。
+     * @param {string} filename - 文件名（含子目录路径）
+     * @param {string} type - "markdown" | "html"
+     * @returns {Promise<void>}
+     */ async function _selectArticle(filename, type) {
         // HTML 文件 → 新标签页打开
         if (type === 'html') {
             _currentFile = filename;
-            renderSidebar();
+            _renderSidebar();
             window.open('/Html/' + filename.split('/').map(encodeURIComponent).join('/'), '_blank');
             if ($blogContent) {
                 $blogContent.innerHTML = '<div class="blog-content-placeholder">' +
@@ -242,7 +247,7 @@ import { API } from './constants.js';
 
             // 仅请求成功后才更新当前文件和侧边栏高亮
             _currentFile = filename;
-            renderSidebar();
+            _renderSidebar();
 
             // 生成右侧 ToC
             if ($blogToc) {
@@ -268,19 +273,19 @@ import { API } from './constants.js';
     }
 
     /* ---- 侧边栏文章点击 ---- */
-    function onSidebarClick(e) {
+    function _onSidebarClick(e) {
         let a = e.target.closest('.blog-nav-link');
         if (!a) return;
         e.preventDefault();
         let file = a.getAttribute('data-file');
         let type = a.getAttribute('data-type');
-        if (file) selectArticle(file, type);
+        if (file) _selectArticle(file, type);
         // 移动端关闭侧边栏
         if ($blogMenuCtrl) $blogMenuCtrl.checked = false;
     }
 
     /* ---- 类型过滤 ---- */
-    function onFilterClick(e) {
+    function _onFilterClick(e) {
         let btn = e.target.closest('.blog-filter-btn');
         if (!btn) return;
         _filterType = btn.getAttribute('data-type') || 'all';
@@ -289,24 +294,28 @@ import { API } from './constants.js';
             $blogFilter.querySelectorAll('.blog-filter-btn').forEach(function(b) { b.classList.remove('active'); });
         }
         btn.classList.add('active');
-        renderSidebar();
+        _renderSidebar();
     }
 
     /* ---- 绑定事件 ---- */
-    function bindEvents() {
+    function _bindEvents() {
         if (_eventsBound) return;
         _eventsBound = true;
         if ($blogSearch) $blogSearch.addEventListener('input', function() {
             clearTimeout(_debounceTimer);
-            _debounceTimer = setTimeout(renderSidebar, 250);
+            _debounceTimer = setTimeout(_renderSidebar, 250);
         });
-        if ($blogFilter) $blogFilter.addEventListener('click', onFilterClick);
-        if ($blogSidebar) $blogSidebar.addEventListener('click', onSidebarClick);
+        if ($blogFilter) $blogFilter.addEventListener('click', _onFilterClick);
+        if ($blogSidebar) $blogSidebar.addEventListener('click', _onSidebarClick);
         // 移动端遮罩关闭由 <label for="blog-menu-ctrl"> 处理，无需 JS
     }
 
     /* ---- 初始化 ---- */
-    function init() {
+    /**
+     * 初始化博客模块：缓存 DOM、绑定事件。
+     * @returns {void}
+     */
+    function _init() {
         $blogSidebar        = document.getElementById('blogSidebar');
         $blogNav            = document.getElementById('blogNav');
         $blogContent        = document.getElementById('blogContent');
@@ -317,17 +326,18 @@ import { API } from './constants.js';
         $blogTocCtrl        = document.getElementById('blog-toc-ctrl');
         $blogTitle          = document.getElementById('blogTitle');
 
-        bindEvents();
+        _bindEvents();
     }
 
-    function hasArticles() { return _articles.length > 0; }
-    function isLoaded() { return _loaded; }
+    /**
+     * 检查是否已加载文章。
+     * @returns {boolean}
+     */
+    function _hasArticles() { return _articles.length > 0; }
     const Blog = {
-        init: init,
-        fetchArticles: fetchArticles,
-        selectArticle: selectArticle,
-        hasArticles: hasArticles,
-        isLoaded: isLoaded
+        init: _init,
+        fetchArticles: _fetchArticles,
+        hasArticles: _hasArticles
     };
 
 export { Blog };

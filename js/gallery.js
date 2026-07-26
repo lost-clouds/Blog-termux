@@ -2,20 +2,16 @@ import { Utils } from './utils.js';
 import { Lightbox } from './lightbox.js';
 import { API } from './constants.js';
 
-/* ============================================================
-   gallery.js —— 图片画廊模块
-   ────────────────────────────────────────────────────────────
-   生命周期：
-     [加载] 作为 ES Module 被 app.js 静态导入
-     [初始化] 外部调用 Gallery.init() → 缓存 DOM + 绑定事件
-     [加载] Gallery.fetchImages() → 获取图片列表 + 渲染图片网格
-     [运行] Gallery.render() → 按搜索词过滤渲染图片网格
-     [交互] 点击图片卡片 → 调用 Lightbox.open() 展示灯箱
-   ────────────────────────────────────────────────────────────
-   数据源：Image/index.json 优先，/api/images/ autoindex 降级
-   依赖：Utils (escapeHtml/formatSize/parseAutoindex), Lightbox (open)
-   使用：import { Gallery } from './gallery.js'
-   ============================================================ */
+/**
+ * @module gallery
+ * @description 图片画廊：图片网格 + 灯箱，支持搜索过滤
+ * @requires module:utils
+ * @requires module:lightbox
+ * @requires module:constants
+ *
+ * 使用：import { Gallery } from './gallery.js'
+ */
+
 
 'use strict';
 
@@ -30,14 +26,17 @@ import { API } from './constants.js';
     let $galleryGrid, $gallerySearch;
 
     /* ---- 获取图片列表（index.json 优先，autoindex 降级）---- */
-    async function fetchImages() {
+    /**
+     * 获取图片列表（index.json 优先，autoindex 降级），去重后排序渲染。
+     * @returns {Promise<void>}
+     */ async function _fetchImages() {
         if (_fetching) return;
         if (!$galleryGrid) return;
         _fetching = true;
         $galleryGrid.innerHTML = '<div class="gallery-loading">加载中...</div>';
 
         try {
-            const results = await fetchIndexOrAutoindex();
+            const results = await _fetchIndexOrAutoindex();
 
             const seen = new Set();
             _images = results.filter(function(f) {
@@ -49,7 +48,7 @@ import { API } from './constants.js';
                 return a.name.localeCompare(b.name);
             });
 
-            render();
+            _render();
         } catch (err) {
             console.error('Gallery: 加载图片列表失败', err);
             $galleryGrid.innerHTML = '<div class="gallery-loading">加载失败，请检查配置</div>';
@@ -59,12 +58,16 @@ import { API } from './constants.js';
     }
 
     /* ---- 优先 fetch index.json，404 时降级为解析 autoindex ---- */
-    async function fetchIndexOrAutoindex() {
+    async function _fetchIndexOrAutoindex() {
         return Utils.fetchIndexOrAutoindex(API.IMAGE_INDEX, API.IMAGES_LIST, IMG_EXTS);
     }
 
     /* ---- 渲染图片网格 ---- */
-    function render() {
+    /**
+     * 渲染图片网格，支持搜索过滤。
+     * @returns {void}
+     */
+    function _render() {
         if (!$galleryGrid) return;
 
         const query = $gallerySearch ? $gallerySearch.value.trim().toLowerCase() : '';
@@ -100,7 +103,7 @@ import { API } from './constants.js';
     }
 
     /* ---- 图片卡片点击 → 灯箱 ---- */
-    function onCardClick(e) {
+    function _onCardClick(e) {
         const card = e.target.closest('.gallery-card');
         if (!card) return;
         const src  = card.getAttribute('data-src');
@@ -111,15 +114,15 @@ import { API } from './constants.js';
     }
 
     /* ---- 绑定事件 ---- */
-    function bindEvents() {
+    function _bindEvents() {
         if ($gallerySearch) {
             $gallerySearch.addEventListener('input', function() {
                 clearTimeout(_debounceTimer);
-                _debounceTimer = setTimeout(render, 250);
+                _debounceTimer = setTimeout(_render, 250);
             });
         }
         if ($galleryGrid) {
-            $galleryGrid.addEventListener('click', onCardClick);
+            $galleryGrid.addEventListener('click', _onCardClick);
             $galleryGrid.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     const card = e.target.closest('.gallery-card');
@@ -130,14 +133,22 @@ import { API } from './constants.js';
     }
 
     /* ---- 初始化 ---- */
-    function init() {
+    /**
+     * 初始化画廊模块：缓存 DOM、绑定事件。
+     * @returns {void}
+     */
+    function _init() {
         $galleryGrid   = document.getElementById('galleryGrid');
         $gallerySearch = document.getElementById('gallerySearch');
 
-        bindEvents();
+        _bindEvents();
     }
 
-    function hasImages() { return _images.length > 0; }
-    const Gallery = { init: init, render: render, fetchImages: fetchImages, hasImages: hasImages };
+    /**
+     * 检查是否已加载图片。
+     * @returns {boolean}
+     */
+    function _hasImages() { return _images.length > 0; }
+    const Gallery = { init: _init, fetchImages: _fetchImages, hasImages: _hasImages };
 
 export { Gallery };

@@ -1,10 +1,11 @@
-/* ============================================================
-   resume.js —— 个人简历页面脚本
-   ────────────────────────────────────────────────────────────
-   单一 ES Module，不 import 任何外部模块
-   依赖：无
-   生命周期：applyTheme → fetch config → render DOM → bind events → dom-loaded
-   ============================================================ */
+/**
+ * @module resume
+ * @description 个人简历页面脚本：主题切换/配置加载/DOM 渲染/视差
+ * @requires none
+ *
+ * 单一 ES Module，不 import 外部模块
+ */
+
 'use strict';
 
 /* ============================================================
@@ -31,17 +32,17 @@ const METHOD_ICONS = {
    ============================================================ */
 
 /** HTML 转义（防 XSS） */
-function escapeHtml(str) {
+function _escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, function(c) { return ESCAPE_MAP[c]; });
 }
 
 /** 将换行符转为 <br>（用于 bio 段落） */
-function nl2br(str) {
-    return String(str).split('\n').map(function(s) { return escapeHtml(s); }).join('<br>');
+function _nl2br(str) {
+    return String(str).split('\n').map(function(s) { return _escapeHtml(s); }).join('<br>');
 }
 
 /** 获取安全的 URL（只允许 http/https/mailto） */
-function getSafeUrl(url) {
+function _getSafeUrl(url) {
     if (!url) return '';
     const trimmed = url.trim();
     return /^(https?:|mailto:)/i.test(trimmed) ? trimmed : '';
@@ -51,13 +52,13 @@ function getSafeUrl(url) {
    2. 主题管理
    ============================================================ */
 
-function getStoredTheme() {
+function _getStoredTheme() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'dark' || stored === 'light') return stored;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-function applyTheme(theme) {
+function _applyTheme(theme) {
     const isDark = (theme === 'dark');
     document.body.classList.toggle('dark', isDark);
     document.documentElement.setAttribute('data-theme', theme);
@@ -76,16 +77,16 @@ function applyTheme(theme) {
     localStorage.setItem(STORAGE_KEY, theme);
 }
 
-function toggleTheme() {
+function _toggleTheme() {
     const next = document.body.classList.contains('dark') ? 'light' : 'dark';
-    applyTheme(next);
+    _applyTheme(next);
 }
 
 /* ============================================================
    3. 配置加载（带重试）
    ============================================================ */
 
-async function loadConfig() {
+async function _loadConfig() {
     for (let attempt = 0; attempt <= RETRY_MAX; attempt++) {
         try {
             const resp = await fetch('config.json', { cache: 'no-cache' });
@@ -105,57 +106,57 @@ async function loadConfig() {
    4. 渲染函数
    ============================================================ */
 
-function renderNavLogo(name) {
+function _renderNavLogo(name) {
     const logo = document.querySelector('.nav-logo');
     if (logo) logo.textContent = name;
 }
 
-function renderNavSocial(social) {
+function _renderNavSocial(social) {
     const navSocialEl = document.querySelector('.nav-social');
     if (!navSocialEl || !social || social.length === 0) return;
     const gh = social.find(function(s) { return s.name.toLowerCase() === 'github'; });
     if (gh) {
-        const url = getSafeUrl(gh.url);
+        const url = _getSafeUrl(gh.url);
         if (url) navSocialEl.href = url;
     }
 }
 
-function renderHero(personal, social) {
+function _renderHero(personal, social) {
     const heroText = document.querySelector('.hero-text');
     if (heroText) {
         heroText.innerHTML =
-            '<h1>你好，我是 <strong>' + escapeHtml(personal.name) + '</strong></h1>' +
-            '<p class="hero-subtitle">' + escapeHtml(personal.title) + '</p>';
+            '<h1>你好，我是 <strong>' + _escapeHtml(personal.name) + '</strong></h1>' +
+            '<p class="hero-subtitle">' + _escapeHtml(personal.title) + '</p>';
     }
 
     const heroFigure = document.querySelector('.hero-figure');
     if (heroFigure) {
         if (personal.avatar) {
-            heroFigure.innerHTML = '<img src="' + escapeHtml(personal.avatar) + '" alt="' + escapeHtml(personal.name) + ' 的照片" loading="eager">';
+            heroFigure.innerHTML = '<img src="' + _escapeHtml(personal.avatar) + '" alt="' + _escapeHtml(personal.name) + ' 的照片" loading="eager">';
         } else {
             const initial = personal.name ? personal.name.charAt(0).toUpperCase() : '?';
-            heroFigure.innerHTML = '<div class="card-placeholder" aria-hidden="true">' + escapeHtml(initial) + '</div>';
+            heroFigure.innerHTML = '<div class="card-placeholder" aria-hidden="true">' + _escapeHtml(initial) + '</div>';
         }
     }
 
     const heroSocial = document.querySelector('.hero-social');
     if (heroSocial && social && social.length > 0) {
         heroSocial.innerHTML = social.map(function(item) {
-            const url = getSafeUrl(item.url);
-            const tag = url ? 'a href="' + escapeHtml(url) + '" target="_blank" rel="noopener"' : 'span';
+            const url = _getSafeUrl(item.url);
+            const tag = url ? 'a href="' + _escapeHtml(url) + '" target="_blank" rel="noopener"' : 'span';
             return '<' + tag + '>' +
-                '<span class="social-full">' + escapeHtml(item.name) + '</span>' +
-                '<span class="social-short">' + escapeHtml(item.short || item.name.substring(0, 2)) + '</span>' +
+                '<span class="social-full">' + _escapeHtml(item.name) + '</span>' +
+                '<span class="social-short">' + _escapeHtml(item.short || item.name.substring(0, 2)) + '</span>' +
                 ARROW_SVG +
                 '</' + tag + '>';
         }).join('');
     }
 }
 
-function renderAbout(personal, methods) {
+function _renderAbout(personal, methods) {
     const aboutContent = document.querySelector('.about-content');
     if (aboutContent && personal.bio) {
-        aboutContent.innerHTML = '<p>' + nl2br(personal.bio) + '</p>';
+        aboutContent.innerHTML = '<p>' + _nl2br(personal.bio) + '</p>';
     }
 
     const methodGrid = document.querySelector('.method-grid');
@@ -164,35 +165,35 @@ function renderAbout(personal, methods) {
             const iconSvg = METHOD_ICONS[m.icon] || METHOD_ICONS.bolt;
             return '<div class="method-card">' +
                 '<div class="method-icon">' + iconSvg + '</div>' +
-                '<h3>' + escapeHtml(m.title) + '</h3>' +
-                '<p>' + escapeHtml(m.description) + '</p>' +
+                '<h3>' + _escapeHtml(m.title) + '</h3>' +
+                '<p>' + _escapeHtml(m.description) + '</p>' +
                 '</div>';
         }).join('');
     }
 }
 
-function renderProjects(projects, social) {
+function _renderProjects(projects, social) {
     const projectGrid = document.querySelector('.project-grid');
     if (!projectGrid || !projects || projects.length === 0) return;
 
     let html = '';
 
     projects.forEach(function(proj) {
-        const url = getSafeUrl(proj.url);
+        const url = _getSafeUrl(proj.url);
         html += '<div class="card">';
-        html += '<' + (url ? 'a href="' + escapeHtml(url) + '" target="_blank" rel="noopener"' : 'div') + '>';
+        html += '<' + (url ? 'a href="' + _escapeHtml(url) + '" target="_blank" rel="noopener"' : 'div') + '>';
         html += '<figure class="card-figure">';
         if (proj.image) {
-            html += '<img src="' + escapeHtml(proj.image) + '" alt="' + escapeHtml(proj.title) + '" loading="lazy">';
+            html += '<img src="' + _escapeHtml(proj.image) + '" alt="' + _escapeHtml(proj.title) + '" loading="lazy">';
         } else {
             const initial = proj.title ? proj.title.charAt(0).toUpperCase() : '?';
-            html += '<div class="card-placeholder" aria-hidden="true">' + escapeHtml(initial) + '</div>';
+            html += '<div class="card-placeholder" aria-hidden="true">' + _escapeHtml(initial) + '</div>';
         }
         html += '</figure>';
         html += '<div class="card-overlay-blur"></div>';
         html += '<div class="card-content">';
-        html += '<h3 class="card-title">' + escapeHtml(proj.title) + '</h3>';
-        html += '<p class="card-description">' + escapeHtml(proj.description || '') + '</p>';
+        html += '<h3 class="card-title">' + _escapeHtml(proj.title) + '</h3>';
+        html += '<p class="card-description">' + _escapeHtml(proj.description || '') + '</p>';
         html += '</div>';
         html += '</' + (url ? 'a' : 'div') + '>';
         html += '</div>';
@@ -203,13 +204,13 @@ function renderProjects(projects, social) {
     if (social) {
         const gh = social.find(function(s) { return s.name.toLowerCase() === 'github'; });
         if (gh) {
-            const url = getSafeUrl(gh.url);
+            const url = _getSafeUrl(gh.url);
             if (url) githubUrl = url;
         }
     }
 
     html += '<div class="card card-more">';
-    html += '<a href="' + escapeHtml(githubUrl) + '" target="_blank" rel="noopener">';
+    html += '<a href="' + _escapeHtml(githubUrl) + '" target="_blank" rel="noopener">';
     html += '<h3 class="card-title">More...</h3>';
     html += '<p class="card-description">在 GitHub 上查看更多项目</p>';
     html += '</a>';
@@ -218,21 +219,21 @@ function renderProjects(projects, social) {
     projectGrid.innerHTML = html;
 }
 
-function renderContact(contact) {
+function _renderContact(contact) {
     const contactGrid = document.querySelector('.contact-grid');
     if (!contactGrid || !contact || contact.length === 0) return;
 
     contactGrid.innerHTML = contact.map(function(item) {
-        const url = getSafeUrl(item.url);
-        const tag = url ? 'a href="' + escapeHtml(url) + '" target="_blank" rel="noopener"' : 'span';
+        const url = _getSafeUrl(item.url);
+        const tag = url ? 'a href="' + _escapeHtml(url) + '" target="_blank" rel="noopener"' : 'span';
         return '<' + tag + ' class="contact-link">' +
-            escapeHtml(item.name) +
+            _escapeHtml(item.name) +
             (url ? ARROW_SVG : '') +
             '</' + tag + '>';
     }).join('');
 }
 
-function renderError() {
+function _renderError() {
     const sections = ['about', 'projects', 'contact'];
     sections.forEach(function(id) {
         const grid = document.querySelector('#' + id + ' .method-grid, #' + id + ' .project-grid, #' + id + ' .contact-grid');
@@ -254,7 +255,7 @@ function renderError() {
    5. Hero 视差透视
    ============================================================ */
 
-function setupPerspective() {
+function _setupPerspective() {
     const group = document.querySelector('[data-perspective-group]');
     if (!group) return;
 
@@ -327,7 +328,7 @@ function setupPerspective() {
    6. 滚动监听（IntersectionObserver）
    ============================================================ */
 
-function setupScrollObserver() {
+function _setupScrollObserver() {
     const sections = document.querySelectorAll('[data-nav-section]');
     if (sections.length === 0) return;
 
@@ -368,7 +369,7 @@ function setupScrollObserver() {
    7. 移动端导航菜单
    ============================================================ */
 
-function setupNavToggle() {
+function _setupNavToggle() {
     const nav = document.querySelector('nav');
     const toggle = document.querySelector('.nav-toggle');
     if (!nav || !toggle) return;
@@ -388,43 +389,43 @@ function setupNavToggle() {
    8. 主题切换按钮
    ============================================================ */
 
-function setupThemeToggle() {
+function _setupThemeToggle() {
     const btn = document.getElementById('themeToggle');
     if (!btn) return;
-    btn.addEventListener('click', toggleTheme);
+    btn.addEventListener('click', _toggleTheme);
 }
 
 /* ============================================================
    9. 初始化入口
    ============================================================ */
 
-async function init() {
+async function _init() {
     // Phase 1: 同步主题状态
-    applyTheme(getStoredTheme());
+    _applyTheme(_getStoredTheme());
 
     // Phase 2: 加载配置
-    const config = await loadConfig();
+    const config = await _loadConfig();
     if (!config) {
-        renderError();
+        _renderError();
         return;
     }
 
     // Phase 3: 渲染所有区块（必须先于事件绑定）
-    renderNavLogo(config.personal.name);
-    renderNavSocial(config.social);
-    renderHero(config.personal, config.social);
-    renderAbout(config.personal, config.methods);
-    renderProjects(config.projects, config.social);
-    renderContact(config.contact);
+    _renderNavLogo(config.personal.name);
+    _renderNavSocial(config.social);
+    _renderHero(config.personal, config.social);
+    _renderAbout(config.personal, config.methods);
+    _renderProjects(config.projects, config.social);
+    _renderContact(config.contact);
 
     // Phase 4: 绑定事件（DOM 已就绪）
-    setupPerspective();
-    setupScrollObserver();
-    setupNavToggle();
-    setupThemeToggle();
+    _setupPerspective();
+    _setupScrollObserver();
+    _setupNavToggle();
+    _setupThemeToggle();
 
     // Phase 5: 启用过渡动画
     document.documentElement.classList.add('dom-loaded');
 }
 
-init();
+_init();

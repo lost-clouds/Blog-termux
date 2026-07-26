@@ -1,9 +1,10 @@
 #!/bin/bash
-# ============================================================
-# CSS 合并构建脚本：将 css/src/ 源文件合并为 css/style.css
-# 无需任何构建工具依赖，cat 命令在 Termux 中天然可用
-# 用法: bash css/build.sh
-# ============================================================
+#
+# css/build.sh — CSS 合并构建脚本
+#
+# 用途：将 css/src/ 源文件合并为 css/style.css
+# 用法：bash css/build.sh
+# 依赖：cat / cp（POSIX 工具集）
 set -euo pipefail
 
 SRC="css/src"

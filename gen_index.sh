@@ -1,8 +1,10 @@
 #!/bin/bash
-# ============================================================
-# 静态索引生成器：为 Markdown/Image 目录生成 index.json
-# 用法: bash gen_index.sh [项目根目录]
-# ============================================================
+#
+# gen_index.sh — 静态索引生成器
+#
+# 用途：为 Markdown/Image/Html 目录生成 index.json
+# 用法：gen_index.sh [项目根目录，默认当前目录]
+# 依赖：find / stat / sed（POSIX 工具集）
 set -euo pipefail
 
 ROOT="${1:-.}"

@@ -1,0 +1,21 @@
+{
+  "name": "blog-termux",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal Dashboard + Blog Console for Termux",
+  "scripts": {
+    "lint:js": "eslint js/",
+    "lint:css": "stylelint css/src/**/*.css",
+    "lint:sh": "shellcheck corn.sh gen_index.sh css/build.sh",
+    "lint": "npm run lint:js && npm run lint:css && npm run lint:sh",
+    "format": "prettier --write js/**/*.js css/src/**/*.css"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "eslint-plugin-jsdoc": "^46.0.0",
+    "prettier": "^3.0.0",
+    "stylelint": "^15.0.0",
+    "stylelint-config-standard": "^33.0.0"
+  },
+  "type": "module"
+}

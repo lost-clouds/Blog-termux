@@ -1,8 +1,10 @@
-/* ============================================================
-   constants.js —— 全局路径常量（API + 静态资源）
-   ────────────────────────────────────────────────────────────
-   用法：import { API, LIBS } from './constants.js'
-   ============================================================ */
+/**
+ * @module constants
+ * @description 全局路径常量（API + 静态资源）
+ * @requires none
+ *
+ * 用法：import { API, LIBS } from './constants.js'
+ */
 
 'use strict';
 

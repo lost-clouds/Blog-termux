@@ -5,12 +5,18 @@ import { processFootnotes } from './footnotes.js';
 import { prepareMermaidBlocks, ensureMermaid, renderMermaid } from './mermaid-renderer.js';
 import { API, LIBS } from './constants.js';
 
-/* ============================================================
-   md-viewer.js —— Markdown 渲染器
-   ────────────────────────────────────────────────────────────
-   只负责 Markdown → 安全 HTML 的渲染、标题锚点、ToC、图片路径修正、
-   KaTeX 懒加载，以及 Markdown 图片复用全局 Lightbox。
-   ============================================================ */
+/**
+ * @module md-viewer
+ * @description Markdown 渲染引擎：解析 → 安全 HTML → 锚点/ToC/KaTeX/图片灯箱
+ * @requires module:utils
+ * @requires module:sanitizer
+ * @requires module:footnotes
+ * @requires module:constants
+ * @requires module:lightbox
+ *
+ * 使用：import { MarkdownRenderer } from './md-viewer.js'
+ */
+
 
 'use strict';
 
@@ -19,7 +25,7 @@ let _katexPromise = null;
 const _tocBound = new WeakSet();
 const _imageBound = new WeakSet();
 
-function extractMathBlocks(text) {
+function _extractMathBlocks(text) {
     const blocks = [];
 
     function processContent(content) {
@@ -31,21 +37,21 @@ function extractMathBlocks(text) {
 
     // Phase 1: $$...$$
     let result = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match, content) {
-        var idx = blocks.length;
+        let idx = blocks.length;
         blocks.push('$$' + processContent(content) + '$$');
         return '<span class="math-' + idx + '"></span>';
     });
 
     // Phase 2: \[...\]
     result = result.replace(/\\\[([\s\S]*?)\\\]/g, function(match, content) {
-        var idx = blocks.length;
+        let idx = blocks.length;
         blocks.push('\\[' + processContent(content) + '\\]');
         return '<span class="math-' + idx + '"></span>';
     });
 
     // Phase 3: \(...\)
     result = result.replace(/\\\(([\s\S]*?)\\\)/g, function(match, content) {
-        var idx = blocks.length;
+        let idx = blocks.length;
         blocks.push('\\(' + processContent(content) + '\\)');
         return '<span class="math-' + idx + '"></span>';
     });
@@ -53,7 +59,7 @@ function extractMathBlocks(text) {
     return { text: result, blocks: blocks };
 }
 
-function restoreMathBlocks(container, blocks) {
+function _restoreMathBlocks(container, blocks) {
     if (!blocks.length) return;
     container.querySelectorAll('span[class^="math-"]').forEach(function(span) {
         const m = span.className.match(/^math-(\d+)$/);
@@ -69,7 +75,7 @@ function restoreMathBlocks(container, blocks) {
     });
 }
 
-function ensureKatex() {
+function _ensureKatex() {
     if (_katexReady) return Promise.resolve();
     if (_katexPromise) return _katexPromise;
     if (typeof renderMathInElement !== 'undefined') {
@@ -89,7 +95,7 @@ function ensureKatex() {
             };
             autoRenderScript.onerror = function() {
                 _katexPromise = null;
-                reject(new Error('KaTeX auto-render 加载失败'));
+                reject(new Error('KaTeX auto-_render 加载失败'));
             };
             document.head.appendChild(autoRenderScript);
         };
@@ -103,7 +109,7 @@ function ensureKatex() {
     return _katexPromise;
 }
 
-function slugify(text) {
+function _slugify(text) {
     let slug = String(text || '')
         .trim()
         .toLowerCase()
@@ -112,7 +118,7 @@ function slugify(text) {
     return slug || 'section';
 }
 
-function uniqueSlug(base, used) {
+function _uniqueSlug(base, used) {
     let slug = base;
     let i = 2;
     while (used[slug]) {
@@ -123,7 +129,7 @@ function uniqueSlug(base, used) {
     return slug;
 }
 
-function getHeadingText(heading) {
+function _getHeadingText(heading) {
     let clone = heading.cloneNode(true);
     clone.querySelectorAll('.anchor').forEach(function(anchor) {
         anchor.remove();
@@ -131,7 +137,7 @@ function getHeadingText(heading) {
     return (clone.textContent || '').trim();
 }
 
-function getImageUrl(src) {
+function _getImageUrl(src) {
     if (!src || /^(https?:|\/\/|data:|\/api\/)/i.test(src)) return src;
 
     let cleanPath = src.replace(/^\.\/|^\/?Image\//i, '');
@@ -146,21 +152,21 @@ function getImageUrl(src) {
     }).join('/');
 }
 
-function fixImagePaths(container) {
+function _fixImagePaths(container) {
     if (!container) return;
     container.querySelectorAll('img').forEach(function(img) {
         let src = img.getAttribute('src') || '';
-        let fixed = getImageUrl(src);
+        let fixed = _getImageUrl(src);
         if (fixed && fixed !== src) img.setAttribute('src', fixed);
     });
 }
 
-function injectAnchors(container) {
+function _injectAnchors(container) {
     if (!container) return;
     let used = {};
     container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(function(heading) {
-        let text = getHeadingText(heading);
-        heading.id = uniqueSlug(slugify(text), used);
+        let text = _getHeadingText(heading);
+        heading.id = _uniqueSlug(_slugify(text), used);
 
         if (!heading.querySelector('.anchor')) {
             let anchor = document.createElement('a');
@@ -174,7 +180,7 @@ function injectAnchors(container) {
     });
 }
 
-function renderKatex(container) {
+function _renderKatex(container) {
     if (typeof renderMathInElement !== 'function') return;
 
     renderMathInElement(container, {
@@ -190,7 +196,7 @@ function renderKatex(container) {
     });
 }
 
-function bindMarkdownImages(container) {
+function _bindMarkdownImages(container) {
     if (!container || _imageBound.has(container)) return;
     _imageBound.add(container);
 
@@ -204,7 +210,12 @@ function bindMarkdownImages(container) {
     });
 }
 
-function buildTocFromDom(container) {
+/**
+     * 从已渲染的 DOM 生成目录 HTML。
+     * @param {HTMLElement} container - 已渲染的 Markdown 容器
+     * @returns {string} 目录 HTML 字符串
+     */
+    function _buildTocFromDom(container) {
     if (!container) return '<div class="toc-empty">无标题</div>';
 
     let headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
@@ -213,7 +224,7 @@ function buildTocFromDom(container) {
     let html = '<ul>';
     headings.forEach(function(heading) {
         let level = parseInt(heading.tagName[1], 10);
-        let text = getHeadingText(heading);
+        let text = _getHeadingText(heading);
         let title = text.length > 40 ? text.slice(0, 37) + '...' : text;
 
         html += '<li class="toc-level-' + level + '">';
@@ -224,7 +235,7 @@ function buildTocFromDom(container) {
     return html;
 }
 
-function scrollToHeading(target, scrollEl) {
+function _scrollToHeading(target, scrollEl) {
     if (!target) return;
 
     if (scrollEl) {
@@ -238,7 +249,14 @@ function scrollToHeading(target, scrollEl) {
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function bindTocLinks(container, scrollEl, closeCtrlEl) {
+/**
+     * 绑定目录点击滚动事件。
+     * @param {HTMLElement} container - ToC 容器
+     * @param {HTMLElement} scrollEl - 滚动容器元素
+     * @param {HTMLElement} [closeCtrlEl] - 移动端关闭控制元素
+     * @returns {void}
+     */
+    function _bindTocLinks(container, scrollEl, closeCtrlEl) {
     if (!container || _tocBound.has(container)) return;
     _tocBound.add(container);
 
@@ -248,33 +266,37 @@ function bindTocLinks(container, scrollEl, closeCtrlEl) {
 
         e.preventDefault();
         let id = link.getAttribute('data-toc-id');
-        if (id) scrollToHeading(document.getElementById(id), scrollEl);
+        if (id) _scrollToHeading(document.getElementById(id), scrollEl);
         if (closeCtrlEl) closeCtrlEl.checked = false;
     });
 }
 
-async function render(rawMarkdown, target) {
+/**
+     * 渲染 Markdown 原始文本到目标元素：解析 → sanitize → 锚点 → KaTeX → 图片绑定。
+     * @param {string} rawMarkdown - Markdown 原始文本
+     * @param {HTMLElement} target - 目标渲染容器
+     * @returns {Promise<HTMLElement>}
+     */ async function _render(rawMarkdown, target) {
     if (!target) throw new Error('目标元素缺失');
     if (typeof marked === 'undefined') {
         throw new Error('Markdown 解析组件 (marked) 未加载');
     }
 
     let processed = processFootnotes(rawMarkdown);
-    const { text: protectedText, blocks: mathBlocks } = extractMathBlocks(processed);
+    const { text: protectedText, blocks: mathBlocks } = _extractMathBlocks(processed);
     let html = marked.parse(protectedText);
 
     target.innerHTML = sanitizeHtml(html);
-
-    // 将 marked 生成的 <pre><code class="language-mermaid"> 转换为
+// 将 marked 生成的 <pre><code class="language-mermaid"> 转换为
     // <div class="mermaid">，供 mermaid.run() 渲染
     // 必须在 sanitize 之后、其他 DOM 操作之前执行
     let hasMermaid = prepareMermaidBlocks(target);
 
-    fixImagePaths(target);
-    injectAnchors(target);
-    bindMarkdownImages(target);
+    _fixImagePaths(target);
+    _injectAnchors(target);
+    _bindMarkdownImages(target);
 
-    restoreMathBlocks(target, mathBlocks);
+    _restoreMathBlocks(target, mathBlocks);
 
     // Mermaid 图表渲染（懒加载，检测到图表才加载库）
     if (hasMermaid) {
@@ -289,20 +311,20 @@ async function render(rawMarkdown, target) {
     // KaTeX 数学公式渲染（懒加载，检测到公式才加载库）
     if (mathBlocks.length > 0) {
         try {
-            await ensureKatex();
+            await _ensureKatex();
         } catch (err) {
             console.warn('KaTeX 加载失败:', err.message);
         }
     }
-    renderKatex(target);
+    _renderKatex(target);
 
     return target;
 }
 
 const MarkdownRenderer = {
-    render: render,
-    buildTocFromDom: buildTocFromDom,
-    bindTocLinks: bindTocLinks
+    render: _render,
+    buildTocFromDom: _buildTocFromDom,
+    bindTocLinks: _bindTocLinks
 };
 
 export { MarkdownRenderer };

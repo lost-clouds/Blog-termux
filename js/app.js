@@ -5,16 +5,16 @@ import { Navigation } from './navigation.js';
 import { Blog } from './blog.js';
 import { Gallery } from './gallery.js';
 
-/* ============================================================
-   app.js —— 主控制器模块
-   ────────────────────────────────────────────────────────────
-   生命周期：
-     [加载] ES Module 静态导入依赖，DOMContentLoaded 后初始化
-     [初始化] 先解析 hash 确定初始 tab，仅当 tab=dashboard 时启动轮询
-     [运行] 管理 4 个标签页切换，首次进入 Blog/Gallery 时懒加载数据
-   ────────────────────────────────────────────────────────────
-   依赖：Theme, Lightbox, Dashboard, Navigation, Blog, Gallery
-   ============================================================ */
+/**
+ * @module app
+ * @description 主控制器：启动流程、Tab 路由、事件绑定
+ * @requires module:theme
+ * @requires module:lightbox
+ * @requires module:dashboard
+ * @requires module:navigation
+ * @requires module:blog
+ * @requires module:gallery
+ */
 
 'use strict';
 
@@ -23,7 +23,7 @@ let _currentTab = 'dashboard';
 
 let $tabBar, $sections, $bottomNav;
 
-function loadTabData(tabId) {
+function _loadTabData(tabId) {
     if (tabId === 'blog' && !Blog.hasArticles()) {
         Blog.fetchArticles();
     } else if (tabId === 'gallery' && !Gallery.hasImages()) {
@@ -32,9 +32,9 @@ function loadTabData(tabId) {
 }
 
 /* ---- 标签页切换 ---- */
-function switchTab(tabId) {
+function _switchTab(tabId) {
     if (tabId === _currentTab) {
-        loadTabData(tabId);
+        _loadTabData(tabId);
         return;
     }
 
@@ -61,20 +61,20 @@ function switchTab(tabId) {
     }
 
     _currentTab = tabId;
-    loadTabData(tabId);
+    _loadTabData(tabId);
     window.location.hash = tabId;
 }
 
 /* ---- 标签栏点击 ---- */
-function onTabClick(e) {
+function _onTabClick(e) {
     let btn = e.target.closest('.tab-btn');
     if (!btn) return;
     let tabId = btn.getAttribute('data-tab');
-    if (tabId) switchTab(tabId);
+    if (tabId) _switchTab(tabId);
 }
 
 /* ---- 标签栏键盘导航 ---- */
-function onTabKeydown(e) {
+function _onTabKeydown(e) {
     let btn = e.target.closest('.tab-btn');
     if (!btn) return;
     let bar = btn.closest('.tab-bar, .bottom-nav');
@@ -100,12 +100,12 @@ function onTabKeydown(e) {
 }
 
 /* ---- 主题切换 ---- */
-function onThemeToggle() {
+function _onThemeToggle() {
     Theme.toggleTheme();
 }
 
 /* ---- 初始化 ---- */
-function init() {
+function _init() {
     $tabBar  = document.getElementById('tabBar');
     $sections = document.querySelectorAll('.content-section');
     $bottomNav = document.getElementById('bottomNav');
@@ -126,22 +126,22 @@ function init() {
     Gallery.init();
 
     if ($tabBar) {
-        $tabBar.addEventListener('click', onTabClick);
-        $tabBar.addEventListener('keydown', onTabKeydown);
+        $tabBar.addEventListener('click', _onTabClick);
+        $tabBar.addEventListener('keydown', _onTabKeydown);
     }
     if ($bottomNav) {
-        $bottomNav.addEventListener('click', onTabClick);
-        $bottomNav.addEventListener('keydown', onTabKeydown);
+        $bottomNav.addEventListener('click', _onTabClick);
+        $bottomNav.addEventListener('keydown', _onTabKeydown);
     }
 
     let themeBtn = document.getElementById('themeToggleBtn');
-    if (themeBtn) themeBtn.addEventListener('click', onThemeToggle);
+    if (themeBtn) themeBtn.addEventListener('click', _onThemeToggle);
 
     // 激活初始 tab 的 UI 状态（dashboard 由 HTML 默认处理）
     if (initialTab !== 'dashboard') {
-        switchTab(initialTab);
+        _switchTab(initialTab);
     } else {
-        loadTabData(initialTab);
+        _loadTabData(initialTab);
     }
 
     if ('serviceWorker' in navigator) {
@@ -152,12 +152,12 @@ function init() {
 
     window.addEventListener('hashchange', function() {
         let nextHash = window.location.hash.replace('#', '');
-        if (nextHash && TABS.indexOf(nextHash) !== -1) switchTab(nextHash);
+        if (nextHash && TABS.indexOf(nextHash) !== -1) _switchTab(nextHash);
     });
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', _init);
 } else {
-    init();
+    _init();
 }

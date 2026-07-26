@@ -1,6 +1,9 @@
-/* ============================================================
-   14. 响应式断点
-   ============================================================ */
+/**
+ * responsive.css
+ * 响应式断点：Pad (≤1023px)、手机 (≤639px)、小屏 (≤400px)、大屏 (≥1200px)。
+ * 兼容性回退：backdrop-filter 不支持时的纯色降级。
+ * 依赖变量：variables.css
+ */
 
 /* ---- Pad (640px - 1024px) ---- */
 @media (max-width: 1023px) {
@@ -94,9 +97,10 @@
     .nav-items { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* ============================================================
-   15. 浏览器兼容：backdrop-filter 回退
-   ============================================================ */
+/**
+ * 浏览器兼容：backdrop-filter 回退
+ * @supports not 检测不支持 backdrop-filter 的浏览器，使用纯色背景降级
+ */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     body:not(.dark) .header,
     body:not(.dark) .tab-bar,

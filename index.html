@@ -51,9 +51,7 @@
             </button>
         </nav>
 
-        <!-- ============================================================
-             仪表盘：8 张卡片
-             ============================================================ -->
+        <!-- ============ Dashboard 区块：8 张状态卡片，由 dashboard.js 渲染 ============ -->
         <section class="content-section active" id="sec-dashboard">
             <div class="dashboard-status-bar">
                 <span class="status-dot" id="statusDot"></span>
@@ -150,8 +148,9 @@
 
             </div>
         </section>
+        <!-- ============ /Dashboard 区块 ============ -->
 
-        <!-- 服务导航 -->
+        <!-- ============ 导航区块：服务卡片搜索与展示，由 navigation.js 渲染 ============ -->
         <section class="content-section" id="sec-nav">
             <div class="section-search">
                 <input type="text" class="search-input" id="navSearch" placeholder="搜索服务…" autocomplete="off">
@@ -160,11 +159,9 @@
                 <div class="nav-empty">加载中...</div>
             </div>
         </section>
+        <!-- ============ /导航区块 ============ -->
 
-        <!-- ============================================================
-             博客 — Hugo Book 风格三栏布局
-             桌面: 侧边栏 | 内容 | ToC   移动: 侧边栏/ToC 滑入
-             ============================================================ -->
+        <!-- ============ 博客区块：三栏布局，由 blog.js + md-viewer.js 渲染 ============ -->
         <section class="content-section" id="sec-blog">
 
             <!-- 隐藏 checkbox 驱动移动端侧边栏/ToC -->
@@ -214,8 +211,9 @@
             <!-- 移动端侧边栏遮罩 -->
             <label class="blog-sidebar-overlay" for="blog-menu-ctrl" id="blogSidebarOverlay"></label>
         </section>
+        <!-- ============ /博客区块 ============ -->
 
-        <!-- 图片画廊 -->
+        <!-- ============ 图库区块：图片网格 + 灯箱，由 gallery.js + lightbox.js 渲染 ============ -->
         <section class="content-section" id="sec-gallery">
             <div class="section-search">
                 <input type="text" class="search-input" id="gallerySearch" placeholder="搜索图片…" autocomplete="off">
@@ -224,6 +222,7 @@
                 <div class="gallery-loading">加载中...</div>
             </div>
         </section>
+        <!-- ============ /图库区块 ============ -->
     </div>
 
     <!-- 底部导航栏（移动端） -->

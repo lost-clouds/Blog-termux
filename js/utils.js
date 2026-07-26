@@ -1,18 +1,21 @@
-/* ============================================================
-   utils.js —— 通用工具函数模块
-   ────────────────────────────────────────────────────────────
-   生命周期：
-     [加载] ES Module 被多个业务模块静态导入
-   [运行] 提供 HTML 转义、URL 校验、文件大小格式化、autoindex 解析
-   ────────────────────────────────────────────────────────────
-   依赖：无
-   使用：import { Utils } from './utils.js'
-   ============================================================ */
+/**
+ * @module utils
+ * @description 通用工具函数（HTML 转义、URL 校验、文件大小格式化、autoindex 解析）
+ * @requires none
+ *
+ * 使用：import { Utils } from './utils.js'
+ */
+
 
 'use strict';
 
     /* ---- HTML 特殊字符转义（防 XSS）---- */
-    function escapeHtml(str) {
+    /**
+     * HTML 特殊字符转义（防 XSS）。
+     * @param {string} str - 原始字符串
+     * @returns {string} 转义后的安全字符串
+     */
+    function _escapeHtml(str) {
         return String(str)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -21,7 +24,12 @@
     }
 
     /* ---- 配置 URL 白名单：允许 http/https/mailto 与站内相对路径 ---- */
-    function getSafeUrl(url) {
+    /**
+     * 校验 URL 是否在白名单内（http/https/mailto/站内相对路径）。
+     * @param {string} url - 原始 URL
+     * @returns {string} 安全的 URL，无效时返回空字符串
+     */
+    function _getSafeUrl(url) {
         let raw = String(url || '').trim();
         if (!raw || /[\u0000-\u001f\u007f]/.test(raw)) return '';
 
@@ -39,7 +47,12 @@
     }
 
     /* ---- 格式化文件大小为可读字符串 ---- */
-    function formatSize(bytes) {
+    /**
+     * 将字节数格式化为可读字符串（B/KB/MB/GB/TB）。
+     * @param {number|string} bytes - 文件大小（字节）
+     * @returns {string} 格式化后的字符串，如 "1.5 MB"
+     */
+    function _formatSize(bytes) {
         if (bytes === null || bytes === undefined || bytes === '' || bytes === '?') return '?';
         const units = ['B', 'KB', 'MB', 'GB', 'TB'];
         let i = 0, val = parseFloat(bytes);
@@ -49,7 +62,12 @@
     }
 
     /* ---- 解析 nginx autoindex HTML 目录列表 ---- */
-    async function parseAutoindex(resp, extPattern) {
+    /**
+     * 解析 nginx autoindex HTML 目录列表。
+     * @param {Response} resp - fetch 响应对象
+     * @param {RegExp} extPattern - 文件扩展名匹配模式
+     * @returns {Promise<Array<{name:string, size:string, modified:string}>>}
+     */ async function _parseAutoindex(resp, extPattern) {
         let text = await resp.text();
         let parser = new DOMParser();
         let doc = parser.parseFromString(text, 'text/html');
@@ -82,13 +100,20 @@
     }
 
     /* ---- index.json 优先，autoindex 降级的通用加载器 ---- */
-    async function fetchIndexOrAutoindex(indexUrl, autoindexUrl, extPattern, itemMapper) {
+    /**
+     * 通用加载器：优先 fetch index.json，404 时降级为 autoindex 解析。
+     * @param {string} indexUrl - /index.json 路径
+     * @param {string} autoindexUrl - 目录列表路径
+     * @param {RegExp} extPattern - 文件扩展名匹配模式
+     * @param {Function} [itemMapper] - 可选的数据项转换函数
+     * @returns {Promise<Array>}
+     */ async function fetchIndexOrAutoindex(indexUrl, autoindexUrl, extPattern, itemMapper) {
         try {
             let resp = await fetch(indexUrl);
             if (resp.ok) {
                 let json = await resp.json();
                 return json.map(function(item) {
-                    if (typeof item.size === 'number') item.size = formatSize(item.size);
+                    if (typeof item.size === 'number') item.size = _formatSize(item.size);
                     if (itemMapper) itemMapper(item);
                     return item;
                 });
@@ -97,14 +122,14 @@
 
         let resp = await fetch(autoindexUrl);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        return parseAutoindex(resp, extPattern);
+        return _parseAutoindex(resp, extPattern);
     }
 
     const Utils = {
-        escapeHtml: escapeHtml,
-        getSafeUrl: getSafeUrl,
-        formatSize: formatSize,
-        parseAutoindex: parseAutoindex,
+        escapeHtml: _escapeHtml,
+        getSafeUrl: _getSafeUrl,
+        formatSize: _formatSize,
+        parseAutoindex: _parseAutoindex,
         fetchIndexOrAutoindex: fetchIndexOrAutoindex
     };
 

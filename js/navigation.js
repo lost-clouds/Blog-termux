@@ -1,19 +1,15 @@
 import { Utils } from './utils.js';
 import { API } from './constants.js';
 
-/* ============================================================
-   navigation.js —— 服务导航模块（替代 Homer iframe）
-   ────────────────────────────────────────────────────────────
-   生命周期：
-     [加载] 作为 ES Module 被 app.js 静态导入
-     [初始化] 外部调用 Navigation.init() → 加载 config.json 并渲染
-     [运行] Navigation.search(query) → 过滤服务卡片
-     [渲染] 按分组渲染服务卡片，支持点击跳转到外部服务 URL
-   ────────────────────────────────────────────────────────────
-   数据源：GET /config.json → 服务分组配置
-   依赖：Utils.escapeHtml
-   使用：import { Navigation } from './navigation.js'
-   ============================================================ */
+/**
+ * @module navigation
+ * @description 服务导航模块：加载 config.json 并渲染服务卡片分组，支持搜索过滤
+ * @requires module:utils
+ * @requires module:constants
+ *
+ * 使用：import { Navigation } from './navigation.js'
+ */
+
 
 'use strict';
 
@@ -25,7 +21,11 @@ import { API } from './constants.js';
     let $navGrid, $navSearch;
 
     /* ---- 加载配置文件（带指数退避重试）---- */
-    async function loadConfig(retries) {
+    /**
+     * 加载服务配置（带指数退避重试，最多 3 次）。
+     * @param {number} [retries=3] - 重试次数
+     * @returns {Promise<void>}
+     */ async function _loadConfig(retries) {
         retries = retries || 3;
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
@@ -45,7 +45,11 @@ import { API } from './constants.js';
     }
 
     /* ---- 渲染服务分组 ---- */
-    function render() {
+    /**
+     * 渲染服务卡片分组，支持搜索过滤。
+     * @returns {void}
+     */
+    function _render() {
         if (!$navGrid) return;
 
         if (!_config || !_config.services || _config.services.length === 0) {
@@ -108,25 +112,32 @@ import { API } from './constants.js';
     }
 
     /* ---- 搜索过滤（debounce 250ms）---- */
-    function search() {
+    /**
+     * 搜索过滤服务卡片（250ms 防抖）。
+     * @returns {void}
+     */
+    function _search() {
         clearTimeout(_debounceTimer);
-        _debounceTimer = setTimeout(render, 250);
+        _debounceTimer = setTimeout(_render, 250);
     }
 
     /* ---- 初始化 ---- */
-    async function init() {
+    /**
+     * 初始化导航模块：加载配置、渲染、绑定搜索事件。
+     * @returns {Promise<void>}
+     */ async function _init() {
         $navGrid  = document.getElementById('navGrid');
         $navSearch = document.getElementById('navSearch');
 
-        await loadConfig();
-        render();
+        await _loadConfig();
+        _render();
 
         // 搜索框事件绑定
         if ($navSearch) {
-            $navSearch.addEventListener('input', search);
+            $navSearch.addEventListener('input', _search);
         }
     }
 
-    const Navigation = { init: init, render: render, search: search };
+    const Navigation = { init: _init };
 
 export { Navigation };

@@ -1,8 +1,11 @@
-/* ============================================================
-   sanitizer.js —— 白名单 HTML 清理器（零依赖 XSS 防护）
-   ────────────────────────────────────────────────────────────
-   用法：import { sanitizeHtml } from './sanitizer.js'
-   ============================================================ */
+/**
+ * @module sanitizer
+ * @description 白名单 HTML 清理器（零依赖 XSS 防护）
+ * @requires none
+ *
+ * 使用：import { sanitizeHtml } from './sanitizer.js'
+ */
+
 
 'use strict';
 
@@ -30,7 +33,7 @@
     let SAFE_HREF = /^(https?:|mailto:|#|\/|\.\/|\.\.\/)/i;
     let UNSAFE_SRC = /^(javascript:|data:|vbscript:)/i;
 
-    function sanitizeHtml(html) {
+    function _sanitizeHtml(html) {
         let div = document.createElement('div');
         div.innerHTML = html;
         walk(div);
@@ -98,4 +101,5 @@
         }
     }
 
-export { sanitizeHtml };
+// _sanitizeHtml is the only export; callers use import { sanitizeHtml }
+export { _sanitizeHtml as sanitizeHtml };
