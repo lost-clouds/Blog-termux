@@ -34,8 +34,15 @@ import { API } from './constants.js';
     const HTML_EXTS = /\.(html?|htm)$/i;
 
     /* ---- 优先 fetch index.json，404 时降级为解析 autoindex（委托 Utils.fetchIndexOrAutoindex）---- */
+    /**
+     * 优先 fetch index.json，404 时降级为解析 autoindex（委托 Utils.fetchIndexOrAutoindex）。
+     * @param {string} indexUrl
+     * @param {string} autoindexUrl
+     * @param {string} type
+     * @returns {Promise<Array>}
+     */
     async function _fetchIndexOrAutoindex(indexUrl, autoindexUrl, type) {
-        let ext = type === 'markdown' ? MD_EXTS : HTML_EXTS;
+        const ext = type === 'markdown' ? MD_EXTS : HTML_EXTS;
         return Utils.fetchIndexOrAutoindex(indexUrl, autoindexUrl, ext, function(item) {
             item.type = type;
         });
@@ -54,13 +61,13 @@ import { API } from './constants.js';
         $blogNav.innerHTML = '<div class="blog-nav-loading">加载中...</div>';
 
         try {
-            let results = await Promise.allSettled([
+            const results = await Promise.allSettled([
                 _fetchIndexOrAutoindex(API.MARKDOWN_INDEX, API.MARKDOWN_LIST, 'markdown'),
                 _fetchIndexOrAutoindex(API.HTML_INDEX, API.HTML_LIST, 'html')
             ]);
 
-            let markdownArticles = results[0].status === 'fulfilled' ? results[0].value : [];
-            let htmlArticles     = results[1].status === 'fulfilled' ? results[1].value : [];
+            const markdownArticles = results[0].status === 'fulfilled' ? results[0].value : [];
+            const htmlArticles     = results[1].status === 'fulfilled' ? results[1].value : [];
 
             _articles = markdownArticles.concat(htmlArticles).sort(function(a, b) {
                 return a.name.localeCompare(b.name);
@@ -69,7 +76,7 @@ import { API } from './constants.js';
 
             _renderSidebar();
 
-            let firstMd = _articles.find(function(a) { return a.type === 'markdown'; });
+            const firstMd = _articles.find(function(a) { return a.type === 'markdown'; });
             if (firstMd) _selectArticle(firstMd.name, firstMd.type);
 
         } catch (err) {
@@ -83,20 +90,23 @@ import { API } from './constants.js';
     /* ============================================================
        渲染左侧文章列表
        ============================================================ */
+    /**
+     *
+     */
     function _renderSidebar() {
         if (!$blogSidebar) return;
 
-        let query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
-        let queryActive = !!query;
+        const query = $blogSearch ? $blogSearch.value.trim().toLowerCase() : '';
+        const queryActive = !!query;
 
-        let filtered = _articles.filter(function(a) {
+        const filtered = _articles.filter(function(a) {
             if (_filterType !== 'all' && a.type !== _filterType) return false;
             if (query && !a.name.toLowerCase().includes(query)) return false;
             return true;
         });
 
-        let mdArticles = filtered.filter(function(a) { return a.type === 'markdown'; });
-        let htmlArticles = filtered.filter(function(a) { return a.type === 'html'; });
+        const mdArticles = filtered.filter(function(a) { return a.type === 'markdown'; });
+        const htmlArticles = filtered.filter(function(a) { return a.type === 'html'; });
 
         let html = '';
 
@@ -114,23 +124,28 @@ import { API } from './constants.js';
     }
 
     /* ---- 按顶层目录分组：散落文件 + 书(目录→子项) ---- */
+    /**
+     * 按顶层目录分组。
+     * @param {Array} list
+     * @returns {Object}
+     */
     function _groupArticles(list) {
-        let loose = [];
-        let books = {};
-        let bookOrder = [];
+        const loose = [];
+        const books = {};
+        const bookOrder = [];
 
         list.forEach(function(a) {
-            let slash = a.name.indexOf('/');
+            const slash = a.name.indexOf('/');
             if (slash === -1) {
                 loose.push(a);
             } else {
-                let dir = a.name.slice(0, slash);
+                const dir = a.name.slice(0, slash);
                 if (!books[dir]) { books[dir] = []; bookOrder.push(dir); }
                 books[dir].push(a);
             }
         });
 
-        let numeric = { numeric: true, sensitivity: 'base' };
+        const numeric = { numeric: true, sensitivity: 'base' };
         loose.sort(function(a, b) { return a.name.localeCompare(b.name, undefined, numeric); });
         bookOrder.sort(function(a, b) { return a.localeCompare(b, undefined, numeric); });
         bookOrder.forEach(function(dir) {
@@ -147,8 +162,15 @@ import { API } from './constants.js';
     }
 
     /* ---- 渲染一组：散落文件平铺 + 目录作可折叠书 ---- */
+    /**
+     * 渲染一组文章列表。
+     * @param {Array} list
+     * @param {string} type
+     * @param {boolean} queryActive
+     * @returns {string}
+     */
     function _renderArticleGroup(list, type, queryActive) {
-        let g = _groupArticles(list);
+        const g = _groupArticles(list);
         if (g.loose.length === 0 && g.books.length === 0) {
             return '<div class="blog-nav-empty">无匹配</div>';
         }
@@ -158,7 +180,7 @@ import { API } from './constants.js';
         if (g.loose.length > 0) {
             parts += '<ul class="blog-nav-list">';
             g.loose.forEach(function(a) {
-                let active = _currentFile === a.name ? ' active' : '';
+                const active = _currentFile === a.name ? ' active' : '';
                 parts += '<li><a href="#" class="blog-nav-link' + active + '" data-file="' +
                     Utils.escapeHtml(a.name) + '" data-type="' + type + '">' +
                     Utils.escapeHtml(a.name) + '</a></li>';
@@ -167,15 +189,15 @@ import { API } from './constants.js';
         }
 
         g.books.forEach(function(book) {
-            let open = queryActive || book.items.some(function(a) { return _currentFile === a.name; });
+            const open = queryActive || book.items.some(function(a) { return _currentFile === a.name; });
             parts += '<details class="blog-nav-book"' + (open ? ' open' : '') + '>';
             parts += '<summary class="blog-nav-book-title"><span class="blog-nav-book-icon">▸</span>' +
                 Utils.escapeHtml(book.name) +
                 ' <span class="blog-nav-count">' + book.items.length + '</span></summary>';
             parts += '<ul class="blog-nav-list">';
             book.items.forEach(function(a) {
-                let active = _currentFile === a.name ? ' active' : '';
-                let label = a.name.slice(a.name.lastIndexOf('/') + 1);
+                const active = _currentFile === a.name ? ' active' : '';
+                const label = a.name.slice(a.name.lastIndexOf('/') + 1);
                 parts += '<li><a href="#" class="blog-nav-link' + active + '" data-file="' +
                     Utils.escapeHtml(a.name) + '" data-type="' + type + '">' +
                     Utils.escapeHtml(label) + '</a></li>';
@@ -215,10 +237,10 @@ import { API } from './constants.js';
 
         // 取消前一个未完成的请求
         if (_abortController) _abortController.abort();
-        let requestId = ++_requestId;
-        let controller = new AbortController();
+        const requestId = ++_requestId;
+        const controller = new AbortController();
         _abortController = controller;
-        let signal = controller.signal;
+        const signal = controller.signal;
 
         if (!$blogContent || !$blogToc) return;
 
@@ -230,14 +252,14 @@ import { API } from './constants.js';
         $blogToc.innerHTML = '';
 
         try {
-            let resp = await fetch(API.MARKDOWN_FILE + filename.split('/').map(encodeURIComponent).join('/'), { signal: signal });
+            const resp = await fetch(API.MARKDOWN_FILE + filename.split('/').map(encodeURIComponent).join('/'), { signal: signal });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-            let raw = await resp.text();
+            const raw = await resp.text();
             if (requestId !== _requestId) return;
 
             // 调用共享渲染引擎
-            let $article = document.createElement('div');
+            const $article = document.createElement('div');
             $article.className = 'markdown-body';
             $blogContent.innerHTML = '';
             $blogContent.appendChild($article);
@@ -273,20 +295,28 @@ import { API } from './constants.js';
     }
 
     /* ---- 侧边栏文章点击 ---- */
+    /**
+     *
+     * @param e
+     */
     function _onSidebarClick(e) {
-        let a = e.target.closest('.blog-nav-link');
+        const a = e.target.closest('.blog-nav-link');
         if (!a) return;
         e.preventDefault();
-        let file = a.getAttribute('data-file');
-        let type = a.getAttribute('data-type');
+        const file = a.getAttribute('data-file');
+        const type = a.getAttribute('data-type');
         if (file) _selectArticle(file, type);
         // 移动端关闭侧边栏
         if ($blogMenuCtrl) $blogMenuCtrl.checked = false;
     }
 
     /* ---- 类型过滤 ---- */
+    /**
+     *
+     * @param e
+     */
     function _onFilterClick(e) {
-        let btn = e.target.closest('.blog-filter-btn');
+        const btn = e.target.closest('.blog-filter-btn');
         if (!btn) return;
         _filterType = btn.getAttribute('data-type') || 'all';
 
@@ -298,6 +328,9 @@ import { API } from './constants.js';
     }
 
     /* ---- 绑定事件 ---- */
+    /**
+     *
+     */
     function _bindEvents() {
         if (_eventsBound) return;
         _eventsBound = true;

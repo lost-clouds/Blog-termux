@@ -22,19 +22,24 @@ let _mermaidPromise = null;
 
    返回 boolean：true 表示检测到了图表代码块
    ------------------------------------------------------------ */
+/**
+ * 准备容器内的 Mermaid 代码块（标记并保护）。
+ * @param {HTMLElement} container
+ * @returns {boolean}
+ */
 function prepareMermaidBlocks(container) {
     if (!container) return false;
 
     // 同时匹配 code[class~="language-mermaid"] 和 code.language-mermaid
-    let blocks = container.querySelectorAll('pre code[class*="language-mermaid"]');
+    const blocks = container.querySelectorAll('pre code[class*="language-mermaid"]');
     if (!blocks.length) return false;
 
     blocks.forEach(function(code) {
-        let source = code.textContent;
-        let pre = code.closest('pre');
+        const source = code.textContent;
+        const pre = code.closest('pre');
         if (!pre) return;
 
-        let div = document.createElement('div');
+        const div = document.createElement('div');
         div.className = 'mermaid';
         div.textContent = source;
         pre.replaceWith(div);
@@ -47,12 +52,16 @@ function prepareMermaidBlocks(container) {
    懒加载 mermaid 库（防重复加载，模式与 ensureKatex 一致）
    加载成功时调用 mermaid.initialize() 进行一次性全局配置
    ------------------------------------------------------------ */
+/**
+ * 确保 Mermaid 库已加载，返回 Promise。
+ * @returns {Promise<void>}
+ */
 function ensureMermaid() {
     if (_mermaidReady) return Promise.resolve();
     if (_mermaidPromise) return _mermaidPromise;
 
     _mermaidPromise = new Promise(function(resolve, reject) {
-        let script = document.createElement('script');
+        const script = document.createElement('script');
         script.src = LIBS.MERMAID_JS;
         script.onload = function() {
             // mermaid 挂载到 window.mermaid（全局对象）
@@ -90,10 +99,14 @@ function ensureMermaid() {
    注意：mermaid.run() 是 mermaid@11 的推荐 API，
    自动处理元素查找和替换，生成的 SVG 使用 securityLevel 配置
    ------------------------------------------------------------ */
+/**
+ * 渲染 Mermaid 图表。
+ * @param {HTMLElement} container
+ */
 async function renderMermaid(container) {
     if (typeof mermaid === 'undefined' || !container) return;
 
-    let nodes = container.querySelectorAll('.mermaid');
+    const nodes = container.querySelectorAll('.mermaid');
     if (!nodes.length) return;
 
     try {
@@ -106,7 +119,7 @@ async function renderMermaid(container) {
         container.querySelectorAll('.mermaid').forEach(function(el) {
             if (!el.querySelector('svg')) {
                 el.classList.add('mermaid-error');
-                let source = el.textContent || '';
+                const source = el.textContent || '';
                 el.innerHTML =
                     '<pre><code>' + escapeMermaidSource(source) + '</code></pre>' +
                     '<div class="mermaid-error-msg">图表渲染失败: ' +
@@ -120,6 +133,11 @@ async function renderMermaid(container) {
    对 mermaid 源码做基本的 HTML 转义，防止注入
    用于渲染失败时将源码安全显示在 <pre><code> 中
    ------------------------------------------------------------ */
+/**
+ * 转义 Mermaid 源码（HTML 实体编码）。
+ * @param {string} text
+ * @returns {string}
+ */
 function escapeMermaidSource(text) {
     return String(text)
         .replace(/&/g, '&amp;')

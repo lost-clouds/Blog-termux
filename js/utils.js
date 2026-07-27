@@ -30,12 +30,12 @@
      * @returns {string} 安全的 URL，无效时返回空字符串
      */
     function _getSafeUrl(url) {
-        let raw = String(url || '').trim();
+        const raw = String(url || '').trim();
         if (!raw || /[\u0000-\u001f\u007f]/.test(raw)) return '';
 
         if (/^(https?:|mailto:)/i.test(raw)) {
             try {
-                let parsed = new URL(raw, window.location.origin);
+                const parsed = new URL(raw, window.location.origin);
                 return /^(https?:|mailto:)$/i.test(parsed.protocol) ? raw : '';
             } catch(e) {
                 return '';
@@ -68,15 +68,15 @@
      * @param {RegExp} extPattern - 文件扩展名匹配模式
      * @returns {Promise<Array<{name:string, size:string, modified:string}>>}
      */ async function _parseAutoindex(resp, extPattern) {
-        let text = await resp.text();
-        let parser = new DOMParser();
-        let doc = parser.parseFromString(text, 'text/html');
-        let links = doc.querySelectorAll('a');
-        let results = [];
+        const text = await resp.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const links = doc.querySelectorAll('a');
+        const results = [];
 
         for (let i = 0; i < links.length; i++) {
-            let link = links[i];
-            let href = link.getAttribute('href');
+            const link = links[i];
+            const href = link.getAttribute('href');
             if (!href || href === '../' || href === '/') continue;
 
             let name;
@@ -84,12 +84,12 @@
             if (!extPattern.test(name)) continue;
 
             let size = '?', modified = '?';
-            let parent = link.parentElement;
+            const parent = link.parentElement;
             if (parent) {
-                let txt = parent.textContent || '';
-                let dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
+                const txt = parent.textContent || '';
+                const dm = txt.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
                 if (dm) modified = dm[1];
-                let sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
+                const sm = txt.match(/(\d+(?:\.\d+)?)\s*(K|M|G|bytes?)/i);
                 if (sm) size = sm[1] + ' ' + sm[2];
             }
 
@@ -109,9 +109,9 @@
      * @returns {Promise<Array>}
      */ async function fetchIndexOrAutoindex(indexUrl, autoindexUrl, extPattern, itemMapper) {
         try {
-            let resp = await fetch(indexUrl);
+            const resp = await fetch(indexUrl);
             if (resp.ok) {
-                let json = await resp.json();
+                const json = await resp.json();
                 return json.map(function(item) {
                     if (typeof item.size === 'number') item.size = _formatSize(item.size);
                     if (itemMapper) itemMapper(item);
@@ -120,7 +120,7 @@
             }
         } catch(e) { /* index.json 不存在，降级 */ }
 
-        let resp = await fetch(autoindexUrl);
+        const resp = await fetch(autoindexUrl);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         return _parseAutoindex(resp, extPattern);
     }

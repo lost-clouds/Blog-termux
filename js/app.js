@@ -23,6 +23,10 @@ let _currentTab = 'dashboard';
 
 let $tabBar, $sections, $bottomNav;
 
+/**
+ *
+ * @param tabId
+ */
 function _loadTabData(tabId) {
     if (tabId === 'blog' && !Blog.hasArticles()) {
         Blog.fetchArticles();
@@ -32,6 +36,10 @@ function _loadTabData(tabId) {
 }
 
 /* ---- 标签页切换 ---- */
+/**
+ *
+ * @param tabId
+ */
 function _switchTab(tabId) {
     if (tabId === _currentTab) {
         _loadTabData(tabId);
@@ -66,29 +74,37 @@ function _switchTab(tabId) {
 }
 
 /* ---- 标签栏点击 ---- */
+/**
+ *
+ * @param e
+ */
 function _onTabClick(e) {
-    let btn = e.target.closest('.tab-btn');
+    const btn = e.target.closest('.tab-btn');
     if (!btn) return;
-    let tabId = btn.getAttribute('data-tab');
+    const tabId = btn.getAttribute('data-tab');
     if (tabId) _switchTab(tabId);
 }
 
 /* ---- 标签栏键盘导航 ---- */
+/**
+ *
+ * @param e
+ */
 function _onTabKeydown(e) {
-    let btn = e.target.closest('.tab-btn');
+    const btn = e.target.closest('.tab-btn');
     if (!btn) return;
-    let bar = btn.closest('.tab-bar, .bottom-nav');
-    let btns = bar ? Array.from(bar.querySelectorAll('.tab-btn')) : [];
+    const bar = btn.closest('.tab-bar, .bottom-nav');
+    const btns = bar ? Array.from(bar.querySelectorAll('.tab-btn')) : [];
     if (!btns.length) return;
 
-    let idx = btns.indexOf(btn);
+    const idx = btns.indexOf(btn);
     if (e.key === 'ArrowRight') {
         e.preventDefault();
-        let next = btns[(idx + 1) % btns.length];
+        const next = btns[(idx + 1) % btns.length];
         next.focus(); next.click();
     } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        let prev = btns[(idx - 1 + btns.length) % btns.length];
+        const prev = btns[(idx - 1 + btns.length) % btns.length];
         prev.focus(); prev.click();
     } else if (e.key === 'Home') {
         e.preventDefault();
@@ -100,11 +116,17 @@ function _onTabKeydown(e) {
 }
 
 /* ---- 主题切换 ---- */
+/**
+ *
+ */
 function _onThemeToggle() {
     Theme.toggleTheme();
 }
 
 /* ---- 初始化 ---- */
+/**
+ *
+ */
 function _init() {
     $tabBar  = document.getElementById('tabBar');
     $sections = document.querySelectorAll('.content-section');
@@ -114,8 +136,8 @@ function _init() {
     Lightbox.init();
 
     // 先解析 hash 确定初始 tab（默认 dashboard）
-    let hash = window.location.hash.replace('#', '');
-    let initialTab = (hash && TABS.indexOf(hash) !== -1) ? hash : 'dashboard';
+    const hash = window.location.hash.replace('#', '');
+    const initialTab = (hash && TABS.indexOf(hash) !== -1) ? hash : 'dashboard';
 
     // 注册 Dashboard 可见性监听器；仅当初始 tab 是 dashboard 时启动轮询
     Dashboard.init();
@@ -134,7 +156,7 @@ function _init() {
         $bottomNav.addEventListener('keydown', _onTabKeydown);
     }
 
-    let themeBtn = document.getElementById('themeToggleBtn');
+    const themeBtn = document.getElementById('themeToggleBtn');
     if (themeBtn) themeBtn.addEventListener('click', _onThemeToggle);
 
     // 激活初始 tab 的 UI 状态（dashboard 由 HTML 默认处理）
@@ -151,7 +173,7 @@ function _init() {
     }
 
     window.addEventListener('hashchange', function() {
-        let nextHash = window.location.hash.replace('#', '');
+        const nextHash = window.location.hash.replace('#', '');
         if (nextHash && TABS.indexOf(nextHash) !== -1) _switchTab(nextHash);
     });
 }

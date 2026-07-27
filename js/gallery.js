@@ -58,6 +58,10 @@ import { API } from './constants.js';
     }
 
     /* ---- 优先 fetch index.json，404 时降级为解析 autoindex ---- */
+    /**
+     * 优先 fetch index.json，404 时降级为解析 autoindex。
+     * @returns {Promise<Array>}
+     */
     async function _fetchIndexOrAutoindex() {
         return Utils.fetchIndexOrAutoindex(API.IMAGE_INDEX, API.IMAGES_LIST, IMG_EXTS);
     }
@@ -103,6 +107,10 @@ import { API } from './constants.js';
     }
 
     /* ---- 图片卡片点击 → 灯箱 ---- */
+    /**
+     * 处理图片卡片点击事件（打开灯箱）。
+     * @param e
+     */
     function _onCardClick(e) {
         const card = e.target.closest('.gallery-card');
         if (!card) return;
@@ -114,6 +122,9 @@ import { API } from './constants.js';
     }
 
     /* ---- 绑定事件 ---- */
+    /**
+     *
+     */
     function _bindEvents() {
         if ($gallerySearch) {
             $gallerySearch.addEventListener('input', function() {

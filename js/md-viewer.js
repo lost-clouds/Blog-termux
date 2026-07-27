@@ -25,9 +25,19 @@ let _katexPromise = null;
 const _tocBound = new WeakSet();
 const _imageBound = new WeakSet();
 
+/**
+ * 提取 markdown 中的 $$ 数学块（暂时替换，防止被其他渲染破坏）。
+ * @param {string} text
+ * @returns {{blocks: Array, text: string}}
+ */
 function _extractMathBlocks(text) {
     const blocks = [];
 
+    /**
+     * 处理实际内容（递归处理嵌套代码块）。
+     * @param {string} content
+     * @returns {string}
+     */
     function processContent(content) {
         return content
             .replace(/\\begin\{split\}/g, '\\begin{aligned}')
@@ -37,21 +47,21 @@ function _extractMathBlocks(text) {
 
     // Phase 1: $$...$$
     let result = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match, content) {
-        let idx = blocks.length;
+        const idx = blocks.length;
         blocks.push('$$' + processContent(content) + '$$');
         return '<span class="math-' + idx + '"></span>';
     });
 
     // Phase 2: \[...\]
     result = result.replace(/\\\[([\s\S]*?)\\\]/g, function(match, content) {
-        let idx = blocks.length;
+        const idx = blocks.length;
         blocks.push('\\[' + processContent(content) + '\\]');
         return '<span class="math-' + idx + '"></span>';
     });
 
     // Phase 3: \(...\)
     result = result.replace(/\\\(([\s\S]*?)\\\)/g, function(match, content) {
-        let idx = blocks.length;
+        const idx = blocks.length;
         blocks.push('\\(' + processContent(content) + '\\)');
         return '<span class="math-' + idx + '"></span>';
     });
@@ -59,6 +69,11 @@ function _extractMathBlocks(text) {
     return { text: result, blocks: blocks };
 }
 
+/**
+ * 将提取的数学块恢复到 DOM 中的 code/katex 元素。
+ * @param {HTMLElement} container
+ * @param {Array} blocks
+ */
 function _restoreMathBlocks(container, blocks) {
     if (!blocks.length) return;
     container.querySelectorAll('span[class^="math-"]').forEach(function(span) {
@@ -75,6 +90,10 @@ function _restoreMathBlocks(container, blocks) {
     });
 }
 
+/**
+ * 确保 katex 已加载，返回 Promise。
+ * @returns {Promise<void>}
+ */
 function _ensureKatex() {
     if (_katexReady) return Promise.resolve();
     if (_katexPromise) return _katexPromise;
@@ -84,10 +103,10 @@ function _ensureKatex() {
     }
 
     _katexPromise = new Promise(function(resolve, reject) {
-        let katexScript = document.createElement('script');
+        const katexScript = document.createElement('script');
         katexScript.src = LIBS.KATEX_JS;
         katexScript.onload = function() {
-            let autoRenderScript = document.createElement('script');
+            const autoRenderScript = document.createElement('script');
             autoRenderScript.src = LIBS.KATEX_AUTORENDER;
             autoRenderScript.onload = function() {
                 _katexReady = true;
@@ -109,8 +128,13 @@ function _ensureKatex() {
     return _katexPromise;
 }
 
+/**
+ * 生成 slug。
+ * @param {string} text
+ * @returns {string}
+ */
 function _slugify(text) {
-    let slug = String(text || '')
+    const slug = String(text || '')
         .trim()
         .toLowerCase()
         .replace(/[^\w\u4e00-\u9fff]+/g, '-')
@@ -118,6 +142,12 @@ function _slugify(text) {
     return slug || 'section';
 }
 
+/**
+ * 生成不重复的 slug（追加编号）。
+ * @param {string} base
+ * @param {Set<string>} used
+ * @returns {string}
+ */
 function _uniqueSlug(base, used) {
     let slug = base;
     let i = 2;
@@ -129,22 +159,32 @@ function _uniqueSlug(base, used) {
     return slug;
 }
 
+/**
+ * 获取 heading 元素的纯文本。
+ * @param {HTMLElement} heading
+ * @returns {string}
+ */
 function _getHeadingText(heading) {
-    let clone = heading.cloneNode(true);
+    const clone = heading.cloneNode(true);
     clone.querySelectorAll('.anchor').forEach(function(anchor) {
         anchor.remove();
     });
     return (clone.textContent || '').trim();
 }
 
+/**
+ * 从 src 中提取常规图片 URL。
+ * @param {string} src
+ * @returns {string|boolean}
+ */
 function _getImageUrl(src) {
     if (!src || /^(https?:|\/\/|data:|\/api\/)/i.test(src)) return src;
 
-    let cleanPath = src.replace(/^\.\/|^\/?Image\//i, '');
-    let segments = cleanPath.split('/').filter(Boolean);
+    const cleanPath = src.replace(/^\.\/|^\/?Image\//i, '');
+    const segments = cleanPath.split('/').filter(Boolean);
     if (!segments.length || segments.indexOf('..') !== -1) return src;
 
-    let filename = segments[segments.length - 1];
+    const filename = segments[segments.length - 1];
     if (!/\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)(\?.*)?$/i.test(filename)) return src;
 
     return API.IMAGES_LIST + segments.map(function(segment) {
@@ -152,24 +192,32 @@ function _getImageUrl(src) {
     }).join('/');
 }
 
+/**
+ * 修复容器内图片路径（加上前缀等）。
+ * @param {HTMLElement} container
+ */
 function _fixImagePaths(container) {
     if (!container) return;
     container.querySelectorAll('img').forEach(function(img) {
-        let src = img.getAttribute('src') || '';
-        let fixed = _getImageUrl(src);
+        const src = img.getAttribute('src') || '';
+        const fixed = _getImageUrl(src);
         if (fixed && fixed !== src) img.setAttribute('src', fixed);
     });
 }
 
+/**
+ * 给 heading 元素注入锚点链接。
+ * @param {HTMLElement} container
+ */
 function _injectAnchors(container) {
     if (!container) return;
-    let used = {};
+    const used = {};
     container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(function(heading) {
-        let text = _getHeadingText(heading);
+        const text = _getHeadingText(heading);
         heading.id = _uniqueSlug(_slugify(text), used);
 
         if (!heading.querySelector('.anchor')) {
-            let anchor = document.createElement('a');
+            const anchor = document.createElement('a');
             anchor.href = '#' + heading.id;
             anchor.className = 'anchor';
             anchor.setAttribute('aria-label', '链接到 ' + text);
@@ -180,6 +228,10 @@ function _injectAnchors(container) {
     });
 }
 
+/**
+ * 渲染容器内的 katex 公式。
+ * @param {HTMLElement} container
+ */
 function _renderKatex(container) {
     if (typeof renderMathInElement !== 'function') return;
 
@@ -196,15 +248,19 @@ function _renderKatex(container) {
     });
 }
 
+/**
+ * 绑定 Markdown 图片点击事件（灯箱）。
+ * @param {HTMLElement} container
+ */
 function _bindMarkdownImages(container) {
     if (!container || _imageBound.has(container)) return;
     _imageBound.add(container);
 
     container.addEventListener('click', function(e) {
-        let img = e.target.closest('img');
+        const img = e.target.closest('img');
         if (!img || !container.contains(img)) return;
 
-        let src = img.getAttribute('src');
+        const src = img.getAttribute('src');
         if (!src) return;
         Lightbox.open(src, img.getAttribute('alt') || '');
     });
@@ -218,14 +274,14 @@ function _bindMarkdownImages(container) {
     function _buildTocFromDom(container) {
     if (!container) return '<div class="toc-empty">无标题</div>';
 
-    let headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
     if (!headings.length) return '<div class="toc-empty">无标题</div>';
 
     let html = '<ul>';
     headings.forEach(function(heading) {
-        let level = parseInt(heading.tagName[1], 10);
-        let text = _getHeadingText(heading);
-        let title = text.length > 40 ? text.slice(0, 37) + '...' : text;
+        const level = parseInt(heading.tagName[1], 10);
+        const text = _getHeadingText(heading);
+        const title = text.length > 40 ? text.slice(0, 37) + '...' : text;
 
         html += '<li class="toc-level-' + level + '">';
         html += '<a href="#' + heading.id + '" data-toc-id="' + heading.id + '">' +
@@ -235,13 +291,18 @@ function _bindMarkdownImages(container) {
     return html;
 }
 
+/**
+ * 滚动到指定标题（带偏移补偿）。
+ * @param {string} target
+ * @param {HTMLElement} [scrollEl]
+ */
 function _scrollToHeading(target, scrollEl) {
     if (!target) return;
 
     if (scrollEl) {
-        let targetBox = target.getBoundingClientRect();
-        let scrollBox = scrollEl.getBoundingClientRect();
-        let top = targetBox.top - scrollBox.top + scrollEl.scrollTop - 12;
+        const targetBox = target.getBoundingClientRect();
+        const scrollBox = scrollEl.getBoundingClientRect();
+        const top = targetBox.top - scrollBox.top + scrollEl.scrollTop - 12;
         scrollEl.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
         return;
     }
@@ -261,11 +322,11 @@ function _scrollToHeading(target, scrollEl) {
     _tocBound.add(container);
 
     container.addEventListener('click', function(e) {
-        let link = e.target.closest('a[data-toc-id]');
+        const link = e.target.closest('a[data-toc-id]');
         if (!link || !container.contains(link)) return;
 
         e.preventDefault();
-        let id = link.getAttribute('data-toc-id');
+        const id = link.getAttribute('data-toc-id');
         if (id) _scrollToHeading(document.getElementById(id), scrollEl);
         if (closeCtrlEl) closeCtrlEl.checked = false;
     });
@@ -282,15 +343,15 @@ function _scrollToHeading(target, scrollEl) {
         throw new Error('Markdown 解析组件 (marked) 未加载');
     }
 
-    let processed = processFootnotes(rawMarkdown);
+    const processed = processFootnotes(rawMarkdown);
     const { text: protectedText, blocks: mathBlocks } = _extractMathBlocks(processed);
-    let html = marked.parse(protectedText);
+    const html = marked.parse(protectedText);
 
     target.innerHTML = sanitizeHtml(html);
 // 将 marked 生成的 <pre><code class="language-mermaid"> 转换为
     // <div class="mermaid">，供 mermaid.run() 渲染
     // 必须在 sanitize 之后、其他 DOM 操作之前执行
-    let hasMermaid = prepareMermaidBlocks(target);
+    const hasMermaid = prepareMermaidBlocks(target);
 
     _fixImagePaths(target);
     _injectAnchors(target);

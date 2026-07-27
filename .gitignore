@@ -25,3 +25,4 @@ AGENT.md
 *.tmp
 *.bak
 **/index.json
+node_modules/

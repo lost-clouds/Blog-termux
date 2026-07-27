@@ -81,8 +81,8 @@ import { API } from './constants.js';
             html += '<div class="nav-items">';
 
             filtered.forEach(function(item) {
-                let safeUrl = Utils.getSafeUrl(item.url);
-                let tag = safeUrl ? 'a' : 'div';
+                const safeUrl = Utils.getSafeUrl(item.url);
+                const tag = safeUrl ? 'a' : 'div';
                 html += '<' + tag;
                 if (safeUrl) {
                     html += ' href="' + Utils.escapeHtml(safeUrl) + '" target="_blank" rel="noopener"';

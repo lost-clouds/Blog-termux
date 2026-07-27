@@ -9,8 +9,13 @@
 
 'use strict';
 
+    /**
+     * 生成安全脚注锚点 ID。
+     * @param id
+     * @returns {string}
+     */
     function _slugifyFootnoteId(id) {
-        let slug = String(id || '')
+        const slug = String(id || '')
             .trim()
             .toLowerCase()
             .replace(/[^\w\u4e00-\u9fff]+/g, '-')
@@ -18,15 +23,20 @@
         return slug || 'note';
     }
 
+    /**
+     * 处理 Markdown 脚注：收集定义、替换引用、追加脚注区。
+     * @param raw
+     * @returns {string}
+     */
     function _processFootnotes(raw) {
-        let footnotes = {};
+        const footnotes = {};
         let counter = 0;
-        let usedIds = {};
+        const usedIds = {};
 
         // 收集定义行 [^id]: content
         raw = raw.replace(/^\[\^([^\]]+)\]:\s*(.+?)\r?$/gm, function(m, id, content) {
             if (!footnotes[id]) {
-                let base = _slugifyFootnoteId(id);
+                const base = _slugifyFootnoteId(id);
                 let safeId = base;
                 let i = 2;
                 while (usedIds[safeId]) {
@@ -53,11 +63,11 @@
 
         // 追加脚注区
         raw += '\n\n---\n\n';
-        let ids = Object.keys(footnotes);
+        const ids = Object.keys(footnotes);
         ids.sort(function(a, b) { return footnotes[a].num - footnotes[b].num; });
         for (let i = 0; i < ids.length; i++) {
-            let id = ids[i];
-            let fn = footnotes[id];
+            const id = ids[i];
+            const fn = footnotes[id];
             raw += '<p class="footnote" id="fn-' + fn.id + '"><sup>[' + fn.num +
                 ']</sup> ' + fn.content +
                 ' <a href="#fnref-' + fn.id + '" class="footnote-backref">↩</a></p>\n';
