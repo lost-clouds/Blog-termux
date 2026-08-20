@@ -18,7 +18,7 @@
 | 🔋 **零后端** | 纯静态文件，仅依赖 Nginx 的 autoindex 模块 |
 | 📊 **系统仪表盘** | CPU/内存/存储/网络/电池/服务/运行时间，30 秒轮询 |
 | 🧭 **服务导航** | 可配置的分组服务卡片，一键跳转 |
-| 📝 **Markdown 博客** | 三栏 Hugo Book 风格阅读器，内联渲染 + ToC + KaTeX 数学公式 |
+| 📝 **Markdown 博客** | 三栏 Hugo Book 风格阅读器，内联渲染 + ToC + KaTeX 数学公式 + TikZ 图表 + Mermaid 图表 |
 | 🖼️ **图片画廊** | 网格展示 + 搜索 + 灯箱 |
 | 🌙 **深色模式** | 一键切换，自动保存偏好 |
 | 📡 **离线可用** | Service Worker 缓存策略，文章/图片离线可读 |
@@ -95,6 +95,8 @@ main.js  →  app.js  →  theme.js, utils.js, lightbox.js
                     →  blog.js        (utils.js, md-viewer.js, constants.js)
                     →  gallery.js     (utils.js, lightbox.js, constants.js)
                     →  md-viewer.js   (utils.js, sanitizer.js, footnotes.js, lightbox.js, constants.js)
+                    →  mermaid-renderer.js (constants.js)
+                    →  tikz-renderer.js   (无依赖)
 ```
 
 所有业务 JS 使用 **ES Modules**（`import`/`export` 显式声明依赖）。`main.js` 仅一行 `import './app.js'`。唯一保留的常规 `<script>` 是 `lib/marked.min.js`。
@@ -158,6 +160,8 @@ Blog-termux/
 │   ├── navigation.js           #   服务导航
 │   ├── blog.js                 #   文章列表 + 内联渲染
 │   ├── gallery.js              #   图片画廊
+│   ├── mermaid-renderer.js      #   Mermaid 图表渲染
+│   ├── tikz-renderer.js         #   基础 TikZ → SVG 渲染
 │   └── md-viewer.js            #   Markdown 渲染引擎
 │
 ├── Html/                       # HTML 页面（由 gen_index.sh 索引）
@@ -204,7 +208,9 @@ Blog-termux/
 | `navigation.js` | 服务导航 | `utils.js`, `constants.js` | `config.json` 分组渲染，250ms 防抖搜索 |
 | `blog.js` | 博客阅读器 | `utils.js`, `md-viewer.js`, `constants.js` | 三栏布局，`Promise.allSettled` 双目录，请求 ID 竞态防护 |
 | `gallery.js` | 图片画廊 | `utils.js`, `lightbox.js`, `constants.js` | 缩略图网格，懒加载，250ms 防抖搜索 |
-| `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学 → marked → 清理 → 图片路径 → 锚点 → KaTeX |
+| `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学 → marked → 清理 → 图片路径 → 锚点 → Mermaid → TikZ → KaTeX |
+| `mermaid-renderer.js` | Mermaid 图表渲染 | `constants.js` | 懒加载 Mermaid → SVG，语法错误优雅降级 |
+| `tikz-renderer.js` | 基础 TikZ → SVG 渲染 | — | 零依赖客户端 TikZ 解析，支持节点/箭头/圆形/矩形/网格 |
 | `sw.js` | Service Worker | — | Cache-first（静态）、SWR（文章/图片）、Network-first（入口）、Network-only（实时） |
 
 ### 核心模块详解
@@ -264,7 +270,7 @@ Hugo Book 风格三栏布局。`Promise.allSettled` 同时获取 Markdown + HTML
 
 #### md-viewer.js — Markdown 渲染引擎
 
-纯渲染模块，不管理 DOM 生命周期。完整 8 步管道：
+纯渲染模块，不管理 DOM 生命周期。完整 10 步管道：
 
 | 步骤 | 实现 |
 |------|------|
@@ -274,8 +280,10 @@ Hugo Book 风格三栏布局。`Promise.allSettled` 同时获取 Markdown + HTML
 | 4. XSS 清理 | 五层白名单（标签、属性、URL、class、style） |
 | 5. 图片路径 | 相对路径重写为 `/api/images/` |
 | 6. 标题锚点 | 自动注入 `#` 链接，支持中文 slug |
-| 7. KaTeX 渲染 | 按需懒加载，加载失败优雅降级 |
-| 8. 图片绑定 | 委托点击 → 共享 `Lightbox` |
+| 7. Mermaid 渲染 | 懒加载 Mermaid → SVG，语法错误优雅降级 |
+| 8. TikZ 渲染 | 零依赖客户端 TikZ → SVG（节点、线条、圆形、矩形、网格） |
+| 9. KaTeX 渲染 | 按需懒加载，加载失败优雅降级 |
+| 10. 图片绑定 | 委托点击 → 共享 `Lightbox` |
 
 #### navigation.js — 服务导航
 
