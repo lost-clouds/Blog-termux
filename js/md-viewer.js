@@ -3,16 +3,18 @@ import { Lightbox } from './lightbox.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { processFootnotes } from './footnotes.js';
 import { prepareMermaidBlocks, ensureMermaid, renderMermaid } from './mermaid-renderer.js';
+import { prepareTikzBlocks, renderTikz } from './tikz-renderer.js';
 import { API, LIBS } from './constants.js';
 
 /**
  * @module md-viewer
- * @description Markdown 渲染引擎：解析 → 安全 HTML → 锚点/ToC/KaTeX/图片灯箱
+ * @description Markdown 渲染引擎：解析 → 安全 HTML → 锚点/ToC/KaTeX/TikZ/图片灯箱
  * @requires module:utils
  * @requires module:sanitizer
  * @requires module:footnotes
  * @requires module:constants
  * @requires module:lightbox
+ * @requires module:tikz-renderer
  *
  * 使用：import { MarkdownRenderer } from './md-viewer.js'
  */
@@ -348,10 +350,14 @@ function _scrollToHeading(target, scrollEl) {
     const html = marked.parse(protectedText);
 
     target.innerHTML = sanitizeHtml(html);
-// 将 marked 生成的 <pre><code class="language-mermaid"> 转换为
+    // 将 marked 生成的 <pre><code class="language-mermaid"> 转换为
     // <div class="mermaid">，供 mermaid.run() 渲染
     // 必须在 sanitize 之后、其他 DOM 操作之前执行
     const hasMermaid = prepareMermaidBlocks(target);
+
+    // 将 <pre><code class="language-tikz"> 转换为 <div class="tikz">，
+    // 供本地 TikZ → SVG 渲染器直接消费（与 Mermaid 同一步骤出场）
+    const hasTikz = prepareTikzBlocks(target);
 
     _fixImagePaths(target);
     _injectAnchors(target);
@@ -367,6 +373,11 @@ function _scrollToHeading(target, scrollEl) {
         } catch (err) {
             console.warn('Mermaid 渲染失败:', err.message);
         }
+    }
+
+    // TikZ 图片渲染（本地解析 → SVG，无需外部库）
+    if (hasTikz) {
+        renderTikz(target);
     }
 
     // KaTeX 数学公式渲染（懒加载，检测到公式才加载库）

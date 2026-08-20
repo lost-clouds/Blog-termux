@@ -8,11 +8,11 @@
      / /index.html /config.json → network-first（入口保证新鲜）
      其余静态资源            → cache-first
    ============================================================ */
-const CACHE = 'blog-v6';
+const CACHE = 'blog-v7';
 const SHELL = [
     '/',
     '/index.html',
-    '/css/style.css?v=2',
+    '/css/style.css?v=3',
     '/config.json',
     '/js/theme.js',
     '/js/utils.js',
@@ -21,7 +21,9 @@ const SHELL = [
     '/js/navigation.js',
     '/js/blog.js',
     '/js/gallery.js',
-    '/js/md-viewer.js',
+    '/js/md-viewer.js?v=2',
+    '/js/mermaid-renderer.js',
+    '/js/tikz-renderer.js?v=1',
     '/js/sanitizer.js',
     '/js/footnotes.js',
     '/js/constants.js',

@@ -26,6 +26,7 @@ cat \
     "$SRC/components/blog.css" \
     "$SRC/components/gallery.css" \
     "$SRC/components/markdown-content.css" \
+    "$SRC/components/tikz.css" \
     "$SRC/components/image-lightbox.css" \
     "$SRC/components/bottom-nav.css" \
     "$SRC/themes/dark.css" \

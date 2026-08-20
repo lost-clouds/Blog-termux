@@ -18,7 +18,7 @@
 | 🔋 **Zero backend** | Pure static files, relies only on Nginx autoindex |
 | 📊 **System dashboard** | CPU/memory/storage/network/battery/services/uptime, 30s polling |
 | 🧭 **Service navigation** | Configurable grouped service cards, one-click launch |
-| 📝 **Markdown blog** | 3-column Hugo Book-style reader with inline rendering, ToC, KaTeX math |
+| 📝 **Markdown blog** | 3-column Hugo Book-style reader with inline rendering, ToC, KaTeX math, TikZ diagrams, Mermaid charts |
 | 🖼️ **Image gallery** | Grid view + search + lightbox |
 | 🌙 **Dark mode** | One-click toggle, preference auto-saved |
 | 📡 **Offline ready** | Service Worker caching: articles/images available offline |
@@ -95,6 +95,8 @@ main.js  →  app.js  →  theme.js, utils.js, lightbox.js
                     →  blog.js        (utils.js, md-viewer.js, constants.js)
                     →  gallery.js     (utils.js, lightbox.js, constants.js)
                     →  md-viewer.js   (utils.js, sanitizer.js, footnotes.js, lightbox.js, constants.js)
+                    →  mermaid-renderer.js (constants.js)
+                    →  tikz-renderer.js   (no deps)
 ```
 
 All business JS uses **ES Modules** with explicit `import`/`export`. `main.js` is a single line `import './app.js'`. The only regular `<script>` is `lib/marked.min.js`.
@@ -158,6 +160,8 @@ Blog-termux/
 │   ├── navigation.js           #   Service navigation
 │   ├── blog.js                 #   Article list + inline rendering
 │   ├── gallery.js              #   Image gallery
+│   ├── mermaid-renderer.js      #   Mermaid chart renderer
+│   ├── tikz-renderer.js         #   Basic TikZ → SVG renderer
 │   └── md-viewer.js            #   Markdown rendering engine
 │
 ├── Html/                       # HTML pages (indexed by gen_index.sh)
@@ -205,6 +209,8 @@ Blog-termux/
 | `blog.js` | Article reader | `utils.js`, `md-viewer.js`, `constants.js` | 3-column layout, `Promise.allSettled` dual-directory, request ID race protection |
 | `gallery.js` | Image gallery | `utils.js`, `lightbox.js`, `constants.js` | Thumbnail grid, lazy loading, 250ms debounced search |
 | `md-viewer.js` | Markdown renderer | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | Full pipeline: footnotes → math → marked → sanitize → image paths → anchors → KaTeX |
+| `mermaid-renderer.js` | Mermaid chart renderer | `constants.js` | Lazy-loaded Mermaid → SVG, syntax error graceful degradation |
+| `tikz-renderer.js` | Basic TikZ → SVG renderer | — | Zero-dependency client-side TikZ parser, supports nodes/arrows/circles/rectangles/grid |
 | `sw.js` | Service Worker | — | Cache-first (static), SWR (articles/images), Network-first (entry), Network-only (realtime) |
 
 ### Core Modules
@@ -264,7 +270,7 @@ Hugo Book-style 3-column layout. `Promise.allSettled` fetches Markdown + HTML du
 
 #### md-viewer.js — Markdown Rendering Engine
 
-Pure rendering module — no DOM lifecycle management. Complete 8-step pipeline:
+Pure rendering module — no DOM lifecycle management. Complete 9-step pipeline:
 
 | Step | Implementation |
 |------|---------------|
@@ -274,8 +280,10 @@ Pure rendering module — no DOM lifecycle management. Complete 8-step pipeline:
 | 4. XSS sanitization | 5-layer whitelist (tags, attrs, URLs, classes, styles) |
 | 5. Image paths | Relative paths rewritten to `/api/images/` |
 | 6. Heading anchors | Auto-injected `#` permalinks with CJK slug support |
-| 7. KaTeX rendering | Lazy-loaded on demand, graceful degradation on failure |
-| 8. Image binding | Delegated click → shared `Lightbox` |
+| 7. Mermaid rendering | Lazy-loaded Mermaid → SVG, syntax error degradation |
+| 8. TikZ rendering | Zero-dependency client-side TikZ → SVG (nodes, edges, circles, rectangles, grid) |
+| 9. KaTeX rendering | Lazy-loaded on demand, graceful degradation on failure |
+| 10. Image binding | Delegated click → shared `Lightbox` |
 
 #### navigation.js — Service Navigation
 

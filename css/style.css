@@ -1,27 +1,32 @@
-/* ============================================================
-   style.css —— 统一响应式样式表
-   ────────────────────────────────────────────────────────────
-   结构分区：
-     1.  CSS 变量（浅色 / 深色主题）
-     2.  基础重置 & 全局样式
-     3.  顶部导航栏 (header)
-     4.  标签页切换栏 (tab-bar)
-     5.  内容区 (content-section)
-     6.  仪表盘卡片 (dashboard)
-     7.  服务导航卡片 (navigation)
-     8.  博客文章列表 (blog)
-     9.  图片画廊 (gallery)
-     10. Markdown 正文内容 (markdown-content)
-     11. 图片灯箱 (lightbox)
-     12. 底部导航栏 (bottom-nav)
-     13. 深色模式覆盖
-     14. 响应式断点
-     15. 浏览器兼容回退
-   ============================================================ */
+/**
+ * _header.css
+ * 构建产物 style.css 的 TOC 头部：列出所有源文件结构分区。
+ * 此文件由 build.sh 合并到 style.css 第 1 行。
+ * 依赖：无（纯注释）
+ *
+ * 结构分区：
+ *   1.  CSS 变量（浅色 / 深色主题）
+ *   2.  基础重置 & 全局样式
+ *   3.  顶部导航栏 (header)
+ *   4.  标签页切换栏 (tab-bar)
+ *   5.  内容区 (content-section)
+ *   6.  仪表盘卡片 (dashboard)
+ *   7.  服务导航卡片 (navigation)
+ *   8.  博客文章列表 (blog)
+ *   9.  图片画廊 (gallery)
+ *   10. Markdown 正文内容 (markdown-content)
+ *   11. 图片灯箱 (lightbox)
+ *   12. 底部导航栏 (bottom-nav)
+ *   13. 深色模式覆盖
+ *   14. 响应式断点
+ *   15. 浏览器兼容回退
+ */
 
-/* ============================================================
-   1. CSS 变量
-   ============================================================ */
+/**
+ * variables.css
+ * 全站 CSS 自定义属性：浅色主题配色、玻璃态效果、阴影、圆角、字体。
+ * 依赖：无（所有变量在此声明）
+ */
 :root {
     /* 基础配色 */
     --accent:       #007aff;
@@ -64,9 +69,11 @@
     --transition: 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.0);
 }
 
-/* ============================================================
-   2. 基础重置 & 全局样式
-   ============================================================ */
+/**
+ * base.css
+ * 基础重置 & 全局样式：box-sizing、字体、背景、滚动条。
+ * 依赖变量：variables.css
+ */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html {
@@ -102,9 +109,11 @@ img { max-width: 100%; height: auto; }
     max-width: 96vw;
 }
 
-/* ============================================================
-   3. 顶部导航栏
-   ============================================================ */
+/**
+ * layout.css
+ * 顶部导航栏 (header)：品牌标识、主题切换按钮。
+ * 依赖变量：variables.css
+ */
 .header {
     display: flex;
     align-items: center;
@@ -150,9 +159,11 @@ img { max-width: 100%; height: auto; }
 }
 .theme-toggle-btn:hover { transform: scale(1.08); box-shadow: var(--shadow-md); }
 
-/* ============================================================
-   4. 标签页切换栏 (PC/平板顶部)
-   ============================================================ */
+/**
+ * header.css
+ * 标签页切换栏 (tab-bar)：PC/平板顶部标签按钮。
+ * 依赖变量：variables.css
+ */
 .tab-bar {
     display: flex;
     gap: 0.35rem;
@@ -196,9 +207,11 @@ img { max-width: 100%; height: auto; }
     box-shadow: var(--shadow-sm);
 }
 
-/* ============================================================
-   5. 内容区
-   ============================================================ */
+/**
+ * tabs.css
+ * 内容区块 (content-section) 切换动画 + 搜索框通用样式。
+ * 依赖变量：variables.css
+ */
 .content-section {
     display: none;
     animation: fadeSlideIn 0.25s ease;
@@ -240,9 +253,11 @@ img { max-width: 100%; height: auto; }
 }
 .search-input::placeholder { color: var(--text-tertiary); }
 
-/* ============================================================
-   6. 仪表盘卡片
-   ============================================================ */
+/**
+ * dashboard.css
+ * 仪表盘 8 张状态卡片网格布局、进度条、集群信息、SWAP 行。
+ * 依赖变量：variables.css
+ */
 /* ---- 数据新鲜度指示器 ---- */
 .dashboard-status-bar {
     display: flex;
@@ -332,9 +347,11 @@ img { max-width: 100%; height: auto; }
     .dash-sub { white-space: normal; overflow: visible; text-overflow: unset; }
 }
 
-/* ============================================================
-   7. 服务导航卡片
-   ============================================================ */
+/**
+ * navigation.css
+ * 服务导航分组卡片布局、搜索过滤、标签徽章。
+ * 依赖变量：variables.css
+ */
 .nav-group {
     margin-bottom: 1.5rem;
 }
@@ -430,9 +447,11 @@ img { max-width: 100%; height: auto; }
     color: var(--text-secondary);
 }
 
-/* ============================================================
-   8. 博客 — Hugo Book 风格三栏布局
-   ============================================================ */
+/**
+ * blog.css
+ * 博客 Hugo Book 风格三栏布局：左侧文章列表、中间正文、右侧 ToC。
+ * 依赖变量：variables.css
+ */
 
 /* 隐藏 checkbox（CSS 驱动移动端侧边栏） */
 .blog-toggle { display: none; }
@@ -718,9 +737,11 @@ img { max-width: 100%; height: auto; }
 .markdown-body .footnote-backref:hover { opacity: 1; }
 .markdown-body sup a { text-decoration: none; font-weight: 600; }
 
-/* ============================================================
-   9. 图片画廊
-   ============================================================ */
+/**
+ * gallery.css
+ * 图片画廊网格布局、卡片悬浮效果、缩略图。
+ * 依赖变量：variables.css
+ */
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -784,9 +805,11 @@ img { max-width: 100%; height: auto; }
     flex-shrink: 0;
 }
 
-/* ============================================================
-   10. Markdown 正文内容样式（blog 内联渲染共用）
-   ============================================================ */
+/**
+ * markdown-content.css
+ * Markdown 正文内容样式：标题、代码块、表格、锚点、KaTeX。
+ * 依赖变量：variables.css
+ */
 
 .markdown-body {
     color: var(--text-primary);
@@ -929,9 +952,53 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
     font-size: 0.85em;
     text-align: center;
 }
-/* ============================================================
-   11. 图片灯箱（全局）
-   ============================================================ */
+/**
+ * tikz.css
+ * 基础 TikZ 图片渲染：SVG 容器布局、深浅主题适配、失败降级样式。
+ * 依赖变量：variables.css 中的 --text-primary 等
+ */
+
+/* TikZ 图片容器：居中 + 横向溢出滚动 */
+.markdown-body .tikz {
+    display: flex;
+    justify-content: center;
+    margin: 1.5em 0;
+    overflow-x: auto;
+}
+.markdown-body .tikz .tikz-svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* TikZ 渲染失败降级：显示源码 + 错误提示 */
+.markdown-body .tikz-error {
+    background: rgba(248, 81, 73, 0.08);
+    border: 1px solid rgba(248, 81, 73, 0.25);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    display: block;
+}
+.markdown-body .tikz-error pre {
+    margin: 0 0 0.5em 0;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.markdown-body .tikz-error-msg {
+    color: #d32f2f;
+    font-size: 0.85em;
+    text-align: center;
+}
+
+/* 浅色模式下增加 SVG 描边对比度 */
+body:not(.dark) .markdown-body .tikz-svg {
+    filter: none;
+}
+/**
+ * image-lightbox.css
+ * 图片灯箱：全局遮罩层、图片容器、关闭按钮、文件名标签。
+ * 依赖变量：variables.css
+ */
 .lightbox {
     position: fixed;
     inset: 0;
@@ -987,9 +1054,11 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
     text-overflow: ellipsis;
 }
 
-/* ============================================================
-   12. 底部导航栏（移动端）
-   ============================================================ */
+/**
+ * bottom-nav.css
+ * 底部导航栏（移动端）：固定底部、标签按钮、安全区域适配。
+ * 依赖变量：variables.css
+ */
 .bottom-nav {
     display: none;  /* 默认隐藏，移动端显示 */
     position: fixed;
@@ -1016,9 +1085,11 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
 
 .bottom-nav .tab-btn .tab-icon { font-size: 1.3rem; }
 
-/* ============================================================
-   13. 深色模式覆盖
-   ============================================================ */
+/**
+ * dark.css
+ * 深色模式 CSS 变量覆盖：背景、文本、玻璃态、阴影。
+ * 依赖变量：variables.css（覆盖同名变量）
+ */
 body.dark {
     --bg-primary:    #0d0d0f;
     --bg-secondary:  #1c1c1e;
@@ -1083,9 +1154,12 @@ body.dark .bottom-nav {
     border-color: rgba(255,255,255,0.08);
 }
 
-/* ============================================================
-   14. 响应式断点
-   ============================================================ */
+/**
+ * responsive.css
+ * 响应式断点：Pad (≤1023px)、手机 (≤639px)、小屏 (≤400px)、大屏 (≥1200px)。
+ * 兼容性回退：backdrop-filter 不支持时的纯色降级。
+ * 依赖变量：variables.css
+ */
 
 /* ---- Pad (640px - 1024px) ---- */
 @media (max-width: 1023px) {
@@ -1179,9 +1253,10 @@ body.dark .bottom-nav {
     .nav-items { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* ============================================================
-   15. 浏览器兼容：backdrop-filter 回退
-   ============================================================ */
+/**
+ * 浏览器兼容：backdrop-filter 回退
+ * @supports not 检测不支持 backdrop-filter 的浏览器，使用纯色背景降级
+ */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     body:not(.dark) .header,
     body:not(.dark) .tab-bar,

@@ -96,7 +96,7 @@ import { API } from './constants.js';
                    '" data-name="' + Utils.escapeHtml(img.name) + '">' +
                 '<div class="gallery-thumb">' +
                     '<img src="' + Utils.escapeHtml(url) + '" alt="' + Utils.escapeHtml(img.name) +
-                    '" loading="lazy" onerror="this.style.display=\'none\'">' +
+                    '" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">' +
                 '</div>' +
                 '<div class="gallery-info">' +
                     '<span class="gallery-name">' + Utils.escapeHtml(img.name) + '</span>' +
