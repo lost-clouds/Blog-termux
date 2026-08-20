@@ -300,6 +300,8 @@ refactor(utils): 拆分 getSafeUrl 的协议白名单逻辑
 | `blog.js` | `import { Blog }` | `utils.js` `md-viewer.js` `constants.js` | 文章列表与内联渲染 |
 | `gallery.js` | `import { Gallery }` | `utils.js` `lightbox.js` `constants.js` | 图片画廊 |
 | `md-viewer.js` | `import { MarkdownRenderer }` | `marked`(全局) `utils.js` `constants.js` `sanitizer.js` `footnotes.js` `lightbox.js` | Markdown 渲染引擎 |
+| `mermaid-renderer.js` | `import` | `constants.js` | Mermaid 图表渲染（按需加载 mermaid 库） |
+| `tikz-renderer.js` | `import` | 无 | 基础 TikZ → SVG 渲染（纯客户端、零外部依赖） |
 | `app.js` | 不挂载 window | 以上全部 | 启动流程、Tab 路由、事件绑定 |
 | `main.js` | — | `app.js` | 唯一入口，单行 import |
 | `resume/js/resume.js` | 独立 ES Module（自执行入口） | 无 | 个人简历渲染：主题切换/配置加载/DOM 渲染 |
