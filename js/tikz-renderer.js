@@ -43,8 +43,11 @@ const DEFAULT_NODE_FILL = 'rgba(120,120,120,0.08)';
 // 常用但我方无法表达时长的忽略命令（安全跳过）
 const IGNORE_COMMANDS = { usetikzlibrary: true, pgfkeys: true, tikzset: true, scope: true };
 
-// 节点文本中的数学片段分隔（$...$ 或 \(...\)）
-const MATH_SPLIT = /\$[^$]+\$/g;
+// 节点文本中的数学片段分隔（$$\$$...\$$ 或 $...$ 或 \(...\)）
+// 注意：KaTeX.renderToString 只接受**去掉分隔符的裸 LaTeX**，因此渲染前
+// 必须用 _mathSplit 把整段文本切成“纯文本 / 数学”片段，再逐个渲染。
+const MATH_RUN_RE = /\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\\([\s\S]*?\\\)/g;
+const MATH_SPLIT = /\$|\\\(/;
 
 // TikZ 字号 → px（用于 ont=small 等选项）
 const FONT_SIZES = {
@@ -486,7 +489,7 @@ function _parseOptions(opts) {
         draw: null, fill: null, text: null, thick: false, veryThick: false,
         ultraThick: false, dashed: false, dotted: false, arrow: false, arrowBack: false,
         circle: false, rectangle: false, rounded: false, scale: 1,
-        anchor: 'center', fontSize: 14, fontBold: false,
+        anchor: 'center', fontSize: 14, fontBold: false, innerSep: 4,
         bareColor: null
     };
     if (!opts) return r;
@@ -532,6 +535,11 @@ function _parseOptions(opts) {
             else if (key === 'scale') { r.scale = parseFloat(val) || 1; }
             else if (key === 'rounded corners') { r.rounded = true; }
             else if (key === 'line width') { const lw=parseFloat(val); if(lw) r.thick = lw>1.5; }
+            else if (key === 'inner sep') {
+                // inner sep=Xpt → 内边距像素；0pt → 0，避免小圆点被撑大
+                const ip = parseFloat(val);
+                r.innerSep = (isFinite(ip) && ip >= 0) ? Math.max(0, ip * 96 / 72) : 4;
+            }
             continue;
         }
     }
@@ -779,18 +787,20 @@ function _nodeSvg(pt, o, text, hasMath, ctx) {
     const textColor = _resolveColor(o.text || o.bareColor, DEFAULT_STROKE);
     const fs = o.fontSize;
     const fontWeight = o.fontBold ? 'bold' : 'normal';
+    const innerSep = o.innerSep || 4;
 
     // 形状：圆形 或 矩形（默认）
     // 仅当显式给出 draw / fill / 圆形 / 矩形 时才绘制形状；纯文本标签不画框
     let shape = '';
     const wantBox = o.draw || o.fill || o.circle || o.rectangle;
+    // 用“有效显示长度”估算，避免按 LaTeX 源码长度把盒子撑得过宽
+    const tw = _textWidth(text, fs) + innerSep * 2;
+    const th = _textHeight(text, fs) + innerSep * 2;
     if (o.circle && wantBox) {
-        const r = Math.max(10, fs * 0.7 + text.length * 1.5);
+        const r = Math.max(innerSep + 4, Math.max(tw, th) / 2 + 2);
         _expandBounds(ctx, cx - r - 2, cy - r - 2, cx + r + 2, cy + r + 2);
         shape = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + _resolveColor(o.fill, 'none') + '" stroke="' + stroke + '" stroke-width="1.4" />';
     } else if (wantBox) {
-        const tw = _textWidth(text, fs, hasMath) + 16;
-        const th = fs + 10;
         const rx = o.rounded ? 5 : (o.rectangle ? 1 : 3);
         const fill = _resolveColor(o.fill, DEFAULT_NODE_FILL);
         _expandBounds(ctx, cx - tw / 2 - 1, cy - th / 2 - 1, cx + tw / 2 + 1, cy + th / 2 + 1);
@@ -818,16 +828,26 @@ function _anchorOffset(anchor, d) {
 }
 
 /**
- * 估算文本宽度。
+ * 估算文本宽度（基于有效显示长度），数学与普通文本统一走 _contentLen。
+ * 字符宽度系数取 ~0.62 em，并留少量余量避免 KaTeX 超宽。
+ * @param {string} text
+ * @param {number} fs
+ * @returns {number}
+ */
+function _textWidth(text, fs) {
+    return Math.max(fs * 2, Math.ceil(fs * 0.62 * _contentLen(text)));
+}
+
+/**
+ * 估算文本高度：普通文本一行取 1.35em；含数学（分数/上下标等）可能更高，取 1.6em。
  * @param {string} text
  * @param {number} fs
  * @param {boolean} hasMath
  * @returns {number}
  */
-function _textWidth(text, fs, hasMath) {
-    if (hasMath) return Math.max(fs * 3, fs * 0.7 * text.length + 10);
-    const plain = text.replace(/\\\w+/g, 'x').replace(/\s+/g, ' ');
-    return fs * 0.62 * plain.length;
+function _textHeight(text, fs, hasMath) {
+    const h = hasMath ? fs * 1.6 : fs * 1.35;
+    return Math.max(Math.ceil(h), fs + 4);
 }
 
 /**
@@ -844,13 +864,15 @@ function _textWidth(text, fs, hasMath) {
 function _labelSvg(cx, cy, text, fs, color, fontWeight, hasMath) {
     if (!text) return '';
     if (hasMath) {
-        // 用 foreignObject 承载 HTML（KaTeX 数学 + 纯文本），稍后填充
-        const w = Math.max(fs * text.length, fs * 4);
-        const h = fs + 8;
-        return ('<foreignObject x="' + (cx - w / 2) + '" y="' + (cy - h / 2) + '" width="' + w + '" height="' + h + '"><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-math" data-math="' + _escapeHtml(text) + '" style="text-align:center;line-height:' + h + 'px;font-size:' + fs + 'px;color:' + color + ';font-weight:' + fontWeight + '"></div></foreignObject>');
+        // 用 foreignObject 承载 HTML（KaTeX 数学 + 纯文本），稍后填充。
+        // 宽度按有效内容估算并加上限，避免内联长公式把元素撑得过大。
+        const w = Math.min(Math.max(_textWidth(text, fs) + 8, fs * 2.5), 420);
+        const h = _textHeight(text, fs, true) + 4;
+        return ('<foreignObject x="' + (cx - w / 2) + '" y="' + (cy - h / 2) + '" width="' + w + '" height="' + h + '"><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-math" data-math="' + _escapeHtml(text) + '" style="text-align:center;line-height:' + h + 'px;font-size:' + fs + 'px;color:' + color + ';font-weight:' + fontWeight + ';overflow:hidden"></div></foreignObject>');
     }
     return ('<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="central" font-size="' + fs + '" font-family="sans-serif" font-weight="' + fontWeight + '" fill="' + color + '">' + _escapeHtml(_plainText(text)) + '</text>');
 }
+
 
 /**
  * 将节点文本中的 LaTeX 命令转为可读纯文本（非数学时）。
@@ -1126,7 +1148,47 @@ async function _ensureKatex() {
 }
 
 /**
+ * 估算节点文本的“有效显示长度”：剔除数学分隔符、花括号与 LaTeX 脚手架，
+ * 用最终呈现的字符数近似度量，避免按原始源码长度把元素撑得过大。
+ * @param {string} text
+ * @returns {number}
+ */
+function _contentLen(text) {
+    const s = String(text)
+        .replace(/\$\$|\$|\\\(|\\\)/g, '')          // 去数学分隔符 $ $$ \( \)
+        .replace(/\\text\{([\s\S]*?)\}/g, '$1')            // \text{...} → 内容
+        .replace(/\\vec\{?([a-zA-Z]+)\}?/g, '$1')            // \vec{x} → x
+        .replace(/\\[a-zA-Z]+/g, '')                            // 其余 LaTeX 命令去掉
+        .replace(/[{}]/g, '')
+        .replace(/\s+/g, ' ');
+    let len = 0;
+    for (const ch of s) len += /[\u4e00-\u9fff]/.test(ch) ? 1.4 : 1;
+    return Math.max(len, 0);
+}
+
+/**
+ * 把节点文本切成“纯文本 / 数学”片段（数学片段保留原始分隔符，渲染时再剥）。
+ * @param {string} text
+ * @returns {Array<{math:boolean, text:string}>}
+ */
+function _mathSplit(text) {
+    const runs = [];
+    let last = 0;
+    MATH_RUN_RE.lastIndex = 0;
+    let m;
+    while ((m = MATH_RUN_RE.exec(text))) {
+        if (m.index > last) runs.push({ math: false, text: text.slice(last, m.index) });
+        runs.push({ math: true, text: m[0] });
+        last = m.index + m[0].length;
+    }
+    if (last < text.length) runs.push({ math: false, text: text.slice(last) });
+    return runs;
+}
+
+/**
  * 将 SVG 字符串中所有 tikz-math foreignObject 替换为 KaTeX（或降级纯文本）。
+ * 节点文本可能同时含普通文本与数学，按 _mathSplit 分段分别渲染，
+ * 数学片段去掉 $ / $$ / \\( \\) 分隔符后交给 KaTeX。
  * @param {string} svgBody
  * @returns {string}
  */
@@ -1134,16 +1196,26 @@ function _fillMathInSvg(svgBody) {
     const hasKatex = typeof window !== 'undefined' && window.katex;
     return svgBody.replace(/<foreignObject([^>]*)><div[^>]*class="tikz-math"[^>]*data-math="([^"]*)"[^>]*><\/div><\/foreignObject>/g, function (all, attrs, mathHtml) {
         const math = _unescapeHtml(mathHtml);
-        let rendered = '';
+        let html = '';
         if (hasKatex) {
-            try {
-                rendered = window.katex.renderToString(math, { throwOnError: false, displayMode: false });
-            } catch (e) {
-                rendered = '';
-            }
+            const runs = _mathSplit(math);
+            html = runs.map(function (run) {
+                if (run.math) {
+                    const body = run.text
+                        .replace(/^\$\$\s*|\s*\$\$$/g, '')
+                        .replace(/^\$\s*|\s*\$$/g, '')
+                        .replace(/^\\\(\s*|\s*\\\)$/g, '');
+                    try {
+                        return window.katex.renderToString(body, { throwOnError: false, displayMode: false });
+                    } catch (e) {
+                        return '<span>' + _escapeHtml(_mathToPlain(body)) + '</span>';
+                    }
+                }
+                return '<span>' + _escapeHtml(_plainText(run.text)) + '</span>';
+            }).join('');
         }
-        if (!rendered) rendered = '<span>' + _escapeHtml(_mathToPlain(math)) + '</span>';
-        return '<foreignObject' + attrs + '><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-math" style="text-align:center">' + rendered + '</div></foreignObject>';
+        if (!html) html = '<span>' + _escapeHtml(_mathToPlain(math)) + '</span>';
+        return '<foreignObject' + attrs + '><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-math" style="text-align:center">' + html + '</div></foreignObject>';
     });
 }
 
