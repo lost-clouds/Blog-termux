@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs/.l2s/.l2s.constants.js.tmp0001

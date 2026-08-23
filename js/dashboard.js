@@ -13,6 +13,7 @@ import { API } from './constants.js';
 
     /* ---- DOM 引用 ---- */
     const els = {
+        dataAge:      document.getElementById('dataAge'),
         deviceValue:  document.getElementById('deviceValue'),
         deviceSub:    document.getElementById('deviceSub'),
         cpuValue:     document.getElementById('cpuValue'),
@@ -40,6 +41,14 @@ import { API } from './constants.js';
     let _fetchErrors = 0;
     let _fetching = false;
     let _tabActive = false;
+
+    /* 电池状态机（充电/放电/已满/未充电）→ 中文文案，模块级缓存避免每次轮询重建。 */
+    const BATTERY_STATUS_MAP = {
+        CHARGING: '充电中',
+        DISCHARGING: '放电中',
+        FULL: '已充满',
+        NOT_CHARGING: '未充电'
+    };
 
     /**
      * 设置元素文本。
@@ -75,7 +84,7 @@ import { API } from './constants.js';
     function _update(data) {
         try {
             // 数据新鲜度指示器
-            const ageEl = document.getElementById('dataAge');
+            const ageEl = els.dataAge;
             if (data.timestamp && ageEl) {
                 const ts = new Date(data.timestamp).getTime();
                 const age = isNaN(ts) ? -1 : Math.floor((Date.now() - ts) / 1000);
@@ -178,8 +187,7 @@ import { API } from './constants.js';
                 _setBar(els.batteryFill, data.battery.level);
                 const bsub = [];
                 if (data.battery.status) {
-                    const smap = { CHARGING:'充电中', DISCHARGING:'放电中', FULL:'已充满', NOT_CHARGING:'未充电' };
-                    bsub.push(smap[data.battery.status] || data.battery.status);
+                    bsub.push(BATTERY_STATUS_MAP[data.battery.status] || data.battery.status);
                 }
                 if (data.battery.temp && parseFloat(data.battery.temp) > 0) bsub.push(data.battery.temp + '°C');
                 _set(els.batterySub, bsub.join(' · '));
@@ -247,7 +255,7 @@ import { API } from './constants.js';
                 _set(els.deviceSub, '检查 corn.sh / nginx /api/dashboard');
             } else if (_fetchErrors <= 5) {
                 // 中间错误状态：更新数据新鲜度指示器显示过期
-                const ageEl = document.getElementById('dataAge');
+                const ageEl = els.dataAge;
                 if (ageEl) {
                     ageEl.textContent = '数据可能过期';
                     ageEl.className = 'data-age age-stale';

@@ -31,7 +31,7 @@
     function _processFootnotes(raw) {
         const footnotes = {};
         let counter = 0;
-        const usedIds = {};
+        const usedIds = new Set();
 
         // 收集定义行 [^id]: content
         raw = raw.replace(/^\[\^([^\]]+)\]:\s*(.+?)\r?$/gm, function(m, id, content) {
@@ -39,11 +39,11 @@
                 const base = _slugifyFootnoteId(id);
                 let safeId = base;
                 let i = 2;
-                while (usedIds[safeId]) {
+                while (usedIds.has(safeId)) {
                     safeId = base + '-' + i;
                     i++;
                 }
-                usedIds[safeId] = true;
+                usedIds.add(safeId);
                 counter++;
                 footnotes[id] = { num: counter, id: safeId, content: content.trim() };
             }

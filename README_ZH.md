@@ -96,7 +96,7 @@ main.js  →  app.js  →  theme.js, utils.js, lightbox.js
                     →  gallery.js     (utils.js, lightbox.js, constants.js)
                     →  md-viewer.js   (utils.js, sanitizer.js, footnotes.js, lightbox.js, constants.js)
                     →  mermaid-renderer.js (constants.js)
-                    →  tikz-renderer.js   (无依赖)
+                    →  tikz-renderer.js   (转发到 tikz/* — 无外部依赖)
 ```
 
 所有业务 JS 使用 **ES Modules**（`import`/`export` 显式声明依赖）。`main.js` 仅一行 `import './app.js'`。唯一保留的常规 `<script>` 是 `lib/marked.min.js`。
@@ -147,7 +147,7 @@ Blog-termux/
 │       ├── components/         #   9 个组件样式
 │       └── themes/dark.css     #   深色模式覆盖
 │
-├── js/                         # ES Modules（12 业务模块 + 1 入口）
+├── js/                         # ES Modules（入口 + 业务 + tikz/ 子模块）
 │   ├── main.js                 #   入口（import './app.js'）
 │   ├── app.js                  #   主控制器（引导、路由、协调）
 │   ├── theme.js                #   主题管理
@@ -161,8 +161,21 @@ Blog-termux/
 │   ├── blog.js                 #   文章列表 + 内联渲染
 │   ├── gallery.js              #   图片画廊
 │   ├── mermaid-renderer.js      #   Mermaid 图表渲染
-│   ├── tikz-renderer.js         #   基础 TikZ → SVG 渲染
-│   └── md-viewer.js            #   Markdown 渲染引擎
+│   ├── md-viewer.js            #   Markdown 渲染引擎
+│   ├── tikz-renderer.js         #   TikZ → SVG 入口（转发到 js/tikz/*）
+│   └── tikz/                   #   TikZ → SVG 引擎（由单文件拆分为 12 个模块）
+│       ├── render.js           #    编排入口：prepareTikzBlocks / renderTikz
+│       ├── script.js           #    预处理、语句切分、foreach/宏展开
+│       ├── context.js          #    命名坐标、循环变量、包围盒
+│       ├── expr.js             #    数学表达式求值与坐标解析
+│       ├── options.js          #    选项解析 → 描边/虚线/字号/缩放
+│       ├── node.js             #    \node 渲染（形状 + 文本/数学）
+│       ├── path.js             #    \draw / \fill 路径 token 化
+│       ├── shapes.js           #    圆/矩形/网格/plot/箭头
+│       ├── text.js             #    有效显示长度估算、转义、数学切分
+│       ├── math.js             #    KaTeX 懒加载 + <foreignObject> 数学填充
+│       ├── color.js            #    命名/hex/TikZ 颜色混合（red!40!blue）
+│       └── constants.js        #    单位、调色板、正则、忽略命令
 │
 ├── Html/                       # HTML 页面（由 gen_index.sh 索引）
 ├── Image/                      # 图片资源（posts / gallery / thumbnails）
@@ -210,7 +223,7 @@ Blog-termux/
 | `gallery.js` | 图片画廊 | `utils.js`, `lightbox.js`, `constants.js` | 缩略图网格，懒加载，250ms 防抖搜索 |
 | `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学 → marked → 清理 → 图片路径 → 锚点 → Mermaid → TikZ → KaTeX |
 | `mermaid-renderer.js` | Mermaid 图表渲染 | `constants.js` | 懒加载 Mermaid → SVG，语法错误优雅降级 |
-| `tikz-renderer.js` | 基础 TikZ → SVG 渲染 | — | 零依赖客户端 TikZ 解析，支持节点/箭头/圆形/矩形/网格 |
+| `tikz-renderer.js` | 基础 TikZ → SVG 渲染（入口） | `tikz/*`（12 个模块） | 零依赖客户端 TikZ 解析，支持节点、带箭头连线、圆、矩形、网格、贝塞尔曲线、圆弧、函数曲线、`\foreach` 循环、`\pgfmathsetmacro`、颜色混合（`red!40!blue`）、KaTeX 数学节点。固定缩放：1 TikZ 单位 = 32px。逻辑已拆分到 `js/tikz/`，便于维护 |
 | `sw.js` | Service Worker | — | Cache-first（静态）、SWR（文章/图片）、Network-first（入口）、Network-only（实时） |
 
 ### 核心模块详解
@@ -281,7 +294,7 @@ Hugo Book 风格三栏布局。`Promise.allSettled` 同时获取 Markdown + HTML
 | 5. 图片路径 | 相对路径重写为 `/api/images/` |
 | 6. 标题锚点 | 自动注入 `#` 链接，支持中文 slug |
 | 7. Mermaid 渲染 | 懒加载 Mermaid → SVG，语法错误优雅降级 |
-| 8. TikZ 渲染 | 零依赖客户端 TikZ → SVG（节点、线条、圆形、矩形、网格） |
+| 8. TikZ 渲染 | 零依赖客户端 TikZ → SVG（节点、线条、箭头、圆、矩形、网格、贝塞尔、圆弧、函数曲线、`\foreach` 循环、`\pgfmathsetmacro`、数学节点）；固定缩放 1 单位 = 32px |
 | 9. KaTeX 渲染 | 按需懒加载，加载失败优雅降级 |
 | 10. 图片绑定 | 委托点击 → 共享 `Lightbox` |
 

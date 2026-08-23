@@ -235,7 +235,7 @@
             <div class="feat-item">
                 <div class="icon">📝</div>
                 <div class="name">博客阅读器</div>
-                <div class="desc">三栏布局，Markdown 内联渲染 + ToC + KaTeX 数学公式，HTML 文章新标签页打开</div>
+                <div class="desc">三栏布局，Markdown 内联渲染 + ToC + KaTeX 数学公式 + TikZ 图表（纯客户端渲染），HTML 文章新标签页打开</div>
             </div>
             <div class="feat-item">
                 <div class="icon">🖼️</div>
@@ -402,6 +402,8 @@ dashboard.js (30s 轮询)      blog.js / gallery.js
 │   ├── navigation.js            <span class="c">#   服务导航</span>
 │   ├── blog.js                  <span class="c">#   文章列表 + 内联渲染</span>
 │   ├── gallery.js               <span class="c">#   图片画廊</span>
+│   ├── tikz-renderer.js         <span class="c">#   TikZ → SVG 入口（转发到 js/tikz/*）</span>
+│   └── tikz/                    <span class="c">#   TikZ → SVG 引擎（由单文件拆分为 12 个模块：render/script/node/path/shapes/…）</span>
 │   └── md-viewer.js             <span class="c">#   Markdown 渲染引擎</span>
 │
 ├── Html/                        <span class="c"># HTML 页面（由 gen_index.sh 索引）</span>

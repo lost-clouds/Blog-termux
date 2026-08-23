@@ -435,6 +435,93 @@ graph TD
 \draw[->,thick] (0,0) -- (1,1) -- (2,0) -- cycle;
 ```
 
+### 15.6 基础图像
+
+直线、箭头、圆、矩形、网格、贝塞尔曲线、函数曲线的基础用法（每个一行即可拼出一张图）：
+
+```tikz
+\draw[blue,thick] (0,0) -- (2,1) -- (4,0);            % 折线
+\draw[red,very thick,->>] (5,0) -- (8,1);             % 箭头
+\draw[green,dashed] (0,2) circle (1);                % 圆（可带 pt）
+\draw[orange] (3,2) rectangle (6,4);                  % 矩形
+\draw[gray] (0,4) grid (4,7);                        % 网格
+\draw[purple] (0,6) .. controls (1,8) and (2,7) .. (3,6);      % 贝塞尔
+\draw[blue] (0,9) .. controls (1,10) and (2,10) .. (3,9);  % 贝塞尔模拟弧
+\draw[red,dashed,smooth,domain=-1:1] plot (\x,{\x*\x});        % 函数曲线 y=x^2
+```
+### 15.7 组合示例
+
+把节点、箭头、圆、网格、foreach、plot 组合成一张完整图。关键词：`\node`/`\coordinate` 布局、`\draw[->]` 连线、`circle`、`grid`、`\foreach` 循环生成多个对象、`plot` 画函数曲线：
+
+```tikz
+\coordinate (origin) at (0,0);
+\node[draw,circle,blue] (a) at (0,0) {原点};
+\foreach \x in {1,...,5} {
+  \node[circle,red] (p\x) at (\x,0) {\x};
+  \draw[->] (a) -- (p\x);
+}
+\node[rectangle,draw,green,rounded corners=4pt] (box) at (3,3) {组合图};
+\draw[->,thick] (a) -- (box);
+\fill[blue!20!white] (5,0) grid (8,3);
+\draw[red,smooth,domain=0:3] plot (\x,{\x*\x/2});
+```
+### 15.8 foreach 循环
+
+单层循环、带步长的循环、二维嵌套栅格、搭配 `\pgfmathsetmacro` 做数值计算：
+
+```tikz
+% 单层循环：一排三个点
+\foreach \x in {0,2,4} {
+  \node[circle,fill=blue] at (\x,0) {};
+}
+% 带步长 {1,3,...,9}：从 1 到 9 步长 2
+\foreach \x in {1,3,...,9} {
+  \node[text=red] at (\x,2) {\x};
+}
+% 二维嵌套栅格
+\foreach \x in {0,1,2} {
+  \foreach \y in {0,1,2} {
+    \fill[red!40!blue] (\x,\y) circle (2pt);
+  };
+};
+% \pgfmathsetmacro 数值计算（仅 foreach 循环体内使用）
+\foreach \i in {1,...,5} {
+  \pgfmathsetmacro{\y}{\i*\i}
+  \node[text=gray] at (\i,-2) {\y};   % 直接引用变量（\pgfmathprintnumber 暂不支持）
+}
+```
+### 15.9 数学节点
+
+节点文本里混排 `$...$`、`$$...$$`、`\(...\)` 与纯文本，并搭配颜色：
+
+```tikz
+\node[draw,text=blue] at (0,0) {公式 $e^{i\pi}+1=0$ 很漂亮};
+\node[draw,text=red] at (0,2) {块级 $$a^2+b^2=c^2$$ 居中};
+\node[draw,text=green] at (0,4) {行内 \(x=\frac{-b\pm\sqrt{\Delta}}{2a}\) 的用法};
+\node[draw,text=purple] at (6,2) {$E=mc^2$ 前后混排纯文本};
+```
+> 说明：上例中的 `\(...\)` 等同于 `$...$`，块级 `$$...$$` 独占一块区域，节点会自动包裹该公式。
+
+### 15.10 不支持的语法（降级 / 忽略示例）
+
+阅读器对不支持的指令会在本地**整体降级**：保留源码并提示错误，或整体忽略该代码块。下面是常见触发降级或需要规避的写法：
+
+```tikz
+% 1) \usetikzlibrary 必须独占一行才会被忽略
+\usetikzlibrary{decorations}
+% 2) \tikzset / \pgfkeys 不受支持
+\tikzset{foo/.style={draw=red}}
+% 3) scope 平移/变换会被忽略
+\begin{scope}[xshift=2cm]
+  \node at (0,0) {这个节点坐标不会平移};
+\end{scope}
+% 4) 无颜色 draw 画框不显示
+\draw (0,0) circle (1);
+% 5) 节点文本里的裸 % 会被当作注释，需要转义为 \%
+\node at (0,0) {请用百分号 \% 而不是 %};
+```
+> 说明：`\usetikzlibrary` 需要**独占一行**才会被引擎整行忽略；若夹在其它指令中间，它会被当作无效命令不知不觉地静默丢弃（实测不会让整块崩溃，但其库图形不会渲染）。`\tikzset`/`\pgfkeys` 同理。依赖 TikZ 扩展库的形状（如 decorations）不会渲染。建议把以上易触发问题的内容用 `%` 注释示意，避免产生不可见的空结果。
+
 ---
 
 > **本文档完整覆盖**：多级标题（TOC 生成）、文字样式、图片引用（相对/绝对/子目录）、KaTeX 数学公式（行内/块级/多种分隔符）、代码块（语法高亮）、Mermaid 图表（流程图/序列图/类图/降级处理）、表格（对齐/混合内容）、列表（无序/有序/任务）、嵌套引用、链接（外部/名词解释）、分隔线、HTML 标签白名单、XSS 安全过滤。可据此验证阅读器的全部渲染能力。

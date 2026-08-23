@@ -96,7 +96,7 @@ main.js  →  app.js  →  theme.js, utils.js, lightbox.js
                     →  gallery.js     (utils.js, lightbox.js, constants.js)
                     →  md-viewer.js   (utils.js, sanitizer.js, footnotes.js, lightbox.js, constants.js)
                     →  mermaid-renderer.js (constants.js)
-                    →  tikz-renderer.js   (no deps)
+                    →  tikz-renderer.js   (forwards to tikz/* — no external deps)
 ```
 
 All business JS uses **ES Modules** with explicit `import`/`export`. `main.js` is a single line `import './app.js'`. The only regular `<script>` is `lib/marked.min.js`.
@@ -147,7 +147,7 @@ Blog-termux/
 │       ├── components/         #   9 component stylesheets
 │       └── themes/dark.css     #   Dark mode overrides
 │
-├── js/                         # ES Modules (12 business + 1 entry)
+├── js/                         # ES Modules (entry + business + tikz/ subsystem)
 │   ├── main.js                 #   Entry (import './app.js')
 │   ├── app.js                  #   Main controller (boot, routing, coordination)
 │   ├── theme.js                #   Theme manager
@@ -161,8 +161,21 @@ Blog-termux/
 │   ├── blog.js                 #   Article list + inline rendering
 │   ├── gallery.js              #   Image gallery
 │   ├── mermaid-renderer.js      #   Mermaid chart renderer
-│   ├── tikz-renderer.js         #   Basic TikZ → SVG renderer
-│   └── md-viewer.js            #   Markdown rendering engine
+│   ├── md-viewer.js            #   Markdown rendering engine
+│   ├── tikz-renderer.js         #   TikZ → SVG entry (forwards to js/tikz/*)
+│   └── tikz/                   #   TikZ → SVG engine (split from a 1200-line monolith)
+│       ├── render.js           #     Orchestration: prepareTikzBlocks / renderTikz
+│       ├── script.js           #     Preprocess, statement split, foreach / macro expansion
+│       ├── context.js          #     Named coords, loop vars, bounding box
+│       ├── expr.js             #     Math expression evaluation + coordinate parsing
+│       ├── options.js          #     Option parsing → stroke / dash / font / scale
+│       ├── node.js             #     \node rendering (shape + text/math)
+│       ├── path.js             #     \draw / \fill path tokenization
+│       ├── shapes.js           #     circle / rectangle / grid / plot / arrowhead
+│       ├── text.js             #     Display-length estimate, escapes, math split
+│       ├── math.js             #     KaTeX lazy-load + <foreignObject> math fill
+│       ├── color.js            #     Named / hex / TikZ mixing (red!40!blue)
+│       └── constants.js        #     Units, palette, regex, ignored commands
 │
 ├── Html/                       # HTML pages (indexed by gen_index.sh)
 ├── Image/                      # Image assets (posts / gallery / thumbnails)
@@ -210,7 +223,7 @@ Blog-termux/
 | `gallery.js` | Image gallery | `utils.js`, `lightbox.js`, `constants.js` | Thumbnail grid, lazy loading, 250ms debounced search |
 | `md-viewer.js` | Markdown renderer | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | Full pipeline: footnotes → math → marked → sanitize → image paths → anchors → KaTeX |
 | `mermaid-renderer.js` | Mermaid chart renderer | `constants.js` | Lazy-loaded Mermaid → SVG, syntax error graceful degradation |
-| `tikz-renderer.js` | Basic TikZ → SVG renderer | — | Zero-dependency client-side TikZ parser, supports nodes/arrows/circles/rectangles/grid |
+| `tikz-renderer.js` | Basic TikZ → SVG renderer (entry) | `tikz/*` (12 modules) | Zero-dependency client-side TikZ parser, supports nodes, edges with arrows, circles, rectangles, grids, Bézier curves, arc, function plots, `\foreach` loops, `\pgfmathsetmacro`, colors (`red!40!blue`), math labels via KaTeX. Fixed scale: 1 TikZ unit = 32px. Logic split into `js/tikz/` for modularity |
 | `sw.js` | Service Worker | — | Cache-first (static), SWR (articles/images), Network-first (entry), Network-only (realtime) |
 
 ### Core Modules

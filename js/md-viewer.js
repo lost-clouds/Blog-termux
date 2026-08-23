@@ -153,11 +153,11 @@ function _slugify(text) {
 function _uniqueSlug(base, used) {
     let slug = base;
     let i = 2;
-    while (used[slug]) {
+    while (used.has(slug)) {
         slug = base + '-' + i;
         i++;
     }
-    used[slug] = true;
+    used.add(slug);
     return slug;
 }
 
@@ -213,7 +213,7 @@ function _fixImagePaths(container) {
  */
 function _injectAnchors(container) {
     if (!container) return;
-    const used = {};
+    const used = new Set();
     container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(function(heading) {
         const text = _getHeadingText(heading);
         heading.id = _uniqueSlug(_slugify(text), used);
