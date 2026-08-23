@@ -1,1 +1,42 @@
-/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs/.l2s/.l2s.tikz.css.tmp0001
+/**
+ * tikz.css
+ * 基础 TikZ 图片渲染：SVG 容器布局、深浅主题适配、失败降级样式。
+ * 依赖变量：variables.css 中的 --text-primary 等
+ */
+
+/* TikZ 图片容器：居中 + 横向溢出滚动 */
+.markdown-body .tikz {
+    display: flex;
+    justify-content: center;
+    margin: 1.5em 0;
+    overflow-x: auto;
+}
+.markdown-body .tikz .tikz-svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* TikZ 渲染失败降级：显示源码 + 错误提示 */
+.markdown-body .tikz-error {
+    background: rgba(248, 81, 73, 0.08);
+    border: 1px solid rgba(248, 81, 73, 0.25);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    display: block;
+}
+.markdown-body .tikz-error pre {
+    margin: 0 0 0.5em 0;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.markdown-body .tikz-error-msg {
+    color: #d32f2f;
+    font-size: 0.85em;
+    text-align: center;
+}
+
+/* 浅色模式下增加 SVG 描边对比度 */
+body:not(.dark) .markdown-body .tikz-svg {
+    filter: none;
+}
