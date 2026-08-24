@@ -223,7 +223,7 @@ Blog-termux/
 | `gallery.js` | Image gallery | `utils.js`, `lightbox.js`, `constants.js` | Thumbnail grid, lazy loading, 250ms debounced search |
 | `md-viewer.js` | Markdown renderer | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | Full pipeline: footnotes → math → marked → sanitize → image paths → anchors → KaTeX |
 | `mermaid-renderer.js` | Mermaid chart renderer | `constants.js` | Lazy-loaded Mermaid → SVG, syntax error graceful degradation |
-| `tikz-renderer.js` | Basic TikZ → SVG renderer (entry) | `tikz/*` (12 modules) | Zero-dependency client-side TikZ parser, supports nodes, edges with arrows, circles, rectangles, grids (corner endpoints, `step=N`, `\fill … grid`), Bézier curves, arc, function plots, `\foreach` loops, `\pgfmathsetmacro`, colors (`red!40!blue`), math labels via KaTeX. Fixed scale: 1 TikZ unit = 32px. Logic split into `js/tikz/` for modularity |
+| `tikz-renderer.js` | Basic TikZ → SVG renderer (entry) | `tikz/*` (12 modules) | Zero-dependency client-side TikZ parser, supports nodes, edges with arrows, circles, rectangles, grids (corner endpoints, `step=N`, `\fill … grid`), Bézier curves, arc, function plots, `\foreach` loops (including `{a,b,...,z}` mid-dot step lists and string loop vars over `\coordinate` names), `\pgfmathsetmacro`, colors (`red!40!blue`), math labels via KaTeX, inline `node[...]` labels on draw/fill paths (`node[midway]` / `node[above right]` / `at (x,y)`). Fixed scale: 1 TikZ unit = 32px. Logic split into `js/tikz/` for modularity |
 | `sw.js` | Service Worker | — | Cache-first (static), SWR (articles/images), Network-first (entry), Network-only (realtime) |
 
 ### Core Modules
@@ -294,7 +294,7 @@ Pure rendering module — no DOM lifecycle management. Complete 9-step pipeline:
 | 5. Image paths | Relative paths rewritten to `/api/images/` |
 | 6. Heading anchors | Auto-injected `#` permalinks with CJK slug support |
 | 7. Mermaid rendering | Lazy-loaded Mermaid → SVG, syntax error degradation |
-| 8. TikZ rendering | Zero-dependency client-side TikZ → SVG (nodes, edges, circles, rectangles, grid) |
+| 8. TikZ rendering | Zero-dependency client-side TikZ → SVG (nodes, edges, circles, rectangles, grid, `\foreach` loops incl. `{a,b,...,z}` step lists & named-coordinate string vars, `\pgfmathsetmacro`, inline `node[...]` labels, math labels via KaTeX); fixed scale 1 unit = 32px |
 | 9. KaTeX rendering | Lazy-loaded on demand, graceful degradation on failure |
 | 10. Image binding | Delegated click → shared `Lightbox` |
 

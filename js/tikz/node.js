@@ -133,18 +133,19 @@ function nodeSvg(pt, o, text, hasMath, ctx) {
 
 /**
  * 节点锚点偏移（SVG 坐标）。Y-up 下 "above" = +y(tikz) = SVG 向上 = [0,-d]。
+ * 支持组合锚点："above right"、"below left" 等。
  * @param {string} anchor
  * @param {number} d
  * @returns {Array<number>}
  */
 function anchorOffset(anchor, d) {
-    switch (anchor) {
-        case 'above': return [0, -d];
-        case 'below': return [0, d];
-        case 'left': return [-d, 0];
-        case 'right': return [d, 0];
-        default: return [0, 0];
-    }
+    if (!anchor) return [0, 0];
+    let x = 0, y = 0;
+    if (anchor.indexOf('above') !== -1) y -= d;
+    if (anchor.indexOf('below') !== -1) y += d;
+    if (anchor.indexOf('left') !== -1) x -= d;
+    if (anchor.indexOf('right') !== -1) x += d;
+    return [x, y];
 }
 
 /**

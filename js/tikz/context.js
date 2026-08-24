@@ -45,8 +45,10 @@ export function expandBounds(ctx, x1, y1, x2, y2) {
  */
 export function registerCoords(rest, ctx, parsePoint) {
     if (!rest) return;
-    // \coordinate (name) at (x,y) 形式
-    const m = /^\s*\coordinate\s+\(([^)]+)\)\s+at\s+\(([^)]*)\)/.exec(rest);
+    // \coordinate (name) at (x,y) 形式。注意：parseCommand 已剥离开头的
+    // \coordinate 命令名，rest 形如 "(name) at (x,y);"，因此这里直接匹配
+    // 括号名 + at 坐标，兼容带/不带命令前缀两种写法。
+    const m = /^\s*(?:\\coordinate\s+)?\(([^)]+)\)\s+at\s+\(([^)]*)\)/.exec(rest);
     if (m) {
         const pt = parsePoint(m[2], ctx);
         ctx.named[m[1].trim()] = pt;

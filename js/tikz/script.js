@@ -101,6 +101,22 @@ export function expandScript(src) {
 }
 
 /**
+ * 把已知循环变量/宏在其文本形式（坐标、节点文本等）替换为数值。
+ * 仅在“压入语句”时执行一次，后续渲染期 ctx.vars 已还原，不会再求值到 0。
+ * @param {string} text
+ * @param {Object} vars
+ * @returns {string}
+ */
+function substituteVars(text, vars) {
+    if (!vars) return text;
+    return String(text).replace(/\\[a-zA-Z]+/g, function (tok) {
+        const key = tok.slice(1);
+        if (vars[key] !== undefined) return String(vars[key]);
+        return tok;
+    });
+}
+
+/**
  * 展开单条语句（foreach 块 / pgfmathsetmacro / 普通命令）。
  * @param {string} stmt
  * @param {Object} ctx
@@ -108,7 +124,7 @@ export function expandScript(src) {
 function expandStatement(stmt, ctx) {
     const trimmed = stmt.trim();
     const fm = /^\\(foreach|pgfmathsetmacro)\b([\s\S]*)$/.exec(trimmed);
-    if (!fm) { ctx.out.push(parseCommand(trimmed)); return; }
+    if (!fm) { ctx.out.push(parseCommand(substituteVars(trimmed, ctx.vars))); return; }
     const cmd = fm[1];
     const after = fm[2];
 
@@ -146,31 +162,40 @@ function expandForeach(after, ctx) {
 }
 
 /**
- * 解析 foreach 值列表：{a,b,c} 或 {a,...,z}（步长自适应）。
+ * 解析 foreach 值列表。
+ * 支持两种形式：
+ *  - 显式列举：{a,b,c}（可含字符串，如 {o,p}，保留原样）
+ *  - 椭圆展开：{a,b,...,z}（mid/末位 ...，步长由第二项提供）或 {a,...,z}（步长 1）
  * @param {string} listStr
- * @returns {Array<number>}
+ * @returns {Array<number|string>}
  */
 function parseForeachList(listStr) {
     const trimmed = listStr.trim();
-    // 椭圆展开：a,b,...,z（b 提供步长）或 a,...,z（步长 1）
-    const hasDots = /,\s*\.\s*\.\s*\.\s*$/.test(trimmed);
-    if (hasDots) {
-        const parts = trimmed.split(',');
-        const seq = [];
-        for (const p of parts) {
-            const t = p.replace(/\.\s*$/g, '').trim();
-            const n = parseFloat(t);
-            if (Number.isFinite(n)) seq.push(n);
-        }
-        if (seq.length >= 2) {
-            const step = seq.length >= 3 ? seq[1] - seq[0] : 1;
-            const end = seq[seq.length - 1];
+    const parts = trimmed.split(',').map((x) => x.trim());
+
+    // 椭圆展开：某一段为 "..."（可出现在列表中部或末尾）
+    const dotIdx = parts.findIndex((p) => /^\.\.\.$/.test(p));
+    if (dotIdx !== -1) {
+        const nums = parts
+            .filter((p) => p !== '...' && /^-?\d+(\.\d+)?$/.test(p))
+            .map(Number);
+        if (nums.length >= 2) {
+            const step = nums.length >= 3 ? nums[1] - nums[0] : 1;
+            const end = nums[nums.length - 1];
             const arr = [];
-            for (let v = seq[0]; step > 0 ? v <= end : v >= end; v += step) {
+            for (let v = nums[0]; step > 0 ? v <= end : v >= end; v += step) {
                 arr.push(Math.round(v * 1e6) / 1e6);
             }
             return arr;
         }
     }
-    return trimmed.split(',').map(function (x) { return parseFloat(x.trim()); });
+
+    // 显式列举：数值转 number，其余（如坐标名 o,p）保留字符串原样
+    return parts
+        .filter((p) => p !== '...')
+        .map((p) => {
+            const n = parseFloat(p);
+            return (p.trim() !== '' && Number.isFinite(n) && /^-?\d+(\.\d+)?$/.test(p)) ? n : p;
+        })
+        .filter((v) => v !== '');
 }

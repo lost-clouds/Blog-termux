@@ -104,5 +104,102 @@ function check(name, cond, detail) {
   check('composite: points + plot align', okPts && okPlot, `circles=${JSON.stringify(circles)} plot@0=${at0}`);
 }
 
+// 12. foreach variable substitution: points spread along x (NOT all at origin)
+{
+  const svg = await render('\\foreach \\x in {0,1,2,3,4} { \\fill[red] (\\x,0) circle (2pt); };');
+  const cs = [...svg.matchAll(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)"/g)].map(m => Math.round(+m[1]) + ',' + Math.round(+m[2]));
+  const xs = new Set(cs.map(c => c.split(',')[0]));
+  check('foreach x spreads: 5 distinct x (0,32,64,96,128)',
+    xs.size === 5 && [...xs].sort((a,b)=>a-b).every((v,i)=>+v === i*32),
+    `xs=${JSON.stringify([...xs])} all=${JSON.stringify(cs)}`);
+}
+
+// 13. mid-dot ellipsis {1,2,...,6} expands to 1..6 (previously produced NaN)
+{
+  const svg = await render('\\foreach \\x in {1,2,...,6} { \\fill (\\x,0) circle (1pt); };');
+  const cs = new Set([...svg.matchAll(/<circle cx="(-?[\d.]+)"/g)].map(m => Math.round(+m[1])));
+  check('mid-dot ellipsis 1..6 -> 6 points 32..192',
+    cs.size === 6 && Math.min(...cs) === 32 && Math.max(...cs) === 192,
+    `x=${JSON.stringify([...cs].sort((a,b)=>a-b))}`);
+}
+
+// 14. step ellipsis {0,0.5,...,3} -> 0,0.5,...,3 (7 points)
+{
+  const svg = await render('\\foreach \\x in {0,0.5,...,3} { \\fill[orange] (\\x,0) circle (1pt); };');
+  const cs = new Set([...svg.matchAll(/<circle cx="(-?[\d.]+)"/g)].map(m => Math.round(+m[1])));
+  check('step ellipsis 0..3 step .5 -> 7 points 0..96',
+    cs.size === 7 && Math.min(...cs) === 0 && Math.max(...cs) === 96,
+    `x=${JSON.stringify([...cs].sort((a,b)=>a-b))}`);
+}
+
+// 15. string loop vars: \foreach \pt in {o,p} over named coords spreads
+{
+  const svg = await render('\\coordinate (o) at (0,0);\\coordinate (p) at (3,2);\\foreach \\pt in {o,p} { \\fill (\\pt) circle (2.5pt); };');
+  const cs = new Set([...svg.matchAll(/<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)"/g)].map(m => Math.round(+m[1]) + ',' + Math.round(+m[2])));
+  check('string foreach {o,p} -> circles at (0,0) and (96,-64)',
+    cs.has('0,0') && cs.has('96,-64'),
+    `circles=${JSON.stringify([...cs])}`);
+}
+
+// 16. \pgfmathsetmacro + foreach: bars spread and heights differ (previous NaN collapse)
+{
+  const svg = await render('\\foreach \\x in {1,2,3} { \\pgfmathsetmacro{\\h}{\\x*0.6} \\draw[fill=teal!30] (\\x-0.4,0) rectangle (\\x+0.4,\\h); };');
+  const rs = [...svg.matchAll(/<rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="(-?[\d.]+)" height="(-?[\d.]+)"/g)]
+    .map(m => [Math.round(+m[1]), Math.round(+m[2]), Math.round(+m[3]), Math.round(+m[4])]);
+  check('pgfmath bars: 3 distinct x ranges',
+    rs.length === 3 && new Set(rs.map(r => r[0])).size === 3,
+    `rects=${JSON.stringify(rs)}`);
+  const hs = rs.map(r => r[3]);
+  check('pgfmath bars: heights 19,38,58 (distinct, increasing)',
+    hs[0] < hs[1] && hs[1] < hs[2] && hs[0] > 0,
+    `heights=${JSON.stringify(hs)}`);
+}
+
+// 17. coordinate registration: named coords drive a real path (not M0 0L0 0)
+{
+  const svg = await render('\\coordinate (A) at (0,0);\\coordinate (B) at (3,2);\\draw[->, red, thick] (A) -- (B);');
+  const paths = [...svg.matchAll(/<path d="([^"]+)"/g)].map(m => m[1]);
+  check('coordinate path uses registered coords (M0 0L96 -64)',
+    paths.some(p => /^M0 0L96 -64/.test(p)),
+    `paths=${JSON.stringify(paths)}`);
+}
+
+// 18. no degenerate path from coordinate statement alone
+{
+  const svg = await render('\\coordinate (A) at (0,0);');
+  check('standalone coordinate emits no path', !(/<path /.test(svg)), svg.slice(0,120));
+}
+
+// 19. inline node label on draw path (node below at end)
+{
+  const svg = await render('\\draw[->] (0,0) -- (3,0) node[below] {x};');
+  const m = /<text x="(-?[\d.]+)" y="(-?[\d.]+)"[^>]*>x</.exec(svg);
+  // 末点 (3,0) → px=96；below 锚点下移 +8
+  check('inline "node[below] {x}" at end (96, +8)', m && Math.round(+m[1]) === 96 && Math.round(+m[2]) === 8, 'text at ' + (m && m[1] + ',' + m[2]));
+}
+
+// 20. inline node with at (x,y) override
+{
+  const svg = await render('\\draw[->] (0,0) -- (3,0) node[above] at (1,1) {p};');
+  const m = /<text x="(-?[\d.]+)" y="(-?[\d.]+)"[^>]*>p</.exec(svg);
+  // (1,1) → (32,-32)，above 上移 -8 → (32,-40)
+  check('inline "node[...] at (1,1)" label at (32,-40)', m && Math.round(+m[1]) === 32 && Math.round(+m[2]) === -40, 'text at ' + (m && m[1] + ',' + m[2]));
+}
+
+// 21. mid-path node "a -- node{lab} b" sits at segment midpoint (48, 0)
+{
+  const svg = await render('\\draw (0,0) -- node{mid} (3,0) -- (5,0);');
+  const m = /<text x="(-?[\d.]+)" y="(-?[\d.]+)"[^>]*>mid</.exec(svg);
+  check('mid-path "node{mid}" at (48, 0)', m && Math.round(+m[1]) === 48 && Math.round(+m[2]) === 0, 'text at ' + (m && m[1] + ',' + m[2]));
+}
+
+// 22. combined anchor "above right" on circle label
+{
+  const svg = await render('\\filldraw[blue] (3,2) circle (2pt) node[above right] {pt};');
+  const m = /<text x="(-?[\d.]+)" y="(-?[\d.]+)"[^>]*>pt</.exec(svg);
+  // 圆心 (3,2) → (96,-64)；above(-8y) right(+8x) → (104,-72)
+  check('circle label "above right" at (104,-72)', m && Math.round(+m[1]) === 104 && Math.round(+m[2]) === -72, 'text at ' + (m && m[1] + ',' + m[2]));
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

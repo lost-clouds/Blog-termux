@@ -21,7 +21,7 @@ export function parseOptions(opts) {
         ultraThick: false, dashed: false, dotted: false, arrow: false, arrowBack: false,
         circle: false, rectangle: false, rounded: false, scale: 1,
         anchor: 'center', fontSize: 14, fontBold: false, innerSep: 4,
-        step: null, domain: null, bareColor: null
+        step: null, domain: null, bareColor: null, pos: null
     };
     if (!opts) return r;
     const parts = splitOpts(opts);
@@ -38,10 +38,20 @@ export function parseOptions(opts) {
         if (p === 'sharp corners') { continue; }
         if (p === '->' || p === '->>' || p === 'latex' || p === '-latex' || p === '->latex') { r.arrow = true; continue; }
         if (p === '<-' || p === '<<-' || p === '<->' || p === '<->>') { r.arrowBack = true; continue; }
-        // 注意：Y-up 坐标系下 "above" = +tikz-y = SVG 向上 = [0,-d]，
-        // _anchorOffset 已做正确映射，这里不再需要反向映射。
-        if (p === 'above' || p === 'below' || p === 'left' || p === 'right') { r.anchor = p; continue; }
-        if (p === 'midway') { continue; }
+        // 锚点含 direction 词（可组合："above right"、"below left" 等，逗号分隔）
+        const dirs = { above: true, below: true, left: true, right: true };
+        if (dirs[p]) {
+            // 单锚点
+            if (r.anchor === 'center' || r.anchor === '') r.anchor = p;
+            continue;
+        }
+        // 组合锚点（空格分隔，如 "above right"）：按空格切成 direction 词
+        const multi = /^(above|below|left|right)(\s+(above|below|left|right))*$/.exec(p);
+        if (multi) {
+            r.anchor = p.replace(/\s+/g, ' ');
+            continue;
+        }
+        if (p === 'midway') { r.pos = 0.5; continue; }
 
         // 裸颜色（默认 fill / draw / text 色）
         if (isColorToken(p)) { r.bareColor = p; continue; }
@@ -65,6 +75,7 @@ export function parseOptions(opts) {
             else if (key === 'scale') { r.scale = parseFloat(val) || 1; }
             else if (key === 'step') { r.step = parseFloat(val); if (r.step <= 0) r.step = null; }
             else if (key === 'domain') { const dm = /^\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)\s*$/.exec(val); if (dm) r.domain = [parseFloat(dm[1]), parseFloat(dm[2])]; }
+            else if (key === 'pos') { const pp = parseFloat(val); if (isFinite(pp)) r.pos = pp; }
             else if (key === 'rounded corners') { r.rounded = true; }
             else if (key === 'line width') { const lw = parseFloat(val); if (lw) r.thick = lw > 1.5; }
             else if (key === 'inner sep') {

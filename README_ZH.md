@@ -223,7 +223,7 @@ Blog-termux/
 | `gallery.js` | 图片画廊 | `utils.js`, `lightbox.js`, `constants.js` | 缩略图网格，懒加载，250ms 防抖搜索 |
 | `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学 → marked → 清理 → 图片路径 → 锚点 → Mermaid → TikZ → KaTeX |
 | `mermaid-renderer.js` | Mermaid 图表渲染 | `constants.js` | 懒加载 Mermaid → SVG，语法错误优雅降级 |
-| `tikz-renderer.js` | 基础 TikZ → SVG 渲染（入口） | `tikz/*`（12 个模块） | 零依赖客户端 TikZ 解析，支持节点、带箭头连线、圆、矩形、网格（对角端点、`step=N`、`\fill … grid`）、贝塞尔曲线、圆弧、函数曲线、`\foreach` 循环、`\pgfmathsetmacro`、颜色混合（`red!40!blue`）、KaTeX 数学节点。固定缩放：1 TikZ 单位 = 32px。逻辑已拆分到 `js/tikz/`，便于维护 |
+| `tikz-renderer.js` | 基础 TikZ → SVG 渲染（入口） | `tikz/*`（12 个模块） | 零依赖客户端 TikZ 解析，支持节点、带箭头连线、圆、矩形、网格（对角端点、`step=N`、`\fill … grid`）、贝塞尔曲线、圆弧、函数曲线、`\foreach` 循环（含 `{a,b,...,z}` 中置省略号步长、遍历 `\coordinate` 名称的字符串循环变量）、`\pgfmathsetmacro`、颜色混合（`red!40!blue`）、KaTeX 数学节点、路径行内 `node[...]` 标签（`node[midway]` / `node[above right]` / `at (x,y)`）。固定缩放：1 TikZ 单位 = 32px。逻辑已拆分到 `js/tikz/`，便于维护 |
 | `sw.js` | Service Worker | — | Cache-first（静态）、SWR（文章/图片）、Network-first（入口）、Network-only（实时） |
 
 ### 核心模块详解
@@ -294,7 +294,7 @@ Hugo Book 风格三栏布局。`Promise.allSettled` 同时获取 Markdown + HTML
 | 5. 图片路径 | 相对路径重写为 `/api/images/` |
 | 6. 标题锚点 | 自动注入 `#` 链接，支持中文 slug |
 | 7. Mermaid 渲染 | 懒加载 Mermaid → SVG，语法错误优雅降级 |
-| 8. TikZ 渲染 | 零依赖客户端 TikZ → SVG（节点、线条、箭头、圆、矩形、网格、贝塞尔、圆弧、函数曲线、`\foreach` 循环、`\pgfmathsetmacro`、数学节点）；固定缩放 1 单位 = 32px |
+| 8. TikZ 渲染 | 零依赖客户端 TikZ → SVG（节点、线条、箭头、圆、矩形、网格、贝塞尔、圆弧、函数曲线、`\foreach` 循环（含 `{a,b,...,z}` 步长与命名坐标字符串变量）、`\pgfmathsetmacro`、行内 `node[...]` 标签、数学节点）；固定缩放 1 单位 = 32px |
 | 9. KaTeX 渲染 | 按需懒加载，加载失败优雅降级 |
 | 10. 图片绑定 | 委托点击 → 共享 `Lightbox` |
 

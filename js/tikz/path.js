@@ -1,8 +1,8 @@
 /**
  * @module tikz/path
  * @description 路径渲染：\draw/\fill rest。处理 -- 直线、.. controls ..、cycle、
- *              circle/rectangle/grid/plot 特型分发。
- * @requires tikz/constants, tikz/color, tikz/options, tikz/expr, tikz/context, tikz/shapes
+ *              circle/rectangle/grid/plot 特型分发，以及行内 node[...] 标签。
+ * @requires tikz/constants, tikz/color, tikz/options, tikz/expr, tikz/context, tikz/shapes, tikz/node
  */
 
 'use strict';
@@ -13,6 +13,63 @@ import { parseOptions, lineWidth, dash } from './options.js';
 import { parsePoint } from './expr.js';
 import { expandBounds } from './context.js';
 import { circleShape, rectangleShape, gridShape, plotShape, arrowHead } from './shapes.js';
+import { renderNodeLabel } from './node.js';
+
+/**
+ * 提取路径 rest 中的行内 node[...] {text} 段。
+ * 支持三种位置写法：node[...] {...}、node[...] at (x,y) {...}、
+ * node[pos=0.5] {...}（pos/midway 由调用方结合 path 末段求解）。
+ * @param {string} rest
+ * @returns {{rest:string, nodes:Array<{opts:string, text:string, at:?string}>}}
+ */
+function extractInlineNodes(rest) {
+    const nodes = [];
+    let out = '';
+    let i = 0;
+    while (i < rest.length) {
+        // 从 i 起查找 "node[opts]? [at (x,y)]? {text}"
+        const m = /node\s*(\[[^\]]*\])?\s*(?:at\s*(\([^)]*\)))?\s*(\{\{?)/.exec(rest.slice(i));
+        if (!m) { out += rest.slice(i); break; }
+        const start = i + m.index;
+        out += rest.slice(i, start);
+        const braceAt = start + m[0].lastIndexOf('{');
+        const opts = (m[1] || '').replace(/^\[|\]$/g, '');
+        const atCoor = m[2] || null;
+        const close = matchBrace(rest, braceAt);
+        const text = rest.slice(braceAt + 1, close);
+        const after = rest.slice(close + 1);
+        // 吸收 node 段之后的 "at (x,y)"（若 regex 未捕获到）
+        let at = atCoor ? atCoor.slice(1, -1) : null;
+        let consumed = close + 1;
+        if (!at) {
+            const atM = /^\s*at\s+(\([^)]*\))/.exec(after);
+            if (atM) { at = atM[1].slice(1, -1); consumed += atM[0].length; }
+        }
+        // 若 node 之后还有路径坐标（如 "a -- node{x} b"），该标签应贴所在线段中点
+        const restAfter = rest.slice(consumed);
+        let middle = false;
+        if (!at && /^\s*\(\s*[^)]/.test(restAfter)) middle = true;
+        nodes.push({ opts: opts, text: text, at: at, midBefore: middle });
+        i = consumed;
+    }
+    const cleaned = out.replace(/\s{2,}/g, ' ').trim();
+    return { rest: cleaned, nodes: nodes };
+}
+
+/**
+ * 找出从 idx 开始（指向 {）的配对右花括号下标。
+ * @param {string} s
+ * @param {number} idx
+ * @returns {number}
+ */
+function matchBrace(s, idx) {
+    let d = 0;
+    for (let i = idx; i < s.length; i++) {
+        if (s[i] === '{') d++;
+        else if (s[i] === '}') { d--; if (d === 0) return i; }
+    }
+    return idx;
+}
 
 /**
  * 渲染一条路径/绘图命令。
@@ -26,12 +83,56 @@ import { circleShape, rectangleShape, gridShape, plotShape, arrowHead } from './
  */
 export function renderDraw(rest, opts, ctx, filled, isFill, fillOverride) {
     const o = parseOptions(opts);
-    if (/\bcircle\b/.test(rest)) return circleShape(rest, o, ctx, isFill || filled, fillOverride || o.fill);
-    if (/\brectangle\b/.test(rest)) return rectangleShape(rest, o, ctx, isFill || filled);
-    if (/\bgrid\b/.test(rest)) return gridShape(rest, o, ctx, isFill || filled, fillOverride || o.fill);
-    if (/\bplot\b/.test(rest)) return plotShape(rest, o, ctx);
+    const extracted = extractInlineNodes(rest);
+    const drawRest = extracted.rest || '';
 
-    const path = tokenizePath(rest, o, ctx);
+    // 依次生成行内 node 标签（定位由调用方按图形/路径几何给出）。
+    // pt 为 tikz 单位，renderNodeLabel 内部再乘 scale。
+    /**
+     * 渲染该路径/图形的所有行内 node 标签。
+     * @param {Array<number>} defaultPt - 标签默认锚点（tikz 单位）
+     * @returns {{html:string, math:boolean}}
+     */
+    function inlineLabels(defaultPt) {
+        let html = '';
+        let hasMath = false;
+        for (const nd of extracted.nodes) {
+            const atPt = nd.at ? parsePoint(nd.at, ctx) : defaultPt;
+            const frag = renderNodeLabel(atPt, nd.opts, nd.text, ctx);
+            html += frag.html;
+            if (frag.math) hasMath = true;
+        }
+        return { html: html, math: hasMath };
+    }
+
+    const shapeMatch = /\(([^)]*)\)\s*(circle|rectangle|grid)\s*\(([^)]*)\)/i.exec(drawRest);
+    if (shapeMatch) {
+        const kind = shapeMatch[2];
+        let fr;
+        let center = [0, 0];
+        if (kind === 'circle') {
+            fr = circleShape(drawRest, o, ctx, isFill || filled, fillOverride || o.fill);
+            center = parsePoint(shapeMatch[1], ctx);
+        } else if (kind === 'rectangle') {
+            fr = rectangleShape(drawRest, o, ctx, isFill || filled);
+            const a = parsePoint(shapeMatch[1], ctx), b = parsePoint(shapeMatch[3], ctx);
+            center = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        } else {
+            fr = gridShape(drawRest, o, ctx, isFill || filled, fillOverride || o.fill);
+            const a = parsePoint(shapeMatch[1], ctx), b = parsePoint(shapeMatch[3], ctx);
+            center = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        }
+        const lab = inlineLabels(center);
+        return { html: fr.html + lab.html, math: lab.math };
+    }
+
+    if (/\bplot\b/.test(drawRest)) {
+        const fr = plotShape(drawRest, o, ctx);
+        const lab = inlineLabels([0, 0]);
+        return { html: fr.html + lab.html, math: lab.math };
+    }
+
+    const path = tokenizePath(drawRest, o, ctx);
     if (!path || !path.d) return { html: '', math: false };
     const strokeCol = o.draw || (o.bareColor && !isFill ? o.bareColor : null);
     const fillCol = fillOverride || o.fill || (o.bareColor && isFill ? o.bareColor : null);
@@ -43,7 +144,44 @@ export function renderDraw(rest, opts, ctx, filled, isFill, fillOverride) {
     let out = '<path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round"' + (dsh ? ' stroke-dasharray="' + dsh + '"' : '') + ' />';
     if (o.arrow && path.e2) out += arrowHead(path.e1, path.e2, stroke);
     if (o.arrowBack && path.s2) out += arrowHead(path.s2, path.s1, stroke);
-    return { html: out, math: false };
+
+    // 行内 node 标签：无 pos/midway 时贴末点（默认），有 pos 时沿末段插值
+    let labelHtml = '';
+    let hasMath = false;
+    for (const nd of extracted.nodes) {
+        const no = parseOptions(nd.opts);
+        let pt = null;
+        if (nd.at) {
+            pt = parsePoint(nd.at, ctx);
+        } else if (nd.midBefore && path.firstSeg) {
+            // 形如 "a -- node{...} b"：标签贴 node 前一线段的中点
+            const s = path.firstSeg;
+            const sc = o.scale * PX_PER_UNIT;
+            pt = [
+                (s[0] + (s[2] - s[0]) * 0.5) / sc,
+                -(s[1] + (s[3] - s[1]) * 0.5) / sc
+            ];
+        } else if (no.pos != null && path.lastSeg) {
+            const s = path.lastSeg; // [x1px,y1px,x2px,y2px]
+            const t = no.pos;
+            // 换算回 tikz 单位（nodeSvg 会再乘 scale）
+            const sc = o.scale * PX_PER_UNIT;
+            pt = [
+                (s[0] + (s[2] - s[0]) * t) / sc,
+                -(s[1] + (s[3] - s[1]) * t) / sc
+            ];
+        } else if (path.lastSeg) {
+            const s = path.lastSeg;
+            const sc = o.scale * PX_PER_UNIT;
+            pt = [s[2] / sc, -s[3] / sc];
+        } else {
+            pt = [0, 0];
+        }
+        const frag = renderNodeLabel(pt, nd.opts, nd.text, ctx);
+        labelHtml += frag.html;
+        if (frag.math) hasMath = true;
+    }
+    return { html: out + labelHtml, math: hasMath };
 }
 
 /**
@@ -52,7 +190,7 @@ export function renderDraw(rest, opts, ctx, filled, isFill, fillOverride) {
  * @param {string} rest
  * @param {Object} o
  * @param {Object} ctx
- * @returns {Object|null} {d, closed, s1, s2, e1, e2}
+ * @returns {Object|null} {d, closed, s1, s2, e1, e2, lastSeg}
  */
 function tokenizePath(rest, o, ctx) {
     const raw = rest.replace(/^\s*\\?[a-zA-Z]+\b/, '').trim();
@@ -112,7 +250,7 @@ function tokenizePath(rest, o, ctx) {
         i++;
     }
     if (!d) return null;
-    return { d: d, closed: closed, s1: firstSeg, s2: lastSeg, e1: firstSeg, e2: lastSeg };
+    return { d: d, closed: closed, s1: firstSeg, s2: lastSeg, e1: firstSeg, e2: lastSeg, lastSeg: lastSeg, firstSeg: firstSeg };
 }
 
 /**

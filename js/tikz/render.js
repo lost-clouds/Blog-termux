@@ -29,7 +29,11 @@ function renderStatement(stmt, ctx) {
     if (IGNORE_COMMANDS[command]) return { html: '', math: false };
     switch (command) {
         case 'node': return renderNode(rest, opts, ctx);
-        case 'coordinate':
+        case 'coordinate': {
+            // \coordinate 仅登记命名坐标，不产生任何绘制（避免 M0 0L0 0 退化路径）
+            registerCoords(rest, ctx, parsePoint);
+            return { html: '', math: false };
+        }
         case 'path':
         case 'draw': registerCoords(rest, ctx, parsePoint); return renderDraw(rest, opts, ctx, false);
         case 'fill': return renderDraw(rest, opts, ctx, true, true);
