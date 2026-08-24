@@ -132,9 +132,15 @@ export function gridShape(rest, o, ctx, filled, fillOpt) {
  * @returns {{html:string, math:boolean}}
  */
 export function plotShape(rest, o, ctx) {
-    const dm = /domain\s*=\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)/.exec(rest);
+    // domain 优先从选项（parseOptions 已解析为 o.domain）读取；
+    // 兼容旧写法兜底从 rest 解析；两者都缺省则默认 [-2,2]。
     let a = -2, b = 2;
-    if (dm) { a = parseFloat(dm[1]); b = parseFloat(dm[2]); }
+    if (Array.isArray(o.domain) && o.domain.length === 2 && isFinite(o.domain[0]) && isFinite(o.domain[1])) {
+        a = o.domain[0]; b = o.domain[1];
+    } else {
+        const dm = /domain\s*=\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)/.exec(rest);
+        if (dm) { a = parseFloat(dm[1]); b = parseFloat(dm[2]); }
+    }
     const pm = /plot\s*\(\\?([a-zA-Z])\s*,\s*\{([^}]*)\}\s*\)/.exec(rest);
     if (!pm) return { html: '', math: false };
     const varName = pm[1];

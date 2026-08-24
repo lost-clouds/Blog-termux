@@ -21,7 +21,7 @@ export function parseOptions(opts) {
         ultraThick: false, dashed: false, dotted: false, arrow: false, arrowBack: false,
         circle: false, rectangle: false, rounded: false, scale: 1,
         anchor: 'center', fontSize: 14, fontBold: false, innerSep: 4,
-        step: null, bareColor: null
+        step: null, domain: null, bareColor: null
     };
     if (!opts) return r;
     const parts = splitOpts(opts);
@@ -64,6 +64,7 @@ export function parseOptions(opts) {
             }
             else if (key === 'scale') { r.scale = parseFloat(val) || 1; }
             else if (key === 'step') { r.step = parseFloat(val); if (r.step <= 0) r.step = null; }
+            else if (key === 'domain') { const dm = /^\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)\s*$/.exec(val); if (dm) r.domain = [parseFloat(dm[1]), parseFloat(dm[2])]; }
             else if (key === 'rounded corners') { r.rounded = true; }
             else if (key === 'line width') { const lw = parseFloat(val); if (lw) r.thick = lw > 1.5; }
             else if (key === 'inner sep') {

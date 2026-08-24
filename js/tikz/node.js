@@ -69,6 +69,23 @@ function matchBrace(s, idx) {
 }
 
 /**
+ * 渲染"路径上的节点"（如 \\draw ... node[right] {$x$}）或 \\fill ... node[above] {标签}。
+ * 与 renderNode 的区别：由调用方给出 tikz 坐标点（不解析 at/(name)），
+ * 供 path/shapes 在路径末端/中点/圆心上贴标签。
+ * @param {Array<number>} pt - [x,y]（tikz 单位，Y 向上）
+ * @param {string} opts - 节点选项串
+ * @param {string} text
+ * @param {Object} ctx
+ * @returns {{html:string, math:boolean}}
+ */
+export function renderNodeLabel(pt, opts, text, ctx) {
+    const o = parseOptions(opts);
+    const hasMath = MATH_SPLIT.test(text);
+    MATH_SPLIT.lastIndex = 0;
+    return { html: nodeSvg(pt, o, text, hasMath, ctx), math: hasMath };
+}
+
+/**
  * 构建节点 SVG。
  * @param {Array<number>} pt
  * @param {Object} o
