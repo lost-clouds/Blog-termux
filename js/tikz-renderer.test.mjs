@@ -28,11 +28,12 @@ function check(name, cond, detail) {
   const f = [...svg.match(/<rect[^>]*\/>/)[0].matchAll(/-?\d+/g)].map(m => Math.round(+m[0]));
   check('rect (0,0)-(2,3) -> x0..64,y-96..0', f[0] === 0 && f[1] === -96 && f[2] === 64 && f[3] === 96, JSON.stringify(f));
 }
-// 4. grid (-2,-1) grid (2,1): rows span SVG y 0..32
+// 4. grid (-2,-1) grid (2,1): CORRECT TikZ behavior — coords are corners, step=1 → y lines at -1,0,1
+// SVG: y=-1→+32, y=0→0, y=1→-32, so min=-32, max=32
 {
   const svg = await render('\\draw (-2,-1) grid (2,1);');
   const ys = [...svg.matchAll(/y1="(-?\d+)"/g)].map(m => +m[1]);
-  check('grid y spans 0..32', Math.min(...ys) === 0 && Math.max(...ys) === 32, `min=${Math.min(...ys)} max=${Math.max(...ys)}`);
+  check('grid y spans -32..32', Math.min(...ys) === -32 && Math.max(...ys) === 32, `min=${Math.min(...ys)} max=${Math.max(...ys)}`);
 }
 // 5. line (0,0)->(0,3) goes UP (y=-96)
 {
@@ -68,7 +69,29 @@ function check(name, cond, detail) {
   check('left -> x=-8', /<text x="-8" y="0"/.test(left), left.slice(0, 160));
   check('right -> x=+8', /<text x="8" y="0"/.test(right), right.slice(0, 160));
 }
-// 9. composite coordinate system: axes + plot + points align
+// 9. grid with step option: (0,0) grid (5,4) with step=1 → 6 vertical lines (x=0..5), 5 horizontal (y=0..4)
+{
+  const svg = await render('\\draw[step=1] (0,0) grid (5,4);');
+  const xs = [...svg.matchAll(/x1="(\d+)"/g)].map(m => +m[1]);
+  const xvals = [...new Set(xs)].sort((a,b)=>a-b);
+  check('step=1 grid x lines 0,32,64,96,128,160', xvals.length === 6 && xvals[0] === 0 && xvals[5] === 160, `xvals=${JSON.stringify(xvals)}`);
+}
+
+// 10. grid+axes alignment: coordinate system with grid, axes, and a point all align
+{
+  const svg = await render('\\begin{document}\\begin{tikzpicture}[scale=1]\\draw[very thin,gray!30] (-4.5,-3.5) grid (4.5,3.5);\\draw[thick,->] (-4.5,0) -- (4.5,0);\\draw[thick,->] (0,-3.5) -- (0,3.5);\\fill (3,2) circle (2pt);\\end{tikzpicture}\\end{document}');
+  // Vertical grid lines: x1==x2 lines (columns) at integer positions -4..4 (inside [-4.5,4.5])
+  const cols = [...svg.matchAll(/<line x1="(-?\d+)" y1="(-?\d+)" x2="(-?\d+)"/g)]
+    .filter(m => m[1] === m[3]).map(m => +m[1]).sort((a,b)=>a-b);
+  check('axis+grid: 9 columns at -128..128 step 32',
+    cols.length === 9 && cols[0]===-128 && cols[8]===128,
+    `cols=${JSON.stringify(cols)}`);
+  // Point (3,2) should be at SVG cx=96, cy=-64
+  const circle = /<circle cx="(\d+)" cy="(-\d+)"/.exec(svg);
+  check('point (3,2) aligns at cx=96,cy=-64', circle && +circle[1]===96 && +circle[2]===-64, svg.slice(0,300));
+}
+
+// 12. composite coordinate system: axes + plot + points align
 {
   const svg = await render('\\begin{document}\\begin{tikzpicture}[scale=1]\\draw[thick,->] (-3,0) -- (3,0);\\draw[thick,->] (0,-3) -- (0,5);\\draw[blue,domain=-2:2] plot (\\x,{2*\\x+1});\\fill (0,1) circle (2pt);\\fill (1,3) circle (2pt);\\end{tikzpicture}\\end{document}');
   const circles = [...svg.matchAll(/<circle cx="(-?[0-9.e-]+)" cy="(-?[0-9.e-]+)"/g)].map(m => [Math.round(+m[1]), Math.round(+m[2])]);

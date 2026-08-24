@@ -223,7 +223,7 @@ Blog-termux/
 | `gallery.js` | 图片画廊 | `utils.js`, `lightbox.js`, `constants.js` | 缩略图网格，懒加载，250ms 防抖搜索 |
 | `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学 → marked → 清理 → 图片路径 → 锚点 → Mermaid → TikZ → KaTeX |
 | `mermaid-renderer.js` | Mermaid 图表渲染 | `constants.js` | 懒加载 Mermaid → SVG，语法错误优雅降级 |
-| `tikz-renderer.js` | 基础 TikZ → SVG 渲染（入口） | `tikz/*`（12 个模块） | 零依赖客户端 TikZ 解析，支持节点、带箭头连线、圆、矩形、网格、贝塞尔曲线、圆弧、函数曲线、`\foreach` 循环、`\pgfmathsetmacro`、颜色混合（`red!40!blue`）、KaTeX 数学节点。固定缩放：1 TikZ 单位 = 32px。逻辑已拆分到 `js/tikz/`，便于维护 |
+| `tikz-renderer.js` | 基础 TikZ → SVG 渲染（入口） | `tikz/*`（12 个模块） | 零依赖客户端 TikZ 解析，支持节点、带箭头连线、圆、矩形、网格（对角端点、`step=N`、`\fill … grid`）、贝塞尔曲线、圆弧、函数曲线、`\foreach` 循环、`\pgfmathsetmacro`、颜色混合（`red!40!blue`）、KaTeX 数学节点。固定缩放：1 TikZ 单位 = 32px。逻辑已拆分到 `js/tikz/`，便于维护 |
 | `sw.js` | Service Worker | — | Cache-first（静态）、SWR（文章/图片）、Network-first（入口）、Network-only（实时） |
 
 ### 核心模块详解

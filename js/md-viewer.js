@@ -380,15 +380,15 @@ function _scrollToHeading(target, scrollEl) {
         renderTikz(target);
     }
 
-    // KaTeX 数学公式渲染（懒加载，检测到公式才加载库）
+    // KaTeX 数学公式渲染（懒加载，检测到公式才加载库并渲染，避免无公式时全 DOM 扫描）
     if (mathBlocks.length > 0) {
         try {
             await _ensureKatex();
         } catch (err) {
             console.warn('KaTeX 加载失败:', err.message);
         }
+        _renderKatex(target);
     }
-    _renderKatex(target);
 
     return target;
 }

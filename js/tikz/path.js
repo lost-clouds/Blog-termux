@@ -28,7 +28,7 @@ export function renderDraw(rest, opts, ctx, filled, isFill, fillOverride) {
     const o = parseOptions(opts);
     if (/\bcircle\b/.test(rest)) return circleShape(rest, o, ctx, isFill || filled, fillOverride || o.fill);
     if (/\brectangle\b/.test(rest)) return rectangleShape(rest, o, ctx, isFill || filled);
-    if (/\bgrid\b/.test(rest)) return gridShape(rest, o, ctx);
+    if (/\bgrid\b/.test(rest)) return gridShape(rest, o, ctx, isFill || filled, fillOverride || o.fill);
     if (/\bplot\b/.test(rest)) return plotShape(rest, o, ctx);
 
     const path = tokenizePath(rest, o, ctx);

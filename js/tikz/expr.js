@@ -50,6 +50,41 @@ export function evalExpr(expr, vars) {
 }
 
 /**
+ * 编译数学表达式为可重复调用的求值函数（避免 plot 热循环中每样本都 new Function）。
+ * @param {string} expr
+ * @returns {function(Object):number} 输入 vars 输出数值
+ */
+export function compileEval(expr) {
+    const s = String(expr || '').trim();
+    // 预编译一次替换（与 evalExpr 逻辑一致），运行时仅做变量替换 + 取值
+    const head = s.replace(/\\[a-zA-Z]+/g, function (v) {
+        const key = v.slice(1);
+        return '(vars["' + key + '"]||0)';
+    });
+    const body = head
+        .replace(/\bpi\b/g, String(Math.PI))
+        .replace(/\be\b/g, String(Math.E))
+        .replace(/cos\(/g, 'Math.cos(')
+        .replace(/sin\(/g, 'Math.sin(')
+        .replace(/tan\(/g, 'Math.tan(')
+        .replace(/abs\(/g, 'Math.abs(')
+        .replace(/sqrt\(/g, 'Math.sqrt(')
+        .replace(/exp\(/g, 'Math.exp(')
+        .replace(/ln\(/g, 'Math.log(')
+        .replace(/log\(/g, 'Math.log10(')
+        .replace(/deg\(/g, '(');
+    const fn = new Function('vars', 'return (' + body.replace(/\^/g, '**') + ');');
+    return function (vars) {
+        try {
+            const v = fn(vars || {});
+            return typeof v === 'number' && isFinite(v) ? v : 0;
+        } catch (e) {
+            return 0;
+        }
+    };
+}
+
+/**
  * 求值单个坐标分量（可为 {expr}、常量或 \\var）。
  * @param {string} part
  * @param {Object} vars
