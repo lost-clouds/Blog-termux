@@ -9,6 +9,11 @@ set -euo pipefail
 
 SRC="css/src"
 OUT="css/style.css"
+TMP="${OUT}.tmp.$$"
+
+# 构建中途失败（如源文件缺失/被截断）时不留在已截断的 style.css：
+# 先写临时文件，成功后原子 mv；失败则清理临时文件并保留旧档案。
+trap 'rm -f "$TMP"' EXIT
 
 if [ -f "$OUT" ]; then
     cp "$OUT" "${OUT}.bak"
@@ -31,7 +36,9 @@ cat \
     "$SRC/components/bottom-nav.css" \
     "$SRC/themes/dark.css" \
     "$SRC/responsive.css" \
-    > "$OUT"
+    > "$TMP"
+
+mv "$TMP" "$OUT"
 
 echo "构建完成: $OUT ($(wc -l < "$OUT") 行)"
 echo "备份: ${OUT}.bak"

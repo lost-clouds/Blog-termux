@@ -11,28 +11,38 @@
     word-break: break-word;
 }
 
-.markdown-body h1, .markdown-body h2, .markdown-body h3,
-.markdown-body h4, .markdown-body h5, .markdown-body h6 {
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
     color: var(--text-primary);
     margin-top: 1.5em;
     margin-bottom: 0.5em;
 }
-.markdown-body p, .markdown-body li { color: var(--text-primary); }
+.markdown-body p,
+.markdown-body li {
+    color: var(--text-primary);
+}
 .markdown-body code {
-    background: rgba(0,0,0,0.06);
+    background: rgba(0, 0, 0, 0.06);
     padding: 0.15em 0.4em;
     border-radius: 3px;
     font-family: var(--font-mono);
     font-size: 0.9em;
 }
 .markdown-body pre {
-    background: rgba(0,0,0,0.04);
+    background: rgba(0, 0, 0, 0.04);
     border-radius: var(--radius-md);
     padding: 1rem !important;
     overflow-x: auto;
     border: 1px solid var(--glass-border);
 }
-.markdown-body pre code { background: none; padding: 0; }
+.markdown-body pre code {
+    background: none;
+    padding: 0;
+}
 .markdown-body blockquote {
     border-left: 3px solid var(--accent);
     padding-left: 0.8rem;
@@ -44,23 +54,29 @@
     display: block;
     overflow-x: auto;
 }
-.markdown-body th, .markdown-body td {
+.markdown-body th,
+.markdown-body td {
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--glass-border);
     text-align: left;
 }
-.markdown-body th { background: rgba(0,0,0,0.04); font-weight: 600; }
+.markdown-body th {
+    background: rgba(0, 0, 0, 0.04);
+    font-weight: 600;
+}
 
 /* 浅色模式代码块和表格增强对比 */
 body:not(.dark) .markdown-body code {
-    background: rgba(0,0,0,0.08);
+    background: rgba(0, 0, 0, 0.08);
     color: #1a1a2e;
 }
 body:not(.dark) .markdown-body pre {
     background: #f0f0f3;
-    border-color: rgba(0,0,0,0.1);
+    border-color: rgba(0, 0, 0, 0.1);
 }
-body:not(.dark) .markdown-body table { background: #fff; }
+body:not(.dark) .markdown-body table {
+    background: #fff;
+}
 body:not(.dark) .markdown-body th {
     background: #e8e8ed;
     color: #1c1c1e !important;
@@ -70,17 +86,28 @@ body:not(.dark) .markdown-body td {
     color: #1c1c1e !important;
 }
 body:not(.dark) .markdown-body tr:nth-child(even) td {
-    background: rgba(0,0,0,0.03);
+    background: rgba(0, 0, 0, 0.03);
 }
 body:not(.dark) .markdown-body tr:hover td {
-    background: rgba(0,0,0,0.06);
+    background: rgba(0, 0, 0, 0.06);
 }
-body:not(.dark) .markdown-body td * { color: #1c1c1e !important; }
-body:not(.dark) .markdown-body tr { background: #fff !important; }
-body:not(.dark) .markdown-body tr:nth-child(even) { background: #f6f8fa !important; }
-body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
+body:not(.dark) .markdown-body td * {
+    color: #1c1c1e !important;
+}
+body:not(.dark) .markdown-body tr {
+    background: #fff !important;
+}
+body:not(.dark) .markdown-body tr:nth-child(even) {
+    background: #f6f8fa !important;
+}
+body:not(.dark) .markdown-body tr:hover {
+    background: #e8f0fe !important;
+}
 
-.markdown-body td, .markdown-body th { color: var(--text-primary); }
+.markdown-body td,
+.markdown-body th {
+    color: var(--text-primary);
+}
 .markdown-body img {
     cursor: zoom-in;
     border-radius: var(--radius-sm);
@@ -99,20 +126,28 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
 }
 .markdown-body h1:hover .anchor,
 .markdown-body h2:hover .anchor,
-.markdown-body h3:hover .anchor { opacity: 0.6; }
+.markdown-body h3:hover .anchor {
+    opacity: 0.6;
+}
 
 /* KaTeX */
-.katex { font-size: 1.05em; }
-.katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5em 0; }
+.katex {
+    font-size: 1.05em;
+}
+.katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5em 0;
+}
 
 /* 渲染错误 */
 .md-error {
-    background: rgba(248,81,73,0.1);
+    background: rgba(248, 81, 73, 0.1);
     color: #d32f2f;
     padding: 1rem;
     border-radius: var(--radius-md);
     text-align: center;
-    border: 1px solid rgba(248,81,73,0.3);
+    border: 1px solid rgba(248, 81, 73, 0.3);
 }
 
 /* Mermaid 图表容器（mermaid.run() 将内部替换为 SVG）*/
@@ -129,8 +164,8 @@ body:not(.dark) .markdown-body tr:hover { background: #e8f0fe !important; }
 
 /* Mermaid 渲染失败降级：显示源码 + 错误提示 */
 .mermaid-error {
-    background: rgba(248,81,73,0.08);
-    border: 1px solid rgba(248,81,73,0.25);
+    background: rgba(248, 81, 73, 0.08);
+    border: 1px solid rgba(248, 81, 73, 0.25);
     border-radius: var(--radius-md);
     padding: 1rem;
 }

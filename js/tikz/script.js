@@ -8,6 +8,7 @@
 'use strict';
 
 import { evalExpr } from './expr.js';
+import { parsePreamble } from './styles.js';
 
 /**
  * 剔除 % 注释（保留花括号内与转义 \%）。
@@ -22,14 +23,67 @@ function stripComments(s) {
         let cut = -1;
         for (let i = 0; i < line.length; i++) {
             const ch = line[i];
-            if (ch === '\\') { i++; continue; }
+            if (ch === '\\') {
+                i++;
+                continue;
+            }
             if (ch === '{') inBrace++;
             else if (ch === '}') inBrace--;
-            else if (ch === '%' && inBrace === 0) { cut = i; break; }
+            else if (ch === '%' && inBrace === 0) {
+                cut = i;
+                break;
+            }
         }
         out.push(cut === -1 ? line : line.slice(0, cut));
     }
     return out.join('\n');
+}
+
+/**
+ * 提取 tikzpicture 前置选项块（样式、node distance、scale）并解析。
+ * 找出 \begin{tikzpicture}[...] 中的 [...]（花括号配对切分）。
+ * @param {string} source - 原始源码
+ * @returns {{styles:Object, nodeDistance:number, scale:number, body:string}}
+ *          body 为去掉前置选项块后的源码
+ */
+function extractPreamble(source) {
+    // 查找 tikzpicture 前置块
+    const m = /\\begin\{tikzpicture\}\s*\[/.exec(source);
+    if (!m) return { styles: {}, nodeDistance: 1, scale: 1, body: source };
+    const start = m.index + m[0].length - 1; // 指向 '['
+    const end = findCloseBracket(source, start);
+    if (end === -1) return { styles: {}, nodeDistance: 1, scale: 1, body: source };
+    const optsStr = source.slice(start + 1, end);
+    const preamble = parsePreamble(optsStr);
+    const body = source.slice(0, m.index) + source.slice(end + 1);
+    return {
+        styles: preamble.styles,
+        nodeDistance: preamble.nodeDistance,
+        scale: preamble.scale,
+        body: body,
+    };
+}
+
+/**
+ * 找出从 open 起配套的右方括号下标（花括号深度计入，忽略内部嵌套）。
+ * @param {string} s
+ * @param {number} open - 指向 '['
+ * @returns {number}
+ */
+function findCloseBracket(s, open) {
+    let depth = 0;
+    let brace = 0;
+    for (let i = open; i < s.length; i++) {
+        const ch = s[i];
+        if (ch === '{') brace++;
+        else if (ch === '}') brace--;
+        else if (ch === '[' && brace === 0) depth++;
+        else if (ch === ']' && brace === 0) {
+            depth--;
+            if (depth === 0) return i;
+        }
+    }
+    return -1;
 }
 
 /**
@@ -42,12 +96,16 @@ export function preprocess(source) {
     s = s
         .replace(/\\begin\{[^}]*\}(?:\[[^\]]*\])?\s*/g, '')
         .replace(/\\end\{[^}]*\}(?:\[[^\]]*\])?\s*/g, '')
+        .replace(/^\s*\\documentclass(?:\[[^\]]*\])?\{[^}]*\}\s*$/gm, '')
+        .replace(/^\s*\\usepackage(?:\[[^\]]*\])?\{[^}]*\}\s*$/gm, '')
         .replace(/^\s*\\usetikzlibrary\{[^}]*\}\s*$/gm, '')
         .replace(/^\s*\\tikzset\{[^}]*\}\s*$/gm, '')
         .replace(/^\s*\\pgfkeys\{[^}]*\}\s*$/gm, '')
         .trim();
     return s;
 }
+
+export { extractPreamble };
 
 /**
  * 将文本按顶层分号切分为语句数组（花括号内不切割）。
@@ -62,7 +120,11 @@ function splitStatements(text) {
         const ch = text[i];
         if (ch === '{') depth++;
         else if (ch === '}') depth--;
-        else if (ch === ';' && depth === 0) { if (cur.trim()) out.push(cur); cur = ''; continue; }
+        else if (ch === ';' && depth === 0) {
+            if (cur.trim()) out.push(cur);
+            cur = '';
+            continue;
+        }
         cur += ch;
     }
     if (cur.trim()) out.push(cur);
@@ -82,7 +144,10 @@ function parseCommand(s) {
     const om = after.match(/^\s*\[([^\]]*)\]/);
     let opts = '';
     let rest = after;
-    if (om) { opts = om[1]; rest = after.slice(om[0].length); }
+    if (om) {
+        opts = om[1];
+        rest = after.slice(om[0].length);
+    }
     return { command: cmd, opts: opts, rest: rest.trim() };
 }
 
@@ -124,11 +189,17 @@ function substituteVars(text, vars) {
 function expandStatement(stmt, ctx) {
     const trimmed = stmt.trim();
     const fm = /^\\(foreach|pgfmathsetmacro)\b([\s\S]*)$/.exec(trimmed);
-    if (!fm) { ctx.out.push(parseCommand(substituteVars(trimmed, ctx.vars))); return; }
+    if (!fm) {
+        ctx.out.push(parseCommand(substituteVars(trimmed, ctx.vars)));
+        return;
+    }
     const cmd = fm[1];
     const after = fm[2];
 
-    if (cmd === 'foreach') { expandForeach(after, ctx); return; }
+    if (cmd === 'foreach') {
+        expandForeach(after, ctx);
+        return;
+    }
     // pgfmathsetmacro{\name}{expr}（expr 内部不含右花括号）。
     // 兼容写法：宏后面可以再跟其他语句（且不一定以 ; 结尾），此时先把宏
     // 计算存入变量，再继续展开剩余语句；否则按旧行为整条会被吞掉。
@@ -176,9 +247,7 @@ function parseForeachList(listStr) {
     // 椭圆展开：某一段为 "..."（可出现在列表中部或末尾）
     const dotIdx = parts.findIndex((p) => /^\.\.\.$/.test(p));
     if (dotIdx !== -1) {
-        const nums = parts
-            .filter((p) => p !== '...' && /^-?\d+(\.\d+)?$/.test(p))
-            .map(Number);
+        const nums = parts.filter((p) => p !== '...' && /^-?\d+(\.\d+)?$/.test(p)).map(Number);
         if (nums.length >= 2) {
             const step = nums.length >= 3 ? nums[1] - nums[0] : 1;
             const end = nums[nums.length - 1];
@@ -195,7 +264,7 @@ function parseForeachList(listStr) {
         .filter((p) => p !== '...')
         .map((p) => {
             const n = parseFloat(p);
-            return (p.trim() !== '' && Number.isFinite(n) && /^-?\d+(\.\d+)?$/.test(p)) ? n : p;
+            return p.trim() !== '' && Number.isFinite(n) && /^-?\d+(\.\d+)?$/.test(p) ? n : p;
         })
         .filter((v) => v !== '');
 }

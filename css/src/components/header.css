@@ -36,13 +36,16 @@
     gap: 0.4rem;
 }
 
-.tab-btn .tab-icon { font-size: 1.1rem; }
+.tab-btn .tab-icon {
+    font-size: 1.1rem;
+}
 
-.tab-btn:hover { color: var(--text-primary); }
+.tab-btn:hover {
+    color: var(--text-primary);
+}
 
 .tab-btn.active {
     background: var(--accent);
     color: #fff;
     box-shadow: var(--shadow-sm);
 }
-

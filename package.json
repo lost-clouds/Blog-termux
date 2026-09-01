@@ -5,10 +5,10 @@
   "description": "Personal Dashboard + Blog Console for Termux",
   "scripts": {
     "lint:js": "eslint js/",
-    "lint:css": "stylelint css/src/**/*.css",
+    "lint:css": "stylelint \"css/src/**/*.css\" \"css/src/*.css\"",
     "lint:sh": "shellcheck -S error corn.sh gen_index.sh css/build.sh",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:sh",
-    "format": "prettier --write js/**/*.js css/src/**/*.css"
+    "format": "prettier --write \"js/**/*.js\" \"js/*.js\" \"css/src/**/*.css\" \"css/src/*.css\""
   },
   "devDependencies": {
     "eslint": "^8.0.0",

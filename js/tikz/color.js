@@ -33,7 +33,12 @@ export function resolveColor(color, fallback) {
     if (c === 'none') return 'none';
     if (/^(#|rgb|rgba|var\(|hsla)/.test(c)) return c;
     // 混合链：red!40!blue 表示 40% 从 red 到 blue 混合
-    const parts = c.split('!').map(function (x) { return x.trim(); }).filter(Boolean);
+    const parts = c
+        .split('!')
+        .map(function (x) {
+            return x.trim();
+        })
+        .filter(Boolean);
     if (parts.length >= 3) {
         const base = parts[0];
         const pct = parseFloat(parts[1]);
@@ -71,7 +76,8 @@ function hex(name) {
  */
 function blend(a, b, pct) {
     const t = Math.max(0, Math.min(100, pct)) / 100;
-    const pa = rgb(a), pb = rgb(b);
+    const pa = rgb(a),
+        pb = rgb(b);
     const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
     const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
     const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);
@@ -85,7 +91,13 @@ function blend(a, b, pct) {
  */
 function rgb(hexColor) {
     let h = hexColor.replace('#', '');
-    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    if (h.length === 3)
+        h = h
+            .split('')
+            .map(function (c) {
+                return c + c;
+            })
+            .join('');
     h = h.slice(0, 6).padEnd(6, '0');
     return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }

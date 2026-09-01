@@ -29,11 +29,14 @@
     gap: 0.5rem;
 }
 
-.header-brand .brand-icon { font-size: 1.4rem; }
+.header-brand .brand-icon {
+    font-size: 1.4rem;
+}
 
 /* 主题切换按钮 */
 .theme-toggle-btn {
-    width: 40px; height: 40px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     border: 1px solid var(--glass-border-strong);
     background: var(--glass-bg);
@@ -46,5 +49,7 @@
     color: var(--text-primary);
     flex-shrink: 0;
 }
-.theme-toggle-btn:hover { transform: scale(1.08); box-shadow: var(--shadow-md); }
-
+.theme-toggle-btn:hover {
+    transform: scale(1.08);
+    box-shadow: var(--shadow-md);
+}

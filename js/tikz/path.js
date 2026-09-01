@@ -11,9 +11,10 @@ import { PX_PER_UNIT, DEFAULT_STROKE } from './constants.js';
 import { resolveColor } from './color.js';
 import { parseOptions, lineWidth, dash } from './options.js';
 import { parsePoint } from './expr.js';
-import { expandBounds } from './context.js';
+import { expandBounds, picScale } from './context.js';
 import { circleShape, rectangleShape, gridShape, plotShape, arrowHead } from './shapes.js';
 import { renderNodeLabel } from './node.js';
+import { parseLength } from './units.js';
 
 /**
  * 提取路径 rest 中的行内 node[...] {text} 段。
@@ -29,7 +30,10 @@ function extractInlineNodes(rest) {
     while (i < rest.length) {
         // 从 i 起查找 "node[opts]? [at (x,y)]? {text}"
         const m = /node\s*(\[[^\]]*\])?\s*(?:at\s*(\([^)]*\)))?\s*(\{\{?)/.exec(rest.slice(i));
-        if (!m) { out += rest.slice(i); break; }
+        if (!m) {
+            out += rest.slice(i);
+            break;
+        }
         const start = i + m.index;
         out += rest.slice(i, start);
         const braceAt = start + m[0].lastIndexOf('{');
@@ -43,7 +47,10 @@ function extractInlineNodes(rest) {
         let consumed = close + 1;
         if (!at) {
             const atM = /^\s*at\s+(\([^)]*\))/.exec(after);
-            if (atM) { at = atM[1].slice(1, -1); consumed += atM[0].length; }
+            if (atM) {
+                at = atM[1].slice(1, -1);
+                consumed += atM[0].length;
+            }
         }
         // 若 node 之后还有路径坐标（如 "a -- node{x} b"），该标签应贴所在线段中点
         const restAfter = rest.slice(consumed);
@@ -66,7 +73,10 @@ function matchBrace(s, idx) {
     let d = 0;
     for (let i = idx; i < s.length; i++) {
         if (s[i] === '{') d++;
-        else if (s[i] === '}') { d--; if (d === 0) return i; }
+        else if (s[i] === '}') {
+            d--;
+            if (d === 0) return i;
+        }
     }
     return idx;
 }
@@ -115,11 +125,13 @@ export function renderDraw(rest, opts, ctx, filled, isFill, fillOverride) {
             center = parsePoint(shapeMatch[1], ctx);
         } else if (kind === 'rectangle') {
             fr = rectangleShape(drawRest, o, ctx, isFill || filled);
-            const a = parsePoint(shapeMatch[1], ctx), b = parsePoint(shapeMatch[3], ctx);
+            const a = parsePoint(shapeMatch[1], ctx),
+                b = parsePoint(shapeMatch[3], ctx);
             center = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
         } else {
             fr = gridShape(drawRest, o, ctx, isFill || filled, fillOverride || o.fill);
-            const a = parsePoint(shapeMatch[1], ctx), b = parsePoint(shapeMatch[3], ctx);
+            const a = parsePoint(shapeMatch[1], ctx),
+                b = parsePoint(shapeMatch[3], ctx);
             center = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
         }
         const lab = inlineLabels(center);
@@ -141,9 +153,25 @@ export function renderDraw(rest, opts, ctx, filled, isFill, fillOverride) {
     const sw = lineWidth(o);
     const dsh = dash(o);
     const d = path.d + (path.closed ? 'Z' : '');
-    let out = '<path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round"' + (dsh ? ' stroke-dasharray="' + dsh + '"' : '') + ' />';
-    if (o.arrow && path.e2) out += arrowHead(path.e1, path.e2, stroke);
-    if (o.arrowBack && path.s2) out += arrowHead(path.s2, path.s1, stroke);
+    let out =
+        '<path d="' +
+        d +
+        '" fill="' +
+        fill +
+        '" stroke="' +
+        stroke +
+        '" stroke-width="' +
+        sw +
+        '" stroke-linecap="round" stroke-linejoin="round"' +
+        (dsh ? ' stroke-dasharray="' + dsh + '"' : '') +
+        ' />';
+    // 箭头：arrowHead(from, to) 从 from 指向 to，终点在 to。e2 为末段 [x1,y1,x2,y2]，
+    // 需取末段终点 (x2,y2)；回箭头取首段起点。旧代码误把整段数组当 [x,y] 点传，
+    // 导致单段路径 dx=dy=0 → 箭头永不绘制（本例中所有 -> 都缺箭头）。
+    if (o.arrow && path.e2)
+        out += arrowHead([path.e2[0], path.e2[1]], [path.e2[2], path.e2[3]], stroke);
+    if (o.arrowBack && path.s1)
+        out += arrowHead([path.s1[2], path.s1[3]], [path.s1[0], path.s1[1]], stroke);
 
     // 行内 node 标签：无 pos/midway 时贴末点（默认），有 pos 时沿末段插值
     let labelHtml = '';
@@ -156,23 +184,17 @@ export function renderDraw(rest, opts, ctx, filled, isFill, fillOverride) {
         } else if (nd.midBefore && path.firstSeg) {
             // 形如 "a -- node{...} b"：标签贴 node 前一线段的中点
             const s = path.firstSeg;
-            const sc = o.scale * PX_PER_UNIT;
-            pt = [
-                (s[0] + (s[2] - s[0]) * 0.5) / sc,
-                -(s[1] + (s[3] - s[1]) * 0.5) / sc
-            ];
+            const sc = o.scale * picScale(ctx) * PX_PER_UNIT;
+            pt = [(s[0] + (s[2] - s[0]) * 0.5) / sc, -(s[1] + (s[3] - s[1]) * 0.5) / sc];
         } else if (no.pos != null && path.lastSeg) {
             const s = path.lastSeg; // [x1px,y1px,x2px,y2px]
             const t = no.pos;
             // 换算回 tikz 单位（nodeSvg 会再乘 scale）
-            const sc = o.scale * PX_PER_UNIT;
-            pt = [
-                (s[0] + (s[2] - s[0]) * t) / sc,
-                -(s[1] + (s[3] - s[1]) * t) / sc
-            ];
+            const sc = o.scale * picScale(ctx) * PX_PER_UNIT;
+            pt = [(s[0] + (s[2] - s[0]) * t) / sc, -(s[1] + (s[3] - s[1]) * t) / sc];
         } else if (path.lastSeg) {
             const s = path.lastSeg;
-            const sc = o.scale * PX_PER_UNIT;
+            const sc = o.scale * picScale(ctx) * PX_PER_UNIT;
             pt = [s[2] / sc, -s[3] / sc];
         } else {
             pt = [0, 0];
@@ -200,16 +222,23 @@ function tokenizePath(rest, o, ctx) {
     let closed = false;
     let firstSeg = null;
     let lastSeg = null;
-    const scale = o.scale || 1;
+    const scale = (o.scale || 1) * picScale(ctx);
     // TikZ Y 轴向上，SVG Y 轴向下 → y 取负，保证绘图与网格/坐标轴对齐。
-    const XP = function (p) { return p[0] * scale * PX_PER_UNIT; };
-    const YP = function (p) { return -p[1] * scale * PX_PER_UNIT; };
+    const XP = function (p) {
+        return p[0] * scale * PX_PER_UNIT;
+    };
+    const YP = function (p) {
+        return -p[1] * scale * PX_PER_UNIT;
+    };
 
     let i = 0;
     const n = raw.length;
     while (i < n) {
         const ch = raw[i];
-        if (/\s/.test(ch)) { i++; continue; }
+        if (/\s/.test(ch)) {
+            i++;
+            continue;
+        }
         if (ch === '(') {
             const close = findCloseParen(raw, i);
             const pt = parsePoint(raw.slice(i + 1, close), ctx);
@@ -227,14 +256,28 @@ function tokenizePath(rest, o, ctx) {
             continue;
         }
         if (ch === '.' && raw[i + 1] === '.') {
-            const cm = /^\.\.\s*controls\s*\(([^)]*)\)(?:\s*and\s*\(([^)]*)\))?\s*\.\.\s*\(([^)]*)\)/.exec(raw.slice(i));
+            const cm =
+                /^\.\.\s*controls\s*\(([^)]*)\)(?:\s*and\s*\(([^)]*)\))?\s*\.\.\s*\(([^)]*)\)/.exec(
+                    raw.slice(i)
+                );
             if (cm && cur) {
                 const c1 = parsePoint(cm[1], ctx);
                 const c2c = cm[2] ? parsePoint(cm[2], ctx) : null;
                 const q = parsePoint(cm[3], ctx);
                 expandBounds(ctx, XP(c1), YP(c1), XP(q), YP(q));
                 d += c2c
-                    ? 'C' + XP(c1) + ' ' + YP(c1) + ' ' + XP(c2c) + ' ' + YP(c2c) + ' ' + XP(q) + ' ' + YP(q)
+                    ? 'C' +
+                      XP(c1) +
+                      ' ' +
+                      YP(c1) +
+                      ' ' +
+                      XP(c2c) +
+                      ' ' +
+                      YP(c2c) +
+                      ' ' +
+                      XP(q) +
+                      ' ' +
+                      YP(q)
                     : 'Q' + XP(c1) + ' ' + YP(c1) + ' ' + XP(q) + ' ' + YP(q);
                 const seg = [XP(cur), YP(cur), XP(q), YP(q)];
                 if (!firstSeg) firstSeg = seg;
@@ -243,14 +286,64 @@ function tokenizePath(rest, o, ctx) {
                 i += cm[0].length;
                 continue;
             }
-            i += 2; continue;
+            i += 2;
+            continue;
         }
-        if (raw.slice(i, i + 5) === 'cycle') { closed = true; d += 'Z'; i += 5; continue; }
-        if (ch === '-' || ch === '<' || ch === '>') { i++; while (i < n && /[-<->]/.test(raw[i])) i++; continue; }
+        // arc：从当前点 (cur) 出发，以 start:end:radius 画圆弧。
+        // 圆心 C = cur - r·(cos a1, sin a1)（TikZ 角度逆时针，Y 向上）；
+        // 端点 Q = C + r·(cos a2, sin a2)。用折线采样近似（与 plot 同思路），
+        // 避免 SVG arc 大弧/扫掠标志的朝向换算错误。
+        if (raw.slice(i, i + 3) === 'arc' && cur) {
+            const am = /^arc\s*\(\s*([-0-9.]+)\s*:\s*([-0-9.]+)\s*:\s*([^{}()]+)\s*\)/.exec(
+                raw.slice(i)
+            );
+            if (am) {
+                const a1 = (parseFloat(am[1]) * Math.PI) / 180;
+                const a2 = (parseFloat(am[2]) * Math.PI) / 180;
+                const rr = parseLengthArc(am[3], ctx);
+                const cx = cur[0] - rr * Math.cos(a1);
+                const cy = cur[1] - rr * Math.sin(a1);
+                const N = 24;
+                let prev = cur;
+                for (let k = 1; k <= N; k++) {
+                    const a = a1 + ((a2 - a1) * k) / N;
+                    const q = [cx + rr * Math.cos(a), cy + rr * Math.sin(a)];
+                    d += 'L' + XP(q) + ' ' + YP(q);
+                    expandBounds(ctx, XP(q), YP(q));
+                    prev = q;
+                }
+                const seg = [XP(cur), YP(cur), XP(prev), YP(prev)];
+                if (!firstSeg) firstSeg = seg;
+                lastSeg = seg;
+                cur = prev;
+                i += am[0].length;
+                continue;
+            }
+        }
+        if (raw.slice(i, i + 5) === 'cycle') {
+            closed = true;
+            d += 'Z';
+            i += 5;
+            continue;
+        }
+        if (ch === '-' || ch === '<' || ch === '>') {
+            i++;
+            while (i < n && /[-<->]/.test(raw[i])) i++;
+            continue;
+        }
         i++;
     }
     if (!d) return null;
-    return { d: d, closed: closed, s1: firstSeg, s2: lastSeg, e1: firstSeg, e2: lastSeg, lastSeg: lastSeg, firstSeg: firstSeg };
+    return {
+        d: d,
+        closed: closed,
+        s1: firstSeg,
+        s2: lastSeg,
+        e1: firstSeg,
+        e2: lastSeg,
+        lastSeg: lastSeg,
+        firstSeg: firstSeg,
+    };
 }
 
 /**
@@ -263,7 +356,23 @@ function findCloseParen(s, open) {
     let d = 0;
     for (let i = open; i < s.length; i++) {
         if (s[i] === '(') d++;
-        else if (s[i] === ')') { d--; if (d === 0) return i; }
+        else if (s[i] === ')') {
+            d--;
+            if (d === 0) return i;
+        }
     }
     return open;
+}
+
+/**
+ * 解析 arc 半径：纯数字按 TikZ 单位；带单位后缀（pt/cm 等）按长度换算。
+ * @param {string} s
+ * @param {Object} ctx
+ * @returns {number}
+ */
+function parseLengthArc(s, ctx) {
+    const t = String(s).trim();
+    if (!t) return 0;
+    if (/^-?[\d.]+$/.test(t)) return parseFloat(t);
+    return parseLength(t, ctx.vars);
 }

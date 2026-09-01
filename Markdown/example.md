@@ -538,6 +538,33 @@ graph TD
 ```
 > 说明：`\usetikzlibrary` 需要**独占一行**才会被引擎整行忽略；若夹在其它指令中间，它会被当作无效命令不知不觉地静默丢弃（实测不会让整块崩溃，但其库图形不会渲染）。`\tikzset`/`\pgfkeys` 同理。依赖 TikZ 扩展库的形状（如 decorations）不会渲染。建议把以上易触发问题的内容用 `%` 注释示意，避免产生不可见的空结果。
 
+### 15.11 相对定位、样式与锚点（流程框图）
+
+阅读器支持 **positioning 风格相对定位**（`below=of X` / `right=of X`，可带间距或 `xshift`/`yshift`）、**节点样式定义**（`X/.style={…}`，含 `minimum width/height` 最小尺寸）与 **节点锚点引用**（`at (X.center)` / `at (X.south west)`）。下面的示意图只有首个节点写绝对坐标，其余均按相对位置自动铺开，不再挤在原点：
+
+```tikz
+\begin{tikzpicture}[
+    node distance=1.4cm,
+    box/.style={draw, thick, rounded corners, fill=blue!10,
+                minimum width=2.6cm, minimum height=1.1cm, align=center}
+]
+\node[box] (time)  {时间域};
+\node[box, below=of time, xshift=-1.2cm] (signal) {信号波形};
+\node[box, right=of time, xshift=2.5cm] (fft) {傅里叶变换};
+\node[box, below=of fft] (freq) {频率域};
+\node[box, right=of freq, xshift=2.5cm] (ifft) {逆傅里叶变换};
+\draw[->] (time) -- (signal);
+\draw[->] (signal) -- (fft);
+\draw[->] (fft) -- (freq);
+\draw[->] (freq) -- (ifft);
+\node[above=0.3cm of fft, font=\small\bfseries] {核心步骤};
+\draw[decorate, decoration={brace, amplitude=5pt, mirror, raise=2pt}]
+    ($(freq.south west)+(-0.3,-0.3)$) -- ($(freq.south east)+(0.3,-0.3)$)
+    node[midway, below] {频率分解};
+\end{tikzpicture}
+```
+> 说明：`below=of X` 把当前节点放在 X 的下方，间距取 `node distance`（默认 1cm，可在 `\begin{tikzpicture}[...]` 里覆盖）；`right=of X` / `left=of X` / `above=of X` 同理，可用 `below=2.5cm of X` 显式给间距。`$...$` 坐标运算（如 `$(X.south west)+(dx,dy)$`）与节点锚点引用（`X.center` / `X.south west` 等）均可直接用作 `--` 路径端点。
+
 ---
 
 > **本文档完整覆盖**：多级标题（TOC 生成）、文字样式、图片引用（相对/绝对/子目录）、KaTeX 数学公式（行内/块级/多种分隔符）、代码块（语法高亮）、Mermaid 图表（流程图/序列图/类图/降级处理）、表格（对齐/混合内容）、列表（无序/有序/任务）、嵌套引用、链接（外部/名词解释）、分隔线、HTML 标签白名单、XSS 安全过滤。可据此验证阅读器的全部渲染能力。

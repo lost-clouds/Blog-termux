@@ -16,7 +16,7 @@ import { Gallery } from './gallery.js';
  * @requires module:gallery
  */
 
-'use strict';
+('use strict');
 
 const TABS = ['dashboard', 'nav', 'blog', 'gallery'];
 let _currentTab = 'dashboard';
@@ -51,19 +51,19 @@ function _switchTab(tabId) {
     if (tabId === 'dashboard') Dashboard.onTabEnter();
 
     if ($tabBar) {
-        $tabBar.querySelectorAll('.tab-btn').forEach(function(btn) {
+        $tabBar.querySelectorAll('.tab-btn').forEach(function (btn) {
             btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
         });
     }
 
     if ($bottomNav) {
-        $bottomNav.querySelectorAll('.tab-btn').forEach(function(btn) {
+        $bottomNav.querySelectorAll('.tab-btn').forEach(function (btn) {
             btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
         });
     }
 
     if ($sections) {
-        $sections.forEach(function(sec) {
+        $sections.forEach(function (sec) {
             sec.classList.toggle('active', sec.id === 'sec-' + tabId);
         });
     }
@@ -101,17 +101,21 @@ function _onTabKeydown(e) {
     if (e.key === 'ArrowRight') {
         e.preventDefault();
         const next = btns[(idx + 1) % btns.length];
-        next.focus(); next.click();
+        next.focus();
+        next.click();
     } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const prev = btns[(idx - 1 + btns.length) % btns.length];
-        prev.focus(); prev.click();
+        prev.focus();
+        prev.click();
     } else if (e.key === 'Home') {
         e.preventDefault();
-        btns[0].focus(); btns[0].click();
+        btns[0].focus();
+        btns[0].click();
     } else if (e.key === 'End') {
         e.preventDefault();
-        btns[btns.length - 1].focus(); btns[btns.length - 1].click();
+        btns[btns.length - 1].focus();
+        btns[btns.length - 1].click();
     }
 }
 
@@ -128,7 +132,7 @@ function _onThemeToggle() {
  *
  */
 function _init() {
-    $tabBar  = document.getElementById('tabBar');
+    $tabBar = document.getElementById('tabBar');
     $sections = document.querySelectorAll('.content-section');
     $bottomNav = document.getElementById('bottomNav');
 
@@ -137,7 +141,7 @@ function _init() {
 
     // 先解析 hash 确定初始 tab（默认 dashboard）
     const hash = window.location.hash.replace('#', '');
-    const initialTab = (hash && TABS.indexOf(hash) !== -1) ? hash : 'dashboard';
+    const initialTab = hash && TABS.indexOf(hash) !== -1 ? hash : 'dashboard';
 
     // 注册 Dashboard 可见性监听器；仅当初始 tab 是 dashboard 时启动轮询
     Dashboard.init();
@@ -167,12 +171,12 @@ function _init() {
     }
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(function(err) {
+        navigator.serviceWorker.register('/sw.js').catch(function (err) {
             console.warn('Service Worker 注册失败:', err);
         });
     }
 
-    window.addEventListener('hashchange', function() {
+    window.addEventListener('hashchange', function () {
         const nextHash = window.location.hash.replace('#', '');
         if (nextHash && TABS.indexOf(nextHash) !== -1) _switchTab(nextHash);
     });

@@ -4,9 +4,11 @@
  * 依赖变量：variables.css
  */
 .bottom-nav {
-    display: none;  /* 默认隐藏，移动端显示 */
+    display: none; /* 默认隐藏，移动端显示 */
     position: fixed;
-    bottom: 0; left: 0; right: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
     background: var(--glass-bg-strong);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -14,7 +16,7 @@
     z-index: 900;
     padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
     justify-content: space-around;
-    box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .bottom-nav .tab-btn {
@@ -27,5 +29,6 @@
     min-width: 0;
 }
 
-.bottom-nav .tab-btn .tab-icon { font-size: 1.3rem; }
-
+.bottom-nav .tab-btn .tab-icon {
+    font-size: 1.3rem;
+}

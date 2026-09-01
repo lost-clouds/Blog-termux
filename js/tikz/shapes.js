@@ -12,7 +12,8 @@ import { PX_PER_UNIT, DEFAULT_STROKE } from './constants.js';
 import { resolveColor } from './color.js';
 import { lineWidth, dash } from './options.js';
 import { evalExpr, compileEval, parsePoint } from './expr.js';
-import { expandBounds } from './context.js';
+import { expandBounds, picScale } from './context.js';
+import { parseLength } from './units.js';
 
 /**
  * 圆形：\(cx,cy) circle (r)。
@@ -27,16 +28,54 @@ export function circleShape(rest, o, ctx, filled, fillOpt) {
     const m = rest.match(/\(([^)]*)\)\s*circle\s*\(([^)]*)\)/i);
     if (!m) return { html: '', math: false };
     const c = parsePoint(m[1], ctx);
-    const rr = evalExpr(m[2], ctx.vars) * (o.scale || 1);
-    const cx = c[0] * o.scale * PX_PER_UNIT;
-    const cy = -c[1] * o.scale * PX_PER_UNIT; // TikZ Y 向上 → SVG Y 向下
-    const cr = Math.max(rr * PX_PER_UNIT, 1);
+    const sc = (o.scale || 1) * picScale(ctx);
+    // 半径单位：数字视为 TikZ 单位（如 circle (2)）；带单位后缀（2pt/0.5cm）走 parseLength。
+    // 旧代码用 evalExpr 解析 "2.5pt" 会得到 0，导致所有小圆点塌缩为 r=1（点成了圈/大小异常）。
+    const rr = radiusOf(m[2], ctx);
+    const cx = c[0] * sc * PX_PER_UNIT;
+    const cy = -c[1] * sc * PX_PER_UNIT; // TikZ Y 向上 → SVG Y 向下
+    const cr = Math.max(rr * sc * PX_PER_UNIT, 1);
     expandBounds(ctx, cx - cr, cy - cr, cx + cr, cy + cr);
     const stroke = resolveColor(o.draw || o.bareColor, DEFAULT_STROKE);
-    const fc = resolveColor(fillOpt || (filled && o.bareColor ? o.bareColor : null), filled ? DEFAULT_STROKE : 'none');
+    const fc = resolveColor(
+        fillOpt || (filled && o.bareColor ? o.bareColor : null),
+        filled ? DEFAULT_STROKE : 'none'
+    );
     const sw = lineWidth(o);
     const dsh = dash(o);
-    return { html: '<circle cx="' + cx + '" cy="' + cy + '" r="' + cr + '" fill="' + fc + '" stroke="' + stroke + '" stroke-width="' + sw + '"' + (dsh ? ' stroke-dasharray="' + dsh + '"' : '') + ' />', math: false };
+    return {
+        html:
+            '<circle cx="' +
+            cx +
+            '" cy="' +
+            cy +
+            '" r="' +
+            cr +
+            '" fill="' +
+            fc +
+            '" stroke="' +
+            stroke +
+            '" stroke-width="' +
+            sw +
+            '"' +
+            (dsh ? ' stroke-dasharray="' + dsh + '"' : '') +
+            ' />',
+        math: false,
+    };
+}
+
+/**
+ * 解析圆半径：纯数字按 TikZ 单位；带单位后缀（pt/cm/mm）按长度换算；{expr} 走表达式。
+ * @param {string} s
+ * @param {Object} ctx
+ * @returns {number} TikZ 单位数值
+ */
+function radiusOf(s, ctx) {
+    const t = String(s).trim();
+    if (!t) return 0;
+    if (t.startsWith('{') && t.endsWith('}')) return evalExpr(t.slice(1, -1), ctx.vars);
+    if (/^-?[\d.]+$/.test(t)) return parseFloat(t);
+    return parseLength(t, ctx.vars);
 }
 
 /**
@@ -52,17 +91,47 @@ export function rectangleShape(rest, o, ctx, filled) {
     if (!m) return { html: '', math: false };
     const a = parsePoint(m[1], ctx);
     const b = parsePoint(m[2], ctx);
-    const x1 = a[0] * o.scale * PX_PER_UNIT, y1 = -a[1] * o.scale * PX_PER_UNIT;
-    const x2 = b[0] * o.scale * PX_PER_UNIT, y2 = -b[1] * o.scale * PX_PER_UNIT;
-    const rx = Math.min(x1, x2), ry = Math.min(y1, y2);
-    const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+    const sc = (o.scale || 1) * picScale(ctx);
+    const x1 = a[0] * sc * PX_PER_UNIT,
+        y1 = -a[1] * sc * PX_PER_UNIT;
+    const x2 = b[0] * sc * PX_PER_UNIT,
+        y2 = -b[1] * sc * PX_PER_UNIT;
+    const rx = Math.min(x1, x2),
+        ry = Math.min(y1, y2);
+    const w = Math.abs(x2 - x1),
+        h = Math.abs(y2 - y1);
     expandBounds(ctx, rx, ry, rx + w, ry + h);
     const rad = o.rounded ? 6 : 0;
     const stroke = resolveColor(o.draw || o.bareColor, DEFAULT_STROKE);
-    const fc = resolveColor(o.fill || (filled && o.bareColor ? o.bareColor : null), filled ? DEFAULT_STROKE : 'none');
+    const fc = resolveColor(
+        o.fill || (filled && o.bareColor ? o.bareColor : null),
+        filled ? DEFAULT_STROKE : 'none'
+    );
     const sw = lineWidth(o);
     const dsh = dash(o);
-    return { html: '<rect x="' + rx + '" y="' + ry + '" width="' + w + '" height="' + h + '" rx="' + rad + '" fill="' + fc + '" stroke="' + stroke + '" stroke-width="' + sw + '"' + (dsh ? ' stroke-dasharray="' + dsh + '"' : '') + ' />', math: false };
+    return {
+        html:
+            '<rect x="' +
+            rx +
+            '" y="' +
+            ry +
+            '" width="' +
+            w +
+            '" height="' +
+            h +
+            '" rx="' +
+            rad +
+            '" fill="' +
+            fc +
+            '" stroke="' +
+            stroke +
+            '" stroke-width="' +
+            sw +
+            '"' +
+            (dsh ? ' stroke-dasharray="' + dsh + '"' : '') +
+            ' />',
+        math: false,
+    };
 }
 
 /**
@@ -80,7 +149,7 @@ export function gridShape(rest, o, ctx, filled, fillOpt) {
     if (!m) return { html: '', math: false };
     const a = parsePoint(m[1], ctx);
     const b = parsePoint(m[2], ctx);
-    const step = (o.step != null && o.step > 0) ? o.step : 1;
+    const step = o.step != null && o.step > 0 ? o.step : 1;
 
     // 两个角端点的 TikZ 坐标 (Y 向上)
     const x1 = Math.min(a[0], b[0]);
@@ -95,10 +164,11 @@ export function gridShape(rest, o, ctx, filled, fillOpt) {
     const yEnd = Math.floor(y2 / step) * step;
 
     // 转换为 SVG 坐标（Y 取负）
-    const sx1 = x1 * o.scale * PX_PER_UNIT;
-    const sx2 = x2 * o.scale * PX_PER_UNIT;
-    const sy1 = -y1 * o.scale * PX_PER_UNIT;
-    const sy2 = -y2 * o.scale * PX_PER_UNIT;
+    const sc = (o.scale || 1) * picScale(ctx);
+    const sx1 = x1 * sc * PX_PER_UNIT;
+    const sx2 = x2 * sc * PX_PER_UNIT;
+    const sy1 = -y1 * sc * PX_PER_UNIT;
+    const sy2 = -y2 * sc * PX_PER_UNIT;
 
     expandBounds(ctx, sx1, sy2, sx2, sy1);
 
@@ -106,20 +176,56 @@ export function gridShape(rest, o, ctx, filled, fillOpt) {
     let out = '';
     // \fill[fill=色] ... grid：先铺一张与网格同大的背景填充矩形（等效填充全部单元格），
     // 再在其上叠画网格线，视觉与 TikZ 的"逐格填充"一致。
-    const fillCol = resolveColor(fillOpt || (filled && o.bareColor ? o.bareColor : null), filled ? DEFAULT_STROKE : 'none');
+    const fillCol = resolveColor(
+        fillOpt || (filled && o.bareColor ? o.bareColor : null),
+        filled ? DEFAULT_STROKE : 'none'
+    );
     if (fillCol !== 'none') {
-        out += '<rect x="' + sx1 + '" y="' + sy2 + '" width="' + (sx2 - sx1) + '" height="' + (sy1 - sy2) + '" fill="' + fillCol + '" stroke="none" />';
+        out +=
+            '<rect x="' +
+            sx1 +
+            '" y="' +
+            sy2 +
+            '" width="' +
+            (sx2 - sx1) +
+            '" height="' +
+            (sy1 - sy2) +
+            '" fill="' +
+            fillCol +
+            '" stroke="none" />';
     }
 
     // 垂直线：在 xStart 到 xEnd 之间每隔 step 绘制一条
     for (let x = xStart; x <= xEnd; x += step) {
-        const sx = Math.round(x * o.scale * PX_PER_UNIT * 100) / 100;
-        out += '<line x1="' + sx + '" y1="' + sy2 + '" x2="' + sx + '" y2="' + sy1 + '" stroke="' + stroke + '" stroke-width="0.5" />';
+        const sx = Math.round(x * sc * PX_PER_UNIT * 100) / 100;
+        out +=
+            '<line x1="' +
+            sx +
+            '" y1="' +
+            sy2 +
+            '" x2="' +
+            sx +
+            '" y2="' +
+            sy1 +
+            '" stroke="' +
+            stroke +
+            '" stroke-width="0.5" />';
     }
     // 水平线：在 yStart 到 yEnd 之间每隔 step 绘制一条
     for (let y = yStart; y <= yEnd; y += step) {
-        const sy = Math.round(-y * o.scale * PX_PER_UNIT * 100) / 100;
-        out += '<line x1="' + sx1 + '" y1="' + sy + '" x2="' + sx2 + '" y2="' + sy + '" stroke="' + stroke + '" stroke-width="0.5" />';
+        const sy = Math.round(-y * sc * PX_PER_UNIT * 100) / 100;
+        out +=
+            '<line x1="' +
+            sx1 +
+            '" y1="' +
+            sy +
+            '" x2="' +
+            sx2 +
+            '" y2="' +
+            sy +
+            '" stroke="' +
+            stroke +
+            '" stroke-width="0.5" />';
     }
     return { html: out, math: false };
 }
@@ -134,12 +240,22 @@ export function gridShape(rest, o, ctx, filled, fillOpt) {
 export function plotShape(rest, o, ctx) {
     // domain 优先从选项（parseOptions 已解析为 o.domain）读取；
     // 兼容旧写法兜底从 rest 解析；两者都缺省则默认 [-2,2]。
-    let a = -2, b = 2;
-    if (Array.isArray(o.domain) && o.domain.length === 2 && isFinite(o.domain[0]) && isFinite(o.domain[1])) {
-        a = o.domain[0]; b = o.domain[1];
+    let a = -2,
+        b = 2;
+    if (
+        Array.isArray(o.domain) &&
+        o.domain.length === 2 &&
+        isFinite(o.domain[0]) &&
+        isFinite(o.domain[1])
+    ) {
+        a = o.domain[0];
+        b = o.domain[1];
     } else {
         const dm = /domain\s*=\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)/.exec(rest);
-        if (dm) { a = parseFloat(dm[1]); b = parseFloat(dm[2]); }
+        if (dm) {
+            a = parseFloat(dm[1]);
+            b = parseFloat(dm[2]);
+        }
     }
     const pm = /plot\s*\(\\?([a-zA-Z])\s*,\s*\{([^}]*)\}\s*\)/.exec(rest);
     if (!pm) return { html: '', math: false };
@@ -148,11 +264,11 @@ export function plotShape(rest, o, ctx) {
     const N = 90;
     let pts = '';
     let first = true;
-    const scale = o.scale || 1;
+    const scale = (o.scale || 1) * picScale(ctx);
     // 表达式只编译一次，热循环中仅做变量替换+取值，避免每次 new Function（性能优化）
     const f = compileEval(exprBody);
     for (let k = 0; k <= N; k++) {
-        const xv = a + (b - a) * k / N;
+        const xv = a + ((b - a) * k) / N;
         const vars = Object.assign({}, ctx.vars);
         vars[varName] = xv;
         const yv = f(vars);
@@ -164,7 +280,17 @@ export function plotShape(rest, o, ctx) {
     }
     const stroke = resolveColor(o.draw, DEFAULT_STROKE);
     const sw = lineWidth(o);
-    return { html: '<path d="M' + pts + '" fill="none" stroke="' + stroke + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" />', math: false };
+    return {
+        html:
+            '<path d="M' +
+            pts +
+            '" fill="none" stroke="' +
+            stroke +
+            '" stroke-width="' +
+            sw +
+            '" stroke-linecap="round" stroke-linejoin="round" />',
+        math: false,
+    };
 }
 
 /**
@@ -179,9 +305,28 @@ export function arrowHead(from, to, color) {
     const dy = to[1] - from[1];
     const len = Math.sqrt(dx * dx + dy * dy);
     if (len < 1e-6) return '';
-    const ux = dx / len, uy = dy / len;
+    const ux = dx / len,
+        uy = dy / len;
     const size = 9;
-    const bx = to[0] - ux * size, by = to[1] - uy * size;
-    const nx = -uy * (size * 0.38), ny = ux * (size * 0.38);
-    return '<polygon points="' + to[0] + ',' + to[1] + ' ' + (bx + nx) + ',' + (by + ny) + ' ' + (bx - nx) + ',' + (by - ny) + '" fill="' + color + '" />';
+    const bx = to[0] - ux * size,
+        by = to[1] - uy * size;
+    const nx = -uy * (size * 0.38),
+        ny = ux * (size * 0.38);
+    return (
+        '<polygon points="' +
+        to[0] +
+        ',' +
+        to[1] +
+        ' ' +
+        (bx + nx) +
+        ',' +
+        (by + ny) +
+        ' ' +
+        (bx - nx) +
+        ',' +
+        (by - ny) +
+        '" fill="' +
+        color +
+        '" />'
+    );
 }

@@ -3,7 +3,13 @@
  * 基础重置 & 全局样式：box-sizing、字体、背景、滚动条。
  * 依赖变量：variables.css
  */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
 html {
     font-size: 16px;
@@ -18,14 +24,27 @@ body {
     background: var(--bg-primary);
     color: var(--text-primary);
     min-height: 100vh;
-    transition: background 0.3s ease, color 0.3s ease;
+    transition:
+        background 0.3s ease,
+        color 0.3s ease;
     line-height: 1.6;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { color: var(--accent-hover); }
-button { font-family: inherit; cursor: pointer; }
-img { max-width: 100%; height: auto; }
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+a:hover {
+    color: var(--accent-hover);
+}
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
+img {
+    max-width: 100%;
+    height: auto;
+}
 
 /* 应用容器 */
 .app-container {
@@ -37,4 +56,3 @@ img { max-width: 100%; height: auto; }
 .app-container:has(#sec-blog.active) {
     max-width: 96vw;
 }
-

@@ -8,7 +8,7 @@
      / /index.html /config.json → network-first（入口保证新鲜）
      其余静态资源            → cache-first
    ============================================================ */
-const CACHE = 'blog-v9';
+const CACHE = 'blog-v10';
 const SHELL = [
     '/',
     '/index.html',
@@ -21,9 +21,9 @@ const SHELL = [
     '/js/navigation.js',
     '/js/blog.js',
     '/js/gallery.js',
-    '/js/md-viewer.js?v=2',
+    '/js/md-viewer.js',
     '/js/mermaid-renderer.js',
-    '/js/tikz-renderer.js?v=2',
+    '/js/tikz-renderer.js',
     '/js/tikz/constants.js',
     '/js/tikz/color.js',
     '/js/tikz/context.js',
@@ -35,7 +35,9 @@ const SHELL = [
     '/js/tikz/render.js',
     '/js/tikz/script.js',
     '/js/tikz/shapes.js',
+    '/js/tikz/styles.js',
     '/js/tikz/text.js',
+    '/js/tikz/units.js',
     '/js/sanitizer.js',
     '/js/footnotes.js',
     '/js/constants.js',
@@ -44,8 +46,9 @@ const SHELL = [
     '/lib/marked.min.js?v=2',
     '/lib/github-markdown.min.css?v=2',
     '/lib/katex.min.css?v=2',
-    '/lib/katex.min.js?v=2',
-    '/lib/auto-render.min.js?v=2',
+    // KaTeX JS 由 md-viewer 懒加载（LIBS.KATEX_JS 无 ?v=），键须匹配运行时 URL
+    '/lib/katex.min.js',
+    '/lib/auto-render.min.js',
     '/lib/mermaid.min.js',
     '/favicon.ico'
 ];
@@ -84,7 +87,7 @@ self.addEventListener('activate', function(e) {
 
 /* ---- 拦截请求 ---- */
 self.addEventListener('fetch', function(e) {
-    var url = new URL(e.request.url);
+    const url = new URL(e.request.url);
 
     if (e.request.method !== 'GET') return;
     if (url.origin !== self.location.origin) return;
@@ -122,7 +125,7 @@ self.addEventListener('fetch', function(e) {
 function networkFirst(request) {
     return fetch(request).then(function(response) {
         if (response.ok) {
-            var clone = response.clone();
+            const clone = response.clone();
             caches.open(CACHE).then(function(c) { c.put(request, clone); });
         }
         return response;
@@ -137,7 +140,7 @@ function cacheFirst(request) {
         if (cached) return cached;
         return fetch(request).then(function(response) {
             if (response.ok) {
-                var clone = response.clone();
+                const clone = response.clone();
                 caches.open(CACHE).then(function(c) { c.put(request, clone); });
             }
             return response;
@@ -149,7 +152,7 @@ function cacheFirst(request) {
 function swr(request) {
     return caches.open(CACHE).then(function(cache) {
         return cache.match(request).then(function(cached) {
-            var fetchPromise = fetch(request).then(function(response) {
+            const fetchPromise = fetch(request).then(function(response) {
                 if (response.ok) {
                     cache.put(request, response.clone());
                 }

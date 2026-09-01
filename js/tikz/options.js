@@ -9,6 +9,7 @@
 
 import { isColorToken } from './color.js';
 import { FONT_SIZES, DEFAULT_STROKE } from './constants.js';
+import { parseLength } from './units.js';
 
 /**
  * 解析方括号选项字符串。
@@ -17,32 +18,116 @@ import { FONT_SIZES, DEFAULT_STROKE } from './constants.js';
  */
 export function parseOptions(opts) {
     const r = {
-        draw: null, fill: null, text: null, thick: false, veryThick: false,
-        ultraThick: false, dashed: false, dotted: false, arrow: false, arrowBack: false,
-        circle: false, rectangle: false, rounded: false, scale: 1,
-        anchor: 'center', fontSize: 14, fontBold: false, innerSep: 4,
-        step: null, domain: null, bareColor: null, pos: null
+        draw: null,
+        fill: null,
+        text: null,
+        thick: false,
+        veryThick: false,
+        ultraThick: false,
+        dashed: false,
+        dotted: false,
+        arrow: false,
+        arrowBack: false,
+        circle: false,
+        rectangle: false,
+        rounded: false,
+        scale: 1,
+        anchor: 'center',
+        fontSize: 14,
+        fontBold: false,
+        innerSep: 4,
+        step: null,
+        domain: null,
+        bareColor: null,
+        pos: null,
+        posRef: null,
+        posDir: null,
+        posLen: null,
+        xshift: 0,
+        yshift: 0,
+        minWidth: null,
+        minHeight: null,
+        align: 'center',
     };
     if (!opts) return r;
     const parts = splitOpts(opts);
     for (const raw of parts) {
         const p = raw.trim();
         if (!p) continue;
-        if (p === 'thick') { r.thick = true; continue; }
-        if (p === 'very thick') { r.veryThick = true; continue; }
-        if (p === 'ultra thick') { r.ultraThick = true; continue; }
-        if (p === 'dashed') { r.dashed = true; continue; }
-        if (p === 'dotted') { r.dotted = true; continue; }
-        if (p === 'circle') { r.circle = true; continue; }
-        if (p === 'rectangle') { r.rectangle = true; continue; }
-        if (p === 'sharp corners') { continue; }
-        if (p === '->' || p === '->>' || p === 'latex' || p === '-latex' || p === '->latex') { r.arrow = true; continue; }
-        if (p === '<-' || p === '<<-' || p === '<->' || p === '<->>') { r.arrowBack = true; continue; }
+        if (p === 'thick') {
+            r.thick = true;
+            continue;
+        }
+        if (p === 'very thick') {
+            r.veryThick = true;
+            continue;
+        }
+        if (p === 'ultra thick') {
+            r.ultraThick = true;
+            continue;
+        }
+        if (p === 'dashed') {
+            r.dashed = true;
+            continue;
+        }
+        if (p === 'dotted') {
+            r.dotted = true;
+            continue;
+        }
+        if (p === 'circle') {
+            r.circle = true;
+            continue;
+        }
+        if (p === 'rectangle') {
+            r.rectangle = true;
+            continue;
+        }
+        // 裸 draw/fill：表示"绘制边框/填充"，交给调用方以默认色处理
+        if (p === 'draw' || p === 'draw=') {
+            r.draw = r.draw || DEFAULT_STROKE;
+            continue;
+        }
+        if (p === 'fill') {
+            r.fill = r.fill || DEFAULT_STROKE;
+            continue;
+        }
+        if (p === 'rounded corners') {
+            r.rounded = true;
+            continue;
+        }
+        if (p === 'sharp corners') {
+            continue;
+        }
+        if (p === '->' || p === '->>' || p === 'latex' || p === '-latex' || p === '->latex') {
+            r.arrow = true;
+            continue;
+        }
+        // 单向：仅回箭头（起点）；双向：起终点各一个箭头
+        if (p === '<-' || p === '<<-') {
+            r.arrowBack = true;
+            continue;
+        }
+        if (p === '<->' || p === '<->>') {
+            r.arrow = true;
+            r.arrowBack = true;
+            continue;
+        }
+        // 相对定位：below=of X / below=1cm of X / below of X（方向在前、可选间距）
+        const relPos =
+            /^(above|below|right|left)\s*=?(?:([0-9.]+[a-zA-Z]*)\s+)?of\s+([a-zA-Z_][\w-]*)$/.exec(
+                p
+            );
+        if (relPos) {
+            r.posDir = relPos[1];
+            r.posLen = relPos[2] || null; // 可选间距
+            r.posRef = relPos[3];
+            continue;
+        }
         // 锚点含 direction 词（可组合："above right"、"below left" 等，逗号分隔）
         const dirs = { above: true, below: true, left: true, right: true };
         if (dirs[p]) {
             // 单锚点
-            if (r.anchor === 'center' || r.anchor === '') r.anchor = p;
+            if (r.anchor === 'center') r.anchor = p;
             continue;
         }
         // 组合锚点（空格分隔，如 "above right"）：按空格切成 direction 词
@@ -51,19 +136,27 @@ export function parseOptions(opts) {
             r.anchor = p.replace(/\s+/g, ' ');
             continue;
         }
-        if (p === 'midway') { r.pos = 0.5; continue; }
+        if (p === 'midway') {
+            r.pos = 0.5;
+            continue;
+        }
 
         // 裸颜色（默认 fill / draw / text 色）
-        if (isColorToken(p)) { r.bareColor = p; continue; }
+        if (isColorToken(p)) {
+            r.bareColor = p;
+            continue;
+        }
 
-        // 键值对
-        const kv = p.match(/^([\w-]+)\s*=\s*(.+)$/);
+        // 键值对（键可含空格："minimum width"、"inner sep" 等，因此用非贪婪多字符匹配）
+        const kv = p.match(/^([a-zA-Z][\w -]*?)\s*=\s*(.+)$/);
         if (kv) {
-            const key = kv[1].toLowerCase();
+            const key = kv[1].toLowerCase().trim();
             const val = kv[2].trim();
-            if (key === 'draw') { r.draw = val || DEFAULT_STROKE; }
-            else if (key === 'fill') { r.fill = val; }
-            else if (key === 'text' || key === 'font') {
+            if (key === 'draw') {
+                r.draw = val || DEFAULT_STROKE;
+            } else if (key === 'fill') {
+                r.fill = val;
+            } else if (key === 'text' || key === 'font') {
                 // font=\small 或 text=color
                 if (key === 'text') r.text = val.replace(/[{}]/g, '');
                 else {
@@ -71,17 +164,38 @@ export function parseOptions(opts) {
                     if (fm && FONT_SIZES[fm[1]]) r.fontSize = FONT_SIZES[fm[1]];
                     if (/bfseries|textbf/.test(val)) r.fontBold = true;
                 }
-            }
-            else if (key === 'scale') { r.scale = parseFloat(val) || 1; }
-            else if (key === 'step') { r.step = parseFloat(val); if (r.step <= 0) r.step = null; }
-            else if (key === 'domain') { const dm = /^\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)\s*$/.exec(val); if (dm) r.domain = [parseFloat(dm[1]), parseFloat(dm[2])]; }
-            else if (key === 'pos') { const pp = parseFloat(val); if (isFinite(pp)) r.pos = pp; }
-            else if (key === 'rounded corners') { r.rounded = true; }
-            else if (key === 'line width') { const lw = parseFloat(val); if (lw) r.thick = lw > 1.5; }
-            else if (key === 'inner sep') {
+            } else if (key === 'scale') {
+                r.scale = parseFloat(val) || 1;
+            } else if (key === 'step') {
+                r.step = parseFloat(val);
+                if (r.step <= 0) r.step = null;
+            } else if (key === 'domain') {
+                const dm = /^\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)\s*$/.exec(val);
+                if (dm) r.domain = [parseFloat(dm[1]), parseFloat(dm[2])];
+            } else if (key === 'pos') {
+                const pp = parseFloat(val);
+                if (isFinite(pp)) r.pos = pp;
+            } else if (key === 'rounded corners') {
+                r.rounded = true;
+            } else if (key === 'line width') {
+                const lw = parseFloat(val);
+                if (lw) r.thick = lw > 1.5;
+            } else if (key === 'inner sep') {
                 // inner sep=Xpt → 内边距像素；0pt → 0，避免小圆点被撑大
                 const ip = parseFloat(val);
-                r.innerSep = (isFinite(ip) && ip >= 0) ? Math.max(0, ip * 96 / 72) : 4;
+                r.innerSep = isFinite(ip) && ip >= 0 ? Math.max(0, (ip * 96) / 72) : 4;
+            } else if (key === 'xshift') {
+                r.xshift = parseLength(val);
+            } else if (key === 'yshift') {
+                r.yshift = parseLength(val);
+            } else if (key === 'minimum width') {
+                const v = parseLength(val);
+                r.minWidth = v > 0 ? v : null;
+            } else if (key === 'minimum height') {
+                const v = parseLength(val);
+                r.minHeight = v > 0 ? v : null;
+            } else if (key === 'align') {
+                r.align = val;
             }
         }
     }
@@ -93,12 +207,18 @@ export function parseOptions(opts) {
  * @param {string} opts
  * @returns {Array<string>}
  */
-function splitOpts(opts) {
-    const out = []; let cur = ''; let d = 0;
+export function splitOpts(opts) {
+    const out = [];
+    let cur = '';
+    let d = 0;
     for (const ch of opts) {
         if (ch === '{') d++;
         else if (ch === '}') d--;
-        if (ch === ',' && d === 0) { out.push(cur); cur = ''; continue; }
+        if (ch === ',' && d === 0) {
+            out.push(cur);
+            cur = '';
+            continue;
+        }
         cur += ch;
     }
     if (cur.trim()) out.push(cur);

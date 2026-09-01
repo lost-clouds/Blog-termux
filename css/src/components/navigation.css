@@ -3,8 +3,15 @@
  * 服务导航分组卡片布局、搜索过滤、标签徽章。
  * 依赖变量：variables.css
  */
+.nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
 .nav-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
 }
 
 .nav-group-header {
@@ -17,8 +24,12 @@
     color: var(--text-primary);
 }
 
-.nav-group-icon  { font-size: 1.3rem; }
-.nav-group-name  { flex: 1; }
+.nav-group-icon {
+    font-size: 1.3rem;
+}
+.nav-group-name {
+    flex: 1;
+}
 .nav-group-count {
     font-size: 0.78rem;
     font-weight: 400;
@@ -54,8 +65,18 @@
     border-color: var(--accent);
 }
 
-.nav-card-icon { font-size: 1.8rem; flex-shrink: 0; width: 44px; text-align: center; }
-.nav-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nav-card-icon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+    width: 44px;
+    text-align: center;
+}
+.nav-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
 
 .nav-card-name {
     font-size: 0.95rem;
@@ -86,7 +107,8 @@
     flex-shrink: 0;
 }
 
-.nav-empty, .gallery-empty {
+.nav-empty,
+.gallery-empty {
     text-align: center;
     padding: 3rem 1rem;
     color: var(--text-tertiary);
@@ -97,4 +119,3 @@
     padding: 2rem;
     color: var(--text-secondary);
 }
-

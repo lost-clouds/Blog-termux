@@ -16,13 +16,22 @@ import { mathSplit, plainText, mathToPlain, escapeHtml, unescapeHtml } from './t
 export async function ensureKatex() {
     if (window.katex) return true;
     if (typeof window.__KATEX_LOAD__ === 'function') {
-        try { await window.__KATEX_LOAD__(); if (window.katex) return true; } catch (e) { /* continue */ }
+        try {
+            await window.__KATEX_LOAD__();
+            if (window.katex) return true;
+        } catch (e) {
+            /* continue */
+        }
     }
     try {
         const scr = document.createElement('script');
         scr.src = 'lib/katex.min.js';
         scr.async = false;
-        await new Promise(function (res, rej) { scr.onload = res; scr.onerror = rej; document.head.appendChild(scr); });
+        await new Promise(function (res, rej) {
+            scr.onload = res;
+            scr.onerror = rej;
+            document.head.appendChild(scr);
+        });
     } catch (e) {
         return false;
     }
@@ -36,27 +45,41 @@ export async function ensureKatex() {
  */
 export function fillMathInSvg(svgBody) {
     const hasKatex = typeof window !== 'undefined' && window.katex;
-    return svgBody.replace(/<foreignObject([^>]*)><div[^>]*class="tikz-math"[^>]*data-math="([^"]*)"[^>]*><\/div><\/foreignObject>/g, function (all, attrs, mathHtml) {
-        const math = unescapeHtml(mathHtml);
-        let html = '';
-        if (hasKatex) {
-            const runs = mathSplit(math);
-            html = runs.map(function (run) {
-                if (run.math) {
-                    const body = run.text
-                        .replace(/^\$\$\s*|\s*\$\$$/g, '')
-                        .replace(/^\$\s*|\s*\$$/g, '')
-                        .replace(/^\\\(\s*|\s*\\\)$/g, '');
-                    try {
-                        return window.katex.renderToString(body, { throwOnError: false, displayMode: false });
-                    } catch (e) {
-                        return '<span>' + escapeHtml(mathToPlain(body)) + '</span>';
-                    }
-                }
-                return '<span>' + escapeHtml(plainText(run.text)) + '</span>';
-            }).join('');
+    return svgBody.replace(
+        /<foreignObject([^>]*)><div[^>]*class="tikz-math"[^>]*data-math="([^"]*)"[^>]*><\/div><\/foreignObject>/g,
+        function (all, attrs, mathHtml) {
+            const math = unescapeHtml(mathHtml);
+            let html = '';
+            if (hasKatex) {
+                const runs = mathSplit(math);
+                html = runs
+                    .map(function (run) {
+                        if (run.math) {
+                            const body = run.text
+                                .replace(/^\$\$\s*|\s*\$\$$/g, '')
+                                .replace(/^\$\s*|\s*\$$/g, '')
+                                .replace(/^\\\(\s*|\s*\\\)$/g, '');
+                            try {
+                                return window.katex.renderToString(body, {
+                                    throwOnError: false,
+                                    displayMode: false,
+                                });
+                            } catch (e) {
+                                return '<span>' + escapeHtml(mathToPlain(body)) + '</span>';
+                            }
+                        }
+                        return '<span>' + escapeHtml(plainText(run.text)) + '</span>';
+                    })
+                    .join('');
+            }
+            if (!html) html = '<span>' + escapeHtml(mathToPlain(math)) + '</span>';
+            return (
+                '<foreignObject' +
+                attrs +
+                '><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-math" style="text-align:center">' +
+                html +
+                '</div></foreignObject>'
+            );
         }
-        if (!html) html = '<span>' + escapeHtml(mathToPlain(math)) + '</span>';
-        return '<foreignObject' + attrs + '><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-math" style="text-align:center">' + html + '</div></foreignObject>';
-    });
+    );
 }

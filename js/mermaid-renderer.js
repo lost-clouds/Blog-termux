@@ -9,7 +9,7 @@ import { LIBS } from './constants.js';
    - 渲染失败时降级显示源码 + 错误提示
    ============================================================ */
 
-'use strict';
+('use strict');
 
 let _mermaidReady = false;
 let _mermaidPromise = null;
@@ -34,7 +34,7 @@ function prepareMermaidBlocks(container) {
     const blocks = container.querySelectorAll('pre code[class*="language-mermaid"]');
     if (!blocks.length) return false;
 
-    blocks.forEach(function(code) {
+    blocks.forEach(function (code) {
         const source = code.textContent;
         const pre = code.closest('pre');
         if (!pre) return;
@@ -60,10 +60,10 @@ function ensureMermaid() {
     if (_mermaidReady) return Promise.resolve();
     if (_mermaidPromise) return _mermaidPromise;
 
-    _mermaidPromise = new Promise(function(resolve, reject) {
+    _mermaidPromise = new Promise(function (resolve, reject) {
         const script = document.createElement('script');
         script.src = LIBS.MERMAID_JS;
-        script.onload = function() {
+        script.onload = function () {
             // mermaid 挂载到 window.mermaid（全局对象）
             if (typeof mermaid !== 'undefined') {
                 mermaid.initialize({
@@ -72,7 +72,7 @@ function ensureMermaid() {
                     securityLevel: 'strict',
                     // base 主题输出基础 SVG，由项目 CSS 变量控制颜色，
                     // 自动适配深色/浅色模式
-                    theme: 'base'
+                    theme: 'base',
                 });
                 _mermaidReady = true;
                 resolve();
@@ -81,7 +81,7 @@ function ensureMermaid() {
                 reject(new Error('Mermaid 库加载后未找到全局 mermaid 对象'));
             }
         };
-        script.onerror = function() {
+        script.onerror = function () {
             // 置 null 允许下次重试（与 KaTeX 的 _katexPromise 模式一致）
             _mermaidPromise = null;
             reject(new Error('Mermaid 库加载失败'));
@@ -116,14 +116,17 @@ async function renderMermaid(container) {
 
         // 降级：渲染失败的图表显示源码 + 错误提示
         // 注意：mermaid.run() 可能部分成功，只标记未生成 SVG 的节点
-        container.querySelectorAll('.mermaid').forEach(function(el) {
+        container.querySelectorAll('.mermaid').forEach(function (el) {
             if (!el.querySelector('svg')) {
                 el.classList.add('mermaid-error');
                 const source = el.textContent || '';
                 el.innerHTML =
-                    '<pre><code>' + escapeMermaidSource(source) + '</code></pre>' +
+                    '<pre><code>' +
+                    escapeMermaidSource(source) +
+                    '</code></pre>' +
                     '<div class="mermaid-error-msg">图表渲染失败: ' +
-                    escapeMermaidSource(err.message) + '</div>';
+                    escapeMermaidSource(err.message) +
+                    '</div>';
             }
         });
     }
@@ -139,10 +142,7 @@ async function renderMermaid(container) {
  * @returns {string}
  */
 function escapeMermaidSource(text) {
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export { prepareMermaidBlocks, ensureMermaid, renderMermaid };

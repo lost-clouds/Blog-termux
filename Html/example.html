@@ -402,8 +402,8 @@ dashboard.js (30s 轮询)      blog.js / gallery.js
 │   ├── navigation.js            <span class="c">#   服务导航</span>
 │   ├── blog.js                  <span class="c">#   文章列表 + 内联渲染</span>
 │   ├── gallery.js               <span class="c">#   图片画廊</span>
-│   ├── tikz-renderer.js         <span class="c">#   TikZ → SVG 入口（转发到 js/tikz/*，grid 支持 step/fill）</span>
-│   └── tikz/                    <span class="c">#   TikZ → SVG 引擎（12 个模块；foreach 变量替换/行内 node 标签）</span>
+│   ├── tikz-renderer.js         <span class="c">#   TikZ → SVG 入口（转发到 js/tikz/*，相对定位/样式/锚点）</span>
+│   └── tikz/                    <span class="c">#   TikZ → SVG 引擎（14 模块；foreach/行内 node/相对定位）</span>
 │   └── md-viewer.js             <span class="c">#   Markdown 渲染引擎</span>
 │
 ├── Html/                        <span class="c"># HTML 页面（由 gen_index.sh 索引）</span>

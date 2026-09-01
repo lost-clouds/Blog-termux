@@ -16,10 +16,10 @@ import { MATH_RUN_RE } from './constants.js';
  */
 export function contentLen(text) {
     const s = String(text)
-        .replace(/\$\$|\$|\\\(|\\\)/g, '')          // 去数学分隔符 $ $$ \( \)
-        .replace(/\\text\{([\s\S]*?)\}/g, '$1')            // \text{...} → 内容
-        .replace(/\\vec\{?([a-zA-Z]+)\}?/g, '$1')            // \vec{x} → x
-        .replace(/\\[a-zA-Z]+/g, '')                            // 其余 LaTeX 命令去掉
+        .replace(/\$\$|\$|\\\(|\\\)/g, '') // 去数学分隔符 $ $$ \( \)
+        .replace(/\\text\{([\s\S]*?)\}/g, '$1') // \text{...} → 内容
+        .replace(/\\vec\{?([a-zA-Z]+)\}?/g, '$1') // \vec{x} → x
+        .replace(/\\[a-zA-Z]+/g, '') // 其余 LaTeX 命令去掉
         .replace(/[{}]/g, '')
         .replace(/\s+/g, ' ');
     let len = 0;

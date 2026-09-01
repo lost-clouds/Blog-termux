@@ -51,8 +51,8 @@ cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
 
 # 4. 配置仪表盘定时采集（每 30 秒）
 # crontab 添加：
-#   * * * * * bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
-#   * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+#   * * * * * bash ~/Blog-termux/cron.sh ~/Blog-termux/dashboard.json
+#   * * * * * sleep 30; bash ~/Blog-termux/cron.sh ~/Blog-termux/dashboard.json
 
 # 5. （可选）生成静态索引，加速加载
 bash ~/Blog-termux/gen_index.sh ~/Blog-termux
@@ -107,7 +107,7 @@ main.js  →  app.js  →  theme.js, utils.js, lightbox.js
                     gen_index.sh (可选定时)
                     ──────────────────────→  Markdown/index.json
                                               Html/index.json
-                    corn.sh (cron 每30s)       Image/index.json
+                    cron.sh (cron 每30s)       Image/index.json
                     ──────────────────────→  dashboard.json
                                                │
                                                │ 优先: fetch index.json
@@ -131,7 +131,7 @@ dashboard.js (30s 轮询)         blog.js / gallery.js
 Blog-termux/
 ├── index.html                  # 唯一入口 — 标签页 SPA
 ├── config.json                 # 服务导航配置
-├── corn.sh                     # 系统指标采集脚本（零 root）
+├── cron.sh                     # 系统指标采集脚本（零 root）
 ├── gen_index.sh                # 静态索引生成器
 ├── sw.js                       # Service Worker（离线缓存）
 ├── styleguide.md               # 代码规范（命名/注释/模块边界/工具链）
@@ -163,13 +163,15 @@ Blog-termux/
 │   ├── mermaid-renderer.js      #   Mermaid 图表渲染
 │   ├── md-viewer.js            #   Markdown 渲染引擎
 │   ├── tikz-renderer.js         #   TikZ → SVG 入口（转发到 js/tikz/*）
-│   └── tikz/                   #   TikZ → SVG 引擎（由单文件拆分为 12 个模块）
+│   └── tikz/                   #   TikZ → SVG 引擎（由单文件拆分为 14 个模块）
 │       ├── render.js           #    编排入口：prepareTikzBlocks / renderTikz
 │       ├── script.js           #    预处理、语句切分、foreach/宏展开
-│       ├── context.js          #    命名坐标、循环变量、包围盒
-│       ├── expr.js             #    数学表达式求值与坐标解析
-│       ├── options.js          #    选项解析 → 描边/虚线/字号/缩放
-│       ├── node.js             #    \node 渲染（形状 + 文本/数学）
+│       ├── context.js          #    命名坐标、节点盒、循环变量、包围盒
+│       ├── expr.js             #    数学表达式求值与坐标解析（含锚点/坐标运算）
+│       ├── options.js          #    选项解析 → 描边/虚线/字号/缩放/相对定位
+│       ├── styles.js           #    样式定义解析（X/.style 与 node distance）
+│       ├── units.js            #    长度单位换算（cm/mm/pt/px → TikZ 单位）
+│       ├── node.js             #    \node 渲染（形状 + 文本/数学 + 相对定位）
 │       ├── path.js             #    \draw / \fill 路径 token 化
 │       ├── shapes.js           #    圆/矩形/网格/plot/箭头
 │       ├── text.js             #    有效显示长度估算、转义、数学切分
@@ -223,7 +225,7 @@ Blog-termux/
 | `gallery.js` | 图片画廊 | `utils.js`, `lightbox.js`, `constants.js` | 缩略图网格，懒加载，250ms 防抖搜索 |
 | `md-viewer.js` | Markdown 渲染引擎 | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | 完整管道：脚注 → 数学 → marked → 清理 → 图片路径 → 锚点 → Mermaid → TikZ → KaTeX |
 | `mermaid-renderer.js` | Mermaid 图表渲染 | `constants.js` | 懒加载 Mermaid → SVG，语法错误优雅降级 |
-| `tikz-renderer.js` | 基础 TikZ → SVG 渲染（入口） | `tikz/*`（12 个模块） | 零依赖客户端 TikZ 解析，支持节点、带箭头连线、圆、矩形、网格（对角端点、`step=N`、`\fill … grid`）、贝塞尔曲线、圆弧、函数曲线、`\foreach` 循环（含 `{a,b,...,z}` 中置省略号步长、遍历 `\coordinate` 名称的字符串循环变量）、`\pgfmathsetmacro`、颜色混合（`red!40!blue`）、KaTeX 数学节点、路径行内 `node[...]` 标签（`node[midway]` / `node[above right]` / `at (x,y)`）。固定缩放：1 TikZ 单位 = 32px。逻辑已拆分到 `js/tikz/`，便于维护 |
+| `tikz-renderer.js` | 基础 TikZ → SVG 渲染（入口） | `tikz/*`（14 个模块） | 零依赖客户端 TikZ 解析，支持节点、带箭头连线、圆、矩形、网格（对角端点、`step=N`、`\fill … grid`）、贝塞尔曲线、圆弧、函数曲线、`\foreach` 循环（含 `{a,b,...,z}` 中置省略号步长、遍历 `\coordinate` 名称的字符串循环变量）、`\pgfmathsetmacro`、颜色混合（`red!40!blue`）、KaTeX 数学节点、路径行内 `node[...]` 标签（`node[midway]` / `node[above right]` / `at (x,y)`）、**相对定位**（`below=of X` / `right=2.5cm of X` / `xshift` / `yshift`）、**样式定义**（`X/.style={…}`）、**节点锚点引用**（`at (X.south west)`）与 `$...$ 坐标运算`、最小尺寸（`minimum width/height`）。固定缩放：1 TikZ 单位 = 32px。逻辑已拆分到 `js/tikz/`，便于维护 |
 | `sw.js` | Service Worker | — | Cache-first（静态）、SWR（文章/图片）、Network-first（入口）、Network-only（实时） |
 
 ### 核心模块详解
@@ -245,7 +247,7 @@ Blog-termux/
 | ⚙️ 服务 | N 个运行中 · 进程名列表 | — |
 | ⏱️ 运行时间 | 如 "3d 12h 30m" | — |
 
-`dashboard.json` 由 `corn.sh` 生成，格式示例：
+`dashboard.json` 由 `cron.sh` 生成，格式示例：
 
 ```json
 {
@@ -287,16 +289,16 @@ Hugo Book 风格三栏布局。`Promise.allSettled` 同时获取 Markdown + HTML
 
 | 步骤 | 实现 |
 |------|------|
-| 1. 脚注 | 预处理 `[^id]` 定义 → 编号脚注 + 返回链接 |
-| 2. 数学提取 | 三阶段：`$$` → `\[` → `\(`，split→aligned 标准化 |
+| 1. 脚注 | 预处理 `[^id]` 定义 → 编号脚注 + 返回链接（跳过围栏/行内代码） |
+| 2. 数学提取 | 三阶段：`$$` → `\[` → `\(`，split→aligned 标准化（跳过围栏/行内代码） |
 | 3. Markdown 解析 | `marked.parse()` + 数学占位符 |
 | 4. XSS 清理 | 五层白名单（标签、属性、URL、class、style） |
-| 5. 图片路径 | 相对路径重写为 `/api/images/` |
-| 6. 标题锚点 | 自动注入 `#` 链接，支持中文 slug |
-| 7. Mermaid 渲染 | 懒加载 Mermaid → SVG，语法错误优雅降级 |
-| 8. TikZ 渲染 | 零依赖客户端 TikZ → SVG（节点、线条、箭头、圆、矩形、网格、贝塞尔、圆弧、函数曲线、`\foreach` 循环（含 `{a,b,...,z}` 步长与命名坐标字符串变量）、`\pgfmathsetmacro`、行内 `node[...]` 标签、数学节点）；固定缩放 1 单位 = 32px |
-| 9. KaTeX 渲染 | 按需懒加载，加载失败优雅降级 |
-| 10. 图片绑定 | 委托点击 → 共享 `Lightbox` |
+| 5. 块转换 | `<pre><code>` → Mermaid/TikZ `<div>`（sanitize 后、DOM 操作前） |
+| 6. 图片路径 | 相对路径重写为 `/api/images/` |
+| 7. 标题锚点 | 自动注入 `#` 链接，支持中文 slug |
+| 8. 图片绑定 | 委托点击 → 共享 `Lightbox` |
+| 9. 数学恢复 | 恢复占位符 + KaTeX 懒加载（检测到块级或行内 `$...$` 才加载） |
+| 10. 图表渲染 | 先 Mermaid 懒渲染，后 TikZ → SVG（零依赖客户端，支持节点、带箭头连线、圆、矩形、网格、贝塞尔、圆弧、函数曲线、`\foreach` 循环（含 `{a,b,...,z}` 步长与命名坐标字符串变量）、`\pgfmathsetmacro`、行内 `node[...]` 标签、数学节点、**相对定位 `below=of X` / `right of X` / `xshift` / `yshift`**、**样式 `X/.style`**、**锚点引用与 `$...$` 坐标运算**）；整图 `[scale=]` 与 `node distance=` 生效，固定缩放 1 单位 = 32px |
 
 #### navigation.js — 服务导航
 
@@ -311,7 +313,7 @@ Hugo Book 风格三栏布局。`Promise.allSettled` 同时获取 Markdown + HTML
 | 组件 | 用途 | 安装 |
 |------|------|------|
 | Nginx | Web 服务器 | `pkg install nginx` |
-| cron / crond | 定时执行 corn.sh | `pkg install cronie termux-services` |
+| cron / crond | 定时执行 cron.sh | `pkg install cronie termux-services` |
 | curl | 下载依赖库（一次性） | 已有 |
 | Node.js + npm | 代码检查（可选） | `pkg install nodejs-lts` |
 | termux-api | 电池信息（可选） | `pkg install termux-api` |
@@ -421,7 +423,7 @@ ls ~/Blog-termux/Markdown/              # 目录是否为空？
 
 ```bash
 cat ~/Blog-termux/dashboard.json        # 文件存在且为有效 JSON？
-bash ~/Blog-termux/corn.sh              # 手动执行一次
+bash ~/Blog-termux/cron.sh              # 手动执行一次
 ps aux | grep crond                     # cron 是否运行？
 ```
 
@@ -474,7 +476,7 @@ npm run format  # 自动格式化
 |------|----------|
 | 🔌 零后端 | nginx autoindex + `DOMParser` 降级解析 |
 | 📦 零外部依赖 | 所有库本地化在 `lib/`，一次下载完全离线 |
-| 🔒 无 root | `corn.sh` 使用 `/proc/stat` / `free` / `df` / `ps` / `getprop` |
+| 🔒 无 root | `cron.sh` 使用 `/proc/stat` / `free` / `df` / `ps` / `getprop` |
 | 🛡️ 安全 | 五层 HTML 白名单 + URL 白名单 + `escapeHtml` 转义 |
 | 📡 离线 | Service Worker 四策略：cache-first、SWR、network-first、network-only |
 | 🌙 主题 | CSS 自定义属性 + `body.dark` 切换，系统偏好自动检测 |

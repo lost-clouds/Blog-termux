@@ -19,8 +19,7 @@ import { API, LIBS } from './constants.js';
  * 使用：import { MarkdownRenderer } from './md-viewer.js'
  */
 
-
-'use strict';
+('use strict');
 
 let _katexReady = false;
 let _katexPromise = null;
@@ -29,11 +28,15 @@ const _imageBound = new WeakSet();
 
 /**
  * 提取 markdown 中的 $$ 数学块（暂时替换，防止被其他渲染破坏）。
+ * 围栏代码块（```...```）整体先替换为哨兵，数学提取后原样还原，
+ * 避免代码示例里的 $$ 被误提取成占位符（marked 会转义它，导致代码块显示占位字样）。
  * @param {string} text
  * @returns {{blocks: Array, text: string}}
  */
 function _extractMathBlocks(text) {
     const blocks = [];
+    // 围栏代码块哨兵：以不会出现在普通文本中的 token 标记
+    const fenced = [];
 
     /**
      * 处理实际内容（递归处理嵌套代码块）。
@@ -47,25 +50,44 @@ function _extractMathBlocks(text) {
             .replace(/\\\\/g, '\\\\\\\\');
     }
 
+    // Phase 0: 提取围栏代码块 → 哨兵
+    const SENTINEL = (i) => '㊤CODE㊥' + i + '㊥CODE㊤';
+    let protectedText = text.replace(/```[\s\S]*?```/g, function (match) {
+        const idx = fenced.length;
+        fenced.push(match);
+        return SENTINEL(idx);
+    });
+    // 行内代码 `...` 同理保护，避免 $$ 出现在行内代码中被误提取
+    protectedText = protectedText.replace(/`[^`\n]*`/g, function (match) {
+        const idx = fenced.length;
+        fenced.push(match);
+        return SENTINEL(idx);
+    });
+
     // Phase 1: $$...$$
-    let result = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match, content) {
+    let result = protectedText.replace(/\$\$([\s\S]*?)\$\$/g, function (match, content) {
         const idx = blocks.length;
         blocks.push('$$' + processContent(content) + '$$');
         return '<span class="math-' + idx + '"></span>';
     });
 
     // Phase 2: \[...\]
-    result = result.replace(/\\\[([\s\S]*?)\\\]/g, function(match, content) {
+    result = result.replace(/\\\[([\s\S]*?)\\\]/g, function (match, content) {
         const idx = blocks.length;
         blocks.push('\\[' + processContent(content) + '\\]');
         return '<span class="math-' + idx + '"></span>';
     });
 
     // Phase 3: \(...\)
-    result = result.replace(/\\\(([\s\S]*?)\\\)/g, function(match, content) {
+    result = result.replace(/\\\(([\s\S]*?)\\\)/g, function (match, content) {
         const idx = blocks.length;
         blocks.push('\\(' + processContent(content) + '\\)');
         return '<span class="math-' + idx + '"></span>';
+    });
+
+    // Phase 4: 还原围栏/行内代码
+    result = result.replace(/㊤CODE㊥(\d+)㊥CODE㊤/g, function (match, i) {
+        return fenced[parseInt(i, 10)];
     });
 
     return { text: result, blocks: blocks };
@@ -78,15 +100,12 @@ function _extractMathBlocks(text) {
  */
 function _restoreMathBlocks(container, blocks) {
     if (!blocks.length) return;
-    container.querySelectorAll('span[class^="math-"]').forEach(function(span) {
+    container.querySelectorAll('span[class^="math-"]').forEach(function (span) {
         const m = span.className.match(/^math-(\d+)$/);
         if (m) {
             const idx = parseInt(m[1], 10);
             if (blocks[idx] !== undefined) {
-                span.parentNode.replaceChild(
-                    document.createTextNode(blocks[idx]),
-                    span
-                );
+                span.parentNode.replaceChild(document.createTextNode(blocks[idx]), span);
             }
         }
     });
@@ -104,23 +123,23 @@ function _ensureKatex() {
         return Promise.resolve();
     }
 
-    _katexPromise = new Promise(function(resolve, reject) {
+    _katexPromise = new Promise(function (resolve, reject) {
         const katexScript = document.createElement('script');
         katexScript.src = LIBS.KATEX_JS;
-        katexScript.onload = function() {
+        katexScript.onload = function () {
             const autoRenderScript = document.createElement('script');
             autoRenderScript.src = LIBS.KATEX_AUTORENDER;
-            autoRenderScript.onload = function() {
+            autoRenderScript.onload = function () {
                 _katexReady = true;
                 resolve();
             };
-            autoRenderScript.onerror = function() {
+            autoRenderScript.onerror = function () {
                 _katexPromise = null;
-                reject(new Error('KaTeX auto-_render 加载失败'));
+                reject(new Error('KaTeX auto-render 加载失败'));
             };
             document.head.appendChild(autoRenderScript);
         };
-        katexScript.onerror = function() {
+        katexScript.onerror = function () {
             _katexPromise = null;
             reject(new Error('KaTeX 核心库加载失败'));
         };
@@ -168,7 +187,7 @@ function _uniqueSlug(base, used) {
  */
 function _getHeadingText(heading) {
     const clone = heading.cloneNode(true);
-    clone.querySelectorAll('.anchor').forEach(function(anchor) {
+    clone.querySelectorAll('.anchor').forEach(function (anchor) {
         anchor.remove();
     });
     return (clone.textContent || '').trim();
@@ -189,9 +208,14 @@ function _getImageUrl(src) {
     const filename = segments[segments.length - 1];
     if (!/\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)(\?.*)?$/i.test(filename)) return src;
 
-    return API.IMAGES_LIST + segments.map(function(segment) {
-        return encodeURIComponent(segment);
-    }).join('/');
+    return (
+        API.IMAGES_LIST +
+        segments
+            .map(function (segment) {
+                return encodeURIComponent(segment);
+            })
+            .join('/')
+    );
 }
 
 /**
@@ -200,7 +224,7 @@ function _getImageUrl(src) {
  */
 function _fixImagePaths(container) {
     if (!container) return;
-    container.querySelectorAll('img').forEach(function(img) {
+    container.querySelectorAll('img').forEach(function (img) {
         const src = img.getAttribute('src') || '';
         const fixed = _getImageUrl(src);
         if (fixed && fixed !== src) img.setAttribute('src', fixed);
@@ -214,7 +238,7 @@ function _fixImagePaths(container) {
 function _injectAnchors(container) {
     if (!container) return;
     const used = new Set();
-    container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(function(heading) {
+    container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(function (heading) {
         const text = _getHeadingText(heading);
         heading.id = _uniqueSlug(_slugify(text), used);
 
@@ -231,6 +255,18 @@ function _injectAnchors(container) {
 }
 
 /**
+ * 探测是否存在行内公式 $...$（单美元符分隔）。
+ * 排除 $$ 块级（已由 _extractMathBlocks 提取）、被 \ 转义的 \$、
+ * 以及代码围栏/行内代码内的内容（提取阶段已被哨兵替换，不再含 $）。
+ * @param {string} text
+ * @returns {boolean}
+ */
+function _hasInlineMath(text) {
+    // 行内公式：非 $$ 分隔，内容不含换行与 $，两侧不是 $（避免把 $$ 的边当行内）
+    return /(^|[^$\\])\$[^$\n$]{1,80}\$([^$]|$)/.test(text);
+}
+
+/**
  * 渲染容器内的 katex 公式。
  * @param {HTMLElement} container
  */
@@ -242,11 +278,11 @@ function _renderKatex(container) {
             { left: '$$', right: '$$', display: true },
             { left: '$', right: '$', display: false },
             { left: '\\[', right: '\\]', display: true },
-            { left: '\\(', right: '\\)', display: false }
+            { left: '\\(', right: '\\)', display: false },
         ],
         throwOnError: false,
         strict: false,
-        trust: false
+        trust: false,
     });
 }
 
@@ -258,7 +294,7 @@ function _bindMarkdownImages(container) {
     if (!container || _imageBound.has(container)) return;
     _imageBound.add(container);
 
-    container.addEventListener('click', function(e) {
+    container.addEventListener('click', function (e) {
         const img = e.target.closest('img');
         if (!img || !container.contains(img)) return;
 
@@ -269,25 +305,31 @@ function _bindMarkdownImages(container) {
 }
 
 /**
-     * 从已渲染的 DOM 生成目录 HTML。
-     * @param {HTMLElement} container - 已渲染的 Markdown 容器
-     * @returns {string} 目录 HTML 字符串
-     */
-    function _buildTocFromDom(container) {
+ * 从已渲染的 DOM 生成目录 HTML。
+ * @param {HTMLElement} container - 已渲染的 Markdown 容器
+ * @returns {string} 目录 HTML 字符串
+ */
+function _buildTocFromDom(container) {
     if (!container) return '<div class="toc-empty">无标题</div>';
 
     const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
     if (!headings.length) return '<div class="toc-empty">无标题</div>';
 
     let html = '<ul>';
-    headings.forEach(function(heading) {
+    headings.forEach(function (heading) {
         const level = parseInt(heading.tagName[1], 10);
         const text = _getHeadingText(heading);
         const title = text.length > 40 ? text.slice(0, 37) + '...' : text;
 
         html += '<li class="toc-level-' + level + '">';
-        html += '<a href="#' + heading.id + '" data-toc-id="' + heading.id + '">' +
-            Utils.escapeHtml(title) + '</a></li>';
+        html +=
+            '<a href="#' +
+            heading.id +
+            '" data-toc-id="' +
+            heading.id +
+            '">' +
+            Utils.escapeHtml(title) +
+            '</a></li>';
     });
     html += '</ul>';
     return html;
@@ -313,17 +355,17 @@ function _scrollToHeading(target, scrollEl) {
 }
 
 /**
-     * 绑定目录点击滚动事件。
-     * @param {HTMLElement} container - ToC 容器
-     * @param {HTMLElement} scrollEl - 滚动容器元素
-     * @param {HTMLElement} [closeCtrlEl] - 移动端关闭控制元素
-     * @returns {void}
-     */
-    function _bindTocLinks(container, scrollEl, closeCtrlEl) {
+ * 绑定目录点击滚动事件。
+ * @param {HTMLElement} container - ToC 容器
+ * @param {HTMLElement} scrollEl - 滚动容器元素
+ * @param {HTMLElement} [closeCtrlEl] - 移动端关闭控制元素
+ * @returns {void}
+ */
+function _bindTocLinks(container, scrollEl, closeCtrlEl) {
     if (!container || _tocBound.has(container)) return;
     _tocBound.add(container);
 
-    container.addEventListener('click', function(e) {
+    container.addEventListener('click', function (e) {
         const link = e.target.closest('a[data-toc-id]');
         if (!link || !container.contains(link)) return;
 
@@ -335,11 +377,11 @@ function _scrollToHeading(target, scrollEl) {
 }
 
 /**
-     * 渲染 Markdown 原始文本到目标元素：解析 → sanitize → 锚点 → KaTeX → 图片绑定。
-     * @param {string} rawMarkdown - Markdown 原始文本
-     * @param {HTMLElement} target - 目标渲染容器
-     * @returns {Promise<HTMLElement>}
-     */ async function _render(rawMarkdown, target) {
+ * 渲染 Markdown 原始文本到目标元素：解析 → sanitize → 锚点 → KaTeX → 图片绑定。
+ * @param {string} rawMarkdown - Markdown 原始文本
+ * @param {HTMLElement} target - 目标渲染容器
+ * @returns {Promise<HTMLElement>}
+ */ async function _render(rawMarkdown, target) {
     if (!target) throw new Error('目标元素缺失');
     if (typeof marked === 'undefined') {
         throw new Error('Markdown 解析组件 (marked) 未加载');
@@ -381,7 +423,9 @@ function _scrollToHeading(target, scrollEl) {
     }
 
     // KaTeX 数学公式渲染（懒加载，检测到公式才加载库并渲染，避免无公式时全 DOM 扫描）
-    if (mathBlocks.length > 0) {
+    // 门控条件：块级公式（mathBlocks）或行内 $...$ 公式（_extractMathBlocks 只提取块级，
+    // 若文章仅含行内公式则 mathBlocks 为空，需单独探测，否则 KaTeX 永不被加载、$...$ 原样显示）
+    if (mathBlocks.length > 0 || _hasInlineMath(protectedText)) {
         try {
             await _ensureKatex();
         } catch (err) {
@@ -396,7 +440,7 @@ function _scrollToHeading(target, scrollEl) {
 const MarkdownRenderer = {
     render: _render,
     buildTocFromDom: _buildTocFromDom,
-    bindTocLinks: _bindTocLinks
+    bindTocLinks: _bindTocLinks,
 };
 
 export { MarkdownRenderer };

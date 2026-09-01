@@ -8,7 +8,7 @@
 'use strict';
 
 import { DEFAULT_STROKE, IGNORE_COMMANDS } from './constants.js';
-import { preprocess, expandScript } from './script.js';
+import { preprocess, expandScript, extractPreamble } from './script.js';
 import { createContext, registerCoords } from './context.js';
 import { parsePoint } from './expr.js';
 import { parseOptions } from './options.js';
@@ -28,19 +28,25 @@ function renderStatement(stmt, ctx) {
     if (!command) return { html: '', math: false };
     if (IGNORE_COMMANDS[command]) return { html: '', math: false };
     switch (command) {
-        case 'node': return renderNode(rest, opts, ctx);
+        case 'node':
+            return renderNode(rest, opts, ctx);
         case 'coordinate': {
             // \coordinate 仅登记命名坐标，不产生任何绘制（避免 M0 0L0 0 退化路径）
             registerCoords(rest, ctx, parsePoint);
             return { html: '', math: false };
         }
         case 'path':
-        case 'draw': registerCoords(rest, ctx, parsePoint); return renderDraw(rest, opts, ctx, false);
-        case 'fill': return renderDraw(rest, opts, ctx, true, true);
+        case 'draw':
+            registerCoords(rest, ctx, parsePoint);
+            return renderDraw(rest, opts, ctx, false);
+        case 'fill':
+            return renderDraw(rest, opts, ctx, true, true);
         case 'filldraw': {
-            // filldraw：既描边又填充。填充色优先用 fill 的，描边用 draw 的
+            // filldraw：既描边又填充。填充色优先用 fill 的，其次是裸颜色（如 filldraw[blue]），
+            // 再次才是默认描边色。旧代码 o.fill 为空时误用 DEFAULT_STROKE 填充，
+            // 导致 filldraw[blue] 的蓝色小圆点变成“暗心蓝圈”（点成了圈）。
             const o = parseOptions(opts);
-            const fillColor = o.fill || DEFAULT_STROKE;
+            const fillColor = o.fill || o.bareColor || DEFAULT_STROKE;
             return renderDraw(rest, opts, ctx, true, true, fillColor);
         }
         default:
@@ -55,12 +61,18 @@ function renderStatement(stmt, ctx) {
  * @returns {Promise<string>}
  */
 async function buildPicture(source) {
+    // 提取 tikzpicture 前置选项（样式、node distance），并剥离其选项块
+    const preamble = extractPreamble(source);
     // 预处理（剥离 begin/end 包裹、剔除 % 注释）
-    const normalized = preprocess(source);
+    const normalized = preprocess(preamble.body);
     // 展开 foreach、执行 pgfmathsetmacro，得到扁平命令序列
     const script = expandScript(normalized);
 
     const ctx = createContext(script.vars);
+    ctx.styles = preamble.styles;
+    ctx.options.nodeDistance = preamble.nodeDistance;
+    // 整图缩放：\begin{tikzpicture}[scale=0.8] 等（旧代码丢弃 scale，导致画面偏大/偏小）
+    ctx.options.scale = preamble.scale;
     let body = '';
     let hasMath = false;
 
@@ -93,8 +105,20 @@ async function buildPicture(source) {
 
     return (
         '<svg class="tikz-svg" xmlns="http://www.w3.org/2000/svg" ' +
-        'width="' + pixW + '" height="' + pixH + '" ' +
-        'viewBox="' + minX + ' ' + minY + ' ' + pixW + ' ' + pixH + '" ' +
+        'width="' +
+        pixW +
+        '" height="' +
+        pixH +
+        '" ' +
+        'viewBox="' +
+        minX +
+        ' ' +
+        minY +
+        ' ' +
+        pixW +
+        ' ' +
+        pixH +
+        '" ' +
         'role="img" aria-label="TikZ 渲染结果">' +
         svgBody +
         '</svg>'
@@ -141,8 +165,12 @@ async function renderTikz(container) {
             // 降级：显示源码 + 错误提示，保留可用性（与 mermaid 一致）
             el.classList.add('tikz-error');
             el.innerHTML =
-                '<pre><code>' + escapeHtml(source) + '</code></pre>' +
-                '<div class="tikz-error-msg">TikZ 渲染失败: ' + escapeHtml(err.message) + '</div>';
+                '<pre><code>' +
+                escapeHtml(source) +
+                '</code></pre>' +
+                '<div class="tikz-error-msg">TikZ 渲染失败: ' +
+                escapeHtml(err.message) +
+                '</div>';
         }
     }
 }

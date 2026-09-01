@@ -6,6 +6,7 @@
 # 用法：corn.sh [输出路径，默认 ./dashboard.json]
 # 依赖：lscpu / cpufreq sysfs / /proc/stat / top / free / uptime / getprop / ps（无需 root）
 # 由 cron 每 30 秒调用一次
+set -u
 
 OUTPUT="${1:-./dashboard.json}"
 
