@@ -5,7 +5,7 @@ on:
     paths:
       - 'js/**/*.js'
       - 'css/src/**/*.css'
-      - 'corn.sh'
+      - 'cron.sh'
       - 'gen_index.sh'
       - 'css/build.sh'
       - 'package.json'
