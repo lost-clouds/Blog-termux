@@ -51,8 +51,8 @@ cp example/Blog.conf $PREFIX/etc/nginx/conf.d/Blog.conf
 
 # 4. Setup dashboard cron (every 30s)
 # Add to crontab:
-#   * * * * * bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
-#   * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json
+#   * * * * * bash ~/Blog-termux/cron.sh ~/Blog-termux/dashboard.json
+#   * * * * * sleep 30; bash ~/Blog-termux/cron.sh ~/Blog-termux/dashboard.json
 
 # 5. (Optional) Generate static indexes for faster loading
 bash ~/Blog-termux/gen_index.sh ~/Blog-termux
@@ -107,7 +107,7 @@ All business JS uses **ES Modules** with explicit `import`/`export`. `main.js` i
                     gen_index.sh (optional cron)
                     ──────────────────────→  Markdown/index.json
                                               Html/index.json
-                    corn.sh (cron 30s)         Image/index.json
+                    cron.sh (cron 30s)         Image/index.json
                     ──────────────────────→  dashboard.json
                                                │
                                                │ primary: fetch index.json
@@ -131,7 +131,7 @@ dashboard.js (30s polling)       blog.js / gallery.js
 Blog-termux/
 ├── index.html                  # Single entry point — tabbed SPA
 ├── config.json                 # Service navigation config
-├── corn.sh                     # System metrics collector (no root)
+├── cron.sh                     # System metrics collector (no root)
 ├── gen_index.sh                # Static index generator
 ├── sw.js                       # Service Worker (offline cache)
 ├── styleguide.md               # Coding standards (naming/comments/module boundaries/toolchain)
@@ -166,10 +166,12 @@ Blog-termux/
 │   └── tikz/                   #   TikZ → SVG engine (split from a 1200-line monolith)
 │       ├── render.js           #     Orchestration: prepareTikzBlocks / renderTikz
 │       ├── script.js           #     Preprocess, statement split, foreach / macro expansion
-│       ├── context.js          #     Named coords, loop vars, bounding box
-│       ├── expr.js             #     Math expression evaluation + coordinate parsing
-│       ├── options.js          #     Option parsing → stroke / dash / font / scale
-│       ├── node.js             #     \node rendering (shape + text/math)
+│       ├── context.js          #     Named coords, node boxes, loop vars, bounding box
+│       ├── expr.js             #     Math expression evaluation + coordinate parsing (anchors / calc)
+│       ├── options.js          #     Option parsing → stroke / dash / font / scale / relative positioning
+│       ├── styles.js           #     Style-definition parsing (X/.style, node distance)
+│       ├── units.js            #     Length-unit conversion (cm/mm/pt/px → TikZ units)
+│       ├── node.js             #     \node rendering (shape + text/math + relative positioning)
 │       ├── path.js             #     \draw / \fill path tokenization
 │       ├── shapes.js           #     circle / rectangle / grid / plot / arrowhead
 │       ├── text.js             #     Display-length estimate, escapes, math split
@@ -223,14 +225,14 @@ Blog-termux/
 | `gallery.js` | Image gallery | `utils.js`, `lightbox.js`, `constants.js` | Thumbnail grid, lazy loading, 250ms debounced search |
 | `md-viewer.js` | Markdown renderer | `utils.js`, `sanitizer.js`, `footnotes.js`, `lightbox.js`, `constants.js` | Full pipeline: footnotes → math → marked → sanitize → image paths → anchors → KaTeX |
 | `mermaid-renderer.js` | Mermaid chart renderer | `constants.js` | Lazy-loaded Mermaid → SVG, syntax error graceful degradation |
-| `tikz-renderer.js` | Basic TikZ → SVG renderer (entry) | `tikz/*` (12 modules) | Zero-dependency client-side TikZ parser, supports nodes, edges with arrows, circles, rectangles, grids (corner endpoints, `step=N`, `\fill … grid`), Bézier curves, arc, function plots, `\foreach` loops (including `{a,b,...,z}` mid-dot step lists and string loop vars over `\coordinate` names), `\pgfmathsetmacro`, colors (`red!40!blue`), math labels via KaTeX, inline `node[...]` labels on draw/fill paths (`node[midway]` / `node[above right]` / `at (x,y)`). Fixed scale: 1 TikZ unit = 32px. Logic split into `js/tikz/` for modularity |
+| `tikz-renderer.js` | Basic TikZ → SVG renderer (entry) | `tikz/*` (14 modules) | Zero-dependency client-side TikZ parser, supports nodes, edges with arrows, circles, rectangles, grids (corner endpoints, `step=N`, `\fill … grid`), Bézier curves, arc, function plots, `\foreach` loops (including `{a,b,...,z}` mid-dot step lists and string loop vars over `\coordinate` names), `\pgfmathsetmacro`, colors (`red!40!blue`), math labels via KaTeX, inline `node[...]` labels on draw/fill paths (`node[midway]` / `node[above right]` / `at (x,y)`), **relative positioning** (`below=of X` / `right=2.5cm of X` / `xshift` / `yshift`), **style definitions** (`X/.style={…}`), **node-anchor references** (`at (X.south west)`) and `$...$` coordinate arithmetic, min sizes (`minimum width/height`). Fixed scale: 1 TikZ unit = 32px. Logic split into `js/tikz/` for modularity |
 | `sw.js` | Service Worker | — | Cache-first (static), SWR (articles/images), Network-first (entry), Network-only (realtime) |
 
 ### Core Modules
 
 #### dashboard.js — System Dashboard
 
-Polls `GET /api/dashboard` every **30 seconds** with an **8-second AbortController timeout**. Polling pauses when tab is inactive or page hidden. Error degradation: 1 error → hint, 2–5 errors → stale indicator, 5+ errors → full reset.
+Polls `GET /api/dashboard` every **30 seconds** with an **8-second AbortController timeout**. Polling pauses when tab is inactive or page hidden. Error degradation: 1 error → hint, 2–5 errors → stale indicator, **6+ errors** → full reset.
 
 **8 cards:**
 
@@ -245,7 +247,7 @@ Polls `GET /api/dashboard` every **30 seconds** with an **8-second AbortControll
 | ⚙️ Services | Count + process name list | — |
 | ⏱️ Uptime | e.g. "3d 12h 30m" | — |
 
-`dashboard.json` schema (generated by `corn.sh`):
+`dashboard.json` schema (generated by `cron.sh`):
 
 ```json
 {
@@ -283,20 +285,20 @@ Hugo Book-style 3-column layout. `Promise.allSettled` fetches Markdown + HTML du
 
 #### md-viewer.js — Markdown Rendering Engine
 
-Pure rendering module — no DOM lifecycle management. Complete 9-step pipeline:
+Pure rendering module — no DOM lifecycle management. Complete 10-step pipeline:
 
 | Step | Implementation |
 |------|---------------|
-| 1. Footnotes | Preprocess `[^id]` definitions → numbered footnotes with backlinks |
-| 2. Math extraction | 3-phase: `$$` → `\[` → `\(`, split→aligned normalization |
+| 1. Footnotes | Preprocess `[^id]` definitions → numbered footnotes with backlinks (skips fenced/inline code) |
+| 2. Math extraction | 3-phase: `$$` → `\[` → `\(`, split→aligned normalization (skips fenced/inline code) |
 | 3. Markdown parsing | `marked.parse()` with math placeholders |
 | 4. XSS sanitization | 5-layer whitelist (tags, attrs, URLs, classes, styles) |
-| 5. Image paths | Relative paths rewritten to `/api/images/` |
-| 6. Heading anchors | Auto-injected `#` permalinks with CJK slug support |
-| 7. Mermaid rendering | Lazy-loaded Mermaid → SVG, syntax error degradation |
-| 8. TikZ rendering | Zero-dependency client-side TikZ → SVG (nodes, edges, circles, rectangles, grid, `\foreach` loops incl. `{a,b,...,z}` step lists & named-coordinate string vars, `\pgfmathsetmacro`, inline `node[...]` labels, math labels via KaTeX); fixed scale 1 unit = 32px |
-| 9. KaTeX rendering | Lazy-loaded on demand, graceful degradation on failure |
-| 10. Image binding | Delegated click → shared `Lightbox` |
+| 5. Block conversion | `<pre><code>` → Mermaid/TikZ `<div>` (post-sanitize, pre-DOM-op) |
+| 6. Image paths | Relative paths rewritten to `/api/images/` |
+| 7. Heading anchors | Auto-injected `#` permalinks with CJK slug support |
+| 8. Image binding | Delegated click → shared `Lightbox` |
+| 9. Math restoration | Restore placeholders + KaTeX lazy-load (gated on blocks or inline `$...$` math) |
+| 10. Chart rendering | Mermaid lazy render first, then TikZ → SVG (zero-dependency client-side: nodes, edges with arrows, circles, rectangles, grids, Bézier, **arc**, function plots, `\foreach` incl. `{a,b,...,z}` step lists & named-coordinate string vars, `\pgfmathsetmacro`, inline `node[...]` labels, math labels via KaTeX, **relative positioning `below=of X` / `right of X` / `xshift` / `yshift`**, **styles `X/.style`**, **anchor references & `$...$` coordinate arithmetic**); picture-level `[scale=]`/`node distance=` apply; fixed scale 1 unit = 32px |
 
 #### navigation.js — Service Navigation
 
@@ -311,7 +313,7 @@ Reads `config.json`, renders service cards grouped by category. Search filters b
 | Component | Purpose | Install |
 |-----------|---------|---------|
 | Nginx | Web server | `pkg install nginx` |
-| cron / crond | Schedule corn.sh | `pkg install cronie termux-services` |
+| cron / crond | Schedule cron.sh | `pkg install cronie termux-services` |
 | curl | Download dependencies (one-time) | Pre-installed |
 | Node.js + npm | Code linting (optional) | `pkg install nodejs-lts` |
 | termux-api | Battery info (optional) | `pkg install termux-api` |
@@ -421,7 +423,7 @@ ls ~/Blog-termux/Markdown/              # Are directories empty?
 
 ```bash
 cat ~/Blog-termux/dashboard.json        # Exists and valid JSON?
-bash ~/Blog-termux/corn.sh              # Run manually
+bash ~/Blog-termux/cron.sh              # Run manually
 ps aux | grep crond                     # Is cron running?
 ```
 
@@ -474,7 +476,7 @@ npm run format  # Auto-format
 |---------|---------------|
 | 🔌 Zero backend | nginx autoindex + `DOMParser` fallback parsing |
 | 📦 Zero external deps | All libraries vendored in `lib/`, fully offline after first download |
-| 🔒 No root | `corn.sh` uses `/proc/stat` / `free` / `df` / `ps` / `getprop` |
+| 🔒 No root | `cron.sh` uses `/proc/stat` / `free` / `df` / `ps` / `getprop` |
 | 🛡️ Security | 5-layer HTML sanitizer + URL whitelist + `escapeHtml` on user content |
 | 📡 Offline | Service Worker 4 strategies: cache-first, SWR, network-first, network-only |
 | 🌙 Theming | CSS custom properties + `body.dark` toggle, system preference auto-detect |
