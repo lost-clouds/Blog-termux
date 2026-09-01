@@ -70,7 +70,7 @@ function _setBar(el, pct) {
 
 /* ---- 更新 8 张卡片 ---- */
 /**
- * 将 corn.sh 生成的 dashboard.json 数据渲染到 8 张卡片。
+ * 将 cron.sh 生成的 dashboard.json 数据渲染到 8 张卡片。
  * @param {Object} data - 仪表盘数据
  * @param {Object} [data.device] - 设备信息
  * @param {Object} [data.cpu] - CPU 使用率、核心数、集群信息
@@ -301,7 +301,7 @@ function _reset() {
         console.warn('Dashboard: 获取失败 (' + _fetchErrors + ') — ' + err.message);
         if (_fetchErrors === 1) {
             _set(els.deviceValue, '无数据');
-            _set(els.deviceSub, '检查 corn.sh / nginx /api/dashboard');
+            _set(els.deviceSub, '检查 cron.sh / nginx /api/dashboard');
         } else if (_fetchErrors <= 5) {
             // 中间错误状态：更新数据新鲜度指示器显示过期
             const ageEl = els.dataAge;

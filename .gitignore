@@ -10,7 +10,7 @@ Thumbs.db
 .idea/
 *.sublime-*
 
-# 仪表盘数据（由 corn.sh 运行时生成，不应提交）
+# 仪表盘数据（由 cron.sh 运行时生成，不应提交）
 dashboard.json
 
 # 日志

@@ -36,7 +36,7 @@
 Blog-termux/
 ├── index.html          # 唯一入口，不放业务逻辑
 ├── config.json          # 数据文件，不放逻辑
-├── corn.sh               # 系统指标采集（无 root）
+├── cron.sh               # 系统指标采集（无 root）
 ├── gen_index.sh           # 静态索引生成
 ├── sw.js                   # Service Worker，独立运行时，不 import 业务模块
 │
@@ -104,7 +104,7 @@ Blog-termux/
 
 ```js
 /**
- * 将 corn.sh 生成的 dashboard.json 数据渲染到 8 张卡片。
+ * 将 cron.sh 生成的 dashboard.json 数据渲染到 8 张卡片。
  *
  * @param {Object} data - 仪表盘数据
  * @param {Object} data.cpu - CPU 使用率、核心数、集群信息
@@ -183,17 +183,17 @@ const debouncedSearch = debounce(search, 250);
 
 ## 5. Shell 脚本规范
 
-适用于 `corn.sh`、`gen_index.sh`、`css/build.sh`。
+适用于 `cron.sh`、`gen_index.sh`、`css/build.sh`。
 
 - 脚本头部固定注释块：
 
 ```bash
 #!/bin/bash
 #
-# corn.sh — 系统指标采集器
+# cron.sh — 系统指标采集器
 #
 # 用途：采集 CPU/内存/存储/网络/电池/服务/运行时长，输出为 dashboard.json
-# 用法：corn.sh [输出路径，默认 ./dashboard.json]
+# 用法：cron.sh [输出路径，默认 ./dashboard.json]
 # 依赖：lscpu / cpufreq sysfs / /proc/stat / top / free / uptime / getprop / ps（无需 root）
 # 由 cron 每 30 秒调用一次
 ```
@@ -253,7 +253,7 @@ get_cpu_usage() { ... }
   "scripts": {
     "lint:js": "eslint js/",
     "lint:css": "stylelint css/src/**/*.css",
-    "lint:sh": "shellcheck corn.sh gen_index.sh css/build.sh",
+    "lint:sh": "shellcheck cron.sh gen_index.sh css/build.sh",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:sh",
     "format": "prettier --write \"js/**/*.js\" \"css/src/**/*.css\""
   }

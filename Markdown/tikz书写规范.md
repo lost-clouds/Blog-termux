@@ -43,7 +43,10 @@ TikZ 图用 Markdown 的三反引号 `tikz` 围栏包裹，渲染管线会自动
 
 - `\begin{document}` / `\end{document}`、`\begin{tikzpicture}` / `\end{tikzpicture}` ——
   渲染前会被自动剥离。**必须一一配对**。
-- 环境方括号参数目前**仅支持整体缩放**：`\begin{tikzpicture}[scale=1.4]`。
+- 环境方括号参数目前**仅支持整体缩放 (`scale`) 与节点间距 (`node distance`)**：
+  `\begin{tikzpicture}[scale=0.8]` 会**整图缩放**（坐标、半径、网格均按该因子换算，
+  已是修复 commit：旧版本会静默丢弃 `scale`，导致画面按原尺寸绘制、Math 系列图偏大）。
+  `\begin{tikzpicture}[node distance=1.4cm]` 设置相对定位默认间距。
   其余参数（xshift、xscale、rotate 等）会被忽略。
 - 也可以**不写包裹环境**，直接写命令。多条命令用分号分隔即可：
 
@@ -162,7 +165,8 @@ TikZ 图用 Markdown 的三反引号 `tikz` 围栏包裹，渲染管线会自动
 节点只有在显式给出 `draw=<色>`、`fill=<色>`、`circle`、`rectangle` **至少一项**时，
 才会画出形状；否则只画文本（纯标签、无框）。
 
-⚠️ 因此**裸 `draw`（不带颜色）不会画框**——请写 `draw=blue` / `draw=black`。
+- 裸 `draw`（不带颜色）**会画框**，边框用默认描边色（修复 commit 后支持）。
+- `filldraw[<色>]` 填充与描边都用该色（修复前填充误用默认暗色 → “点成了圈/颜色不对”）。
 
 ### 4.4 node 示例集合
 
@@ -270,7 +274,8 @@ pink violet olive lime magenta darkgray lightgray`。
 | 闭合 | `\fill (a) -- (b) -- (c) -- cycle;` | `-- cycle` 闭合 |
 | 箭头 | `\draw[->] (0,0) -- (3,0);` | `-> ->> latex -latex <- <<- <->` |
 | 贝塞尔 | `\draw (0,0) .. controls (1,1) and (2,-1) .. (3,0);` | `.. controls .. and ..` |
-| 圆 | `\fill[orange!50] (-2,0) circle (2pt);` | `circle (r)`，r 可带 `pt` |
+| 圆弧 | `\draw (0.5,0) arc (0:60:0.5);` | `(起点) arc (起始角:终止角:半径)`，折线采样近似 |
+| 圆 | `\fill[orange!50] (-2,0) circle (2pt);` | `circle (r)`，r 可带 `pt`（如 `2pt`/`2.5pt`）求值正确 |
 | 矩形 | `\draw[fill=blue!20] (a) rectangle (b);` | `(左下) rectangle (右上)` |
 | 网格 | `\draw[gray!40] (-0.5,-0.5) grid (4.5,3.5);` | `(左下) grid (右上)`，见 §8 |
 | 函数曲线 | `\draw[domain=0:4.2] plot (\x,{0.25*\x*\x});` | `plot (\x,{expr})`，`domain=a:b` |
@@ -297,6 +302,21 @@ pink violet olive lime magenta darkgray lightgray`。
 \draw[purple, thick] (0,0) .. controls (1,2) and (2,2) .. (3,0);
 \draw[orange] (0,-3) .. controls (1,-1) and (2,-1) .. (3,-3);
 ```
+
+### 7.5 圆弧 arc
+
+`(起点) arc (起始角:终止角:半径)` 从当前点沿逆时针画圆弧（TikZ 角度、Y 向上），
+以折线采样近似曲线（约 24 段），通常用于角度标注/扇形：
+
+```tikz
+% 半径为 0.5 单位、从 0° 扫到 60° 的弧（圆心在 (0,0)）
+\draw[orange, thick] (0.5,0) arc (0:60:0.5);
+% 反向角度的弧
+\draw[blue] (3.5,0) arc (180:143.13:0.5);
+```
+
+> 注意：`arc` 需要前一坐标作为起点（当前点）。单独用 `arc` 而没有前置 `(x,y)` 会退化。
+> 若圆弧需精确 SVG 大弧语义，可改用贝塞尔近似替代；本近似适用于角度标注等常见场景。
 
 ### 7.5 圆与矩形
 

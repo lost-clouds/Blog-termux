@@ -148,7 +148,7 @@ print(fibonacci(10))  # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 # 一键部署脚本
 cd ~/Blog-termux
 bash gen_index.sh .
-bash corn.sh ~/Blog-termux/dashboard.json
+bash cron.sh ~/Blog-termux/dashboard.json
 nginx -s reload
 ```
 
@@ -167,7 +167,7 @@ async function loadArticle(name) {
 
 ### 5.2 行内代码
 
-项目核心文件：`index.html`、`js/main.js`、`css/style.css`、`corn.sh`。
+项目核心文件：`index.html`、`js/main.js`、`css/style.css`、`cron.sh`。
 
 Nginx 配置路径：`/api/dashboard` → `dashboard.json`。
 
@@ -229,7 +229,7 @@ Nginx 配置路径：`/api/dashboard` → `dashboard.json`。
 
 ### 7.3 任务列表（GFM）
 
-- [x] corn.sh 原子写入 + timestamp
+- [x] cron.sh 原子写入 + timestamp
 - [x] Markdown 白名单 XSS 防护
 - [x] Dashboard 页面可见性控制轮询
 - [x] ES Modules 迁移

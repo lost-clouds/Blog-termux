@@ -254,7 +254,7 @@
             <li>md-viewer.js 完整 8 步管道：脚注 → 数学提取 → 解析 → XSS 清理 → 图片路径 → 锚点 → KaTeX → 灯箱绑定</li>
             <li>CSS 策略：CSS 自定义属性 + 3 个响应式断点（1024 / 639 / 400px），<code style="color:#999;">build.sh</code> 合并 15 个源文件</li>
             <li>Service Worker：分层缓存（network-only 实时 / SWR 文章图片 / network-first 入口 / cache-first 静态）</li>
-            <li>仪表盘数据：corn.sh 定时采集系统指标（零 root）→ dashboard.json → 前端每 30s 轮询 + 8s 超时</li>
+            <li>仪表盘数据：cron.sh 定时采集系统指标（零 root）→ dashboard.json → 前端每 30s 轮询 + 8s 超时</li>
             <li>文件发现：<code style="color:#999;">gen_index.sh</code> 生成 index.json（Markdown/Html/Image 三目录）→ nginx autoindex 降级</li>
             <li>竞态防护：<code style="color:#999;">AbortController</code> + 请求 ID 计数器，<code style="color:#999;">Promise.allSettled</code> 多源容错</li>
             <li>安全：文件名 escapeHtml 转义 + URL 白名单验证 + HTML sanitizer 五重过滤</li>
@@ -299,8 +299,8 @@
 
 <span class="c"># 4. 配置仪表盘定时采集（每 30 秒）</span>
 <span class="c"># crontab 添加：</span>
-<span class="c">#   * * * * *    bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json</span>
-<span class="c">#   * * * * * sleep 30; bash ~/Blog-termux/corn.sh ~/Blog-termux/dashboard.json</span>
+<span class="c">#   * * * * *    bash ~/Blog-termux/cron.sh ~/Blog-termux/dashboard.json</span>
+<span class="c">#   * * * * * sleep 30; bash ~/Blog-termux/cron.sh ~/Blog-termux/dashboard.json</span>
 
 <span class="c"># 5.（可选）生成静态索引，加速加载</span>
 <span class="k">bash</span> ~/Blog-termux/gen_index.sh ~/Blog-termux
@@ -322,7 +322,7 @@
             <div class="feat-item">
                 <div class="icon">⏱️</div>
                 <div class="name">cron</div>
-                <div class="desc">定时执行 corn.sh 采集系统指标，每 30s 刷新 dashboard.json</div>
+                <div class="desc">定时执行 cron.sh 采集系统指标，每 30s 刷新 dashboard.json</div>
             </div>
             <div class="feat-item">
                 <div class="icon">📁</div>
@@ -351,7 +351,7 @@
     <div class="card">
         <h2>数据流</h2>
         <div class="code-block"><span class="c">gen_index.sh (可选定时) → Markdown/index.json | Html/index.json | Image/index.json</span>
-<span class="c">corn.sh (cron 每 30s)  → dashboard.json</span>
+<span class="c">cron.sh (cron 每 30s)  → dashboard.json</span>
                                  <span class="c">│</span>
                                  <span class="c">│</span> 优先: <span class="k">fetch</span> index.json
                                  <span class="c">│</span> 降级: DOMParser 解析 nginx autoindex HTML
@@ -373,7 +373,7 @@ dashboard.js (30s 轮询)      blog.js / gallery.js
         <div class="code-block">Blog-termux/
 ├── index.html                  <span class="c"># SPA 唯一入口 — 标签页</span>
 ├── config.json                 <span class="c"># 服务导航配置</span>
-├── corn.sh                      <span class="c"># 系统指标采集脚本（零 root）</span>
+├── cron.sh                      <span class="c"># 系统指标采集脚本（零 root）</span>
 ├── gen_index.sh                 <span class="c"># 静态索引生成器</span>
 ├── sw.js                        <span class="c"># Service Worker（离线缓存）</span>
 ├── styleguide.md                <span class="c"># 代码规范</span>
