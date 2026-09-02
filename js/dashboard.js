@@ -298,9 +298,11 @@ function _reset() {
         _fetchErrors = 0;
         _update(json);
     } catch (err) {
+        // 主动停止：Signal abort 表现为 AbortError（个别环境会是 TypeError），一律不计错误
+        if (_stopRequested && (err.name === 'AbortError' || err.name === 'TypeError')) {
+            return;
+        }
         if (err.name === 'AbortError') {
-            // 主动停止（切走/隐藏）不算错误，直接忽略
-            if (_stopRequested) return;
             console.warn('Dashboard: 请求超时');
         }
         _fetchErrors++;

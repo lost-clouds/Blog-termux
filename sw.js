@@ -8,11 +8,11 @@
      / /index.html /config.json → network-first（入口保证新鲜）
      其余静态资源            → cache-first
    ============================================================ */
-const CACHE = 'blog-abbe48c3';
+const CACHE = 'blog-8faec8e0';
 const SHELL = [
     '/',
     '/index.html',
-    '/css/style.css?v=abbe48c3',
+    '/css/style.css?v=8faec8e0',
     '/config.json',
     '/js/theme.js',
     '/js/utils.js',
@@ -41,12 +41,12 @@ const SHELL = [
     '/js/sanitizer.js',
     '/js/footnotes.js',
     '/js/constants.js',
-    '/js/main.js?v=abbe48c3',
+    '/js/main.js?v=8faec8e0',
     '/js/app.js',
-    '/lib/marked.min.js?v=abbe48c3',
-    '/lib/github-markdown.min.css?v=abbe48c3',
-    '/lib/katex.min.css?v=abbe48c3',
-    // KaTeX JS 由 md-viewer 懒加载（LIBS.KATEX_JS 无 ?v=abbe48c3），键须匹配运行时 URL
+    '/lib/marked.min.js?v=8faec8e0',
+    '/lib/github-markdown.min.css?v=8faec8e0',
+    '/lib/katex.min.css?v=8faec8e0',
+    // KaTeX JS 由 md-viewer 懒加载（LIBS.KATEX_JS 无 ?v=8faec8e0），键须匹配运行时 URL
     '/lib/katex.min.js',
     '/lib/auto-render.min.js',
     '/lib/mermaid.min.js',

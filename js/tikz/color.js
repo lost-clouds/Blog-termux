@@ -22,6 +22,20 @@ export function isColorToken(name) {
 }
 
 /**
+ * 是否可作为颜色值写入 SVG 属性的统一入门口径：'none' / 命名色 / hex /
+ * 混合链 / var() / rgb(a) / hsl(a)。用于 parseOptions 的 draw/fill/text 关卡；
+ * 最终仍由 resolveColor 严格兜底，故此口径与 isSingleColor 保持一致（audit H2/Fix）。
+ * @param {string} v
+ * @returns {boolean}
+ */
+export function isAllowedColorValue(v) {
+    const s = String(v || '').trim();
+    if (!s || s === 'none') return true;
+    if (isColorToken(s)) return true;
+    return isSingleColor(s);
+}
+
+/**
  * 判断单个颜色分量是否为合法 CSS 颜色字面量（命名色 / hex / rgb(a) / hsl(a) / var）。
  * 用于白名单校验，杜绝 SVG 属性注入（如 fill 值里的引号/尖括号/分号）。
  * @param {string} c
@@ -55,8 +69,7 @@ function rgbOf(c) {
  * @returns {string|null}
  */
 function resolveMix(c) {
-    const clamped = c.replace(/^#/g, '');
-    const parts = clamped
+    const parts = c
         .split('!')
         .map(function (x) {
             return x.trim().toLowerCase();
@@ -70,7 +83,7 @@ function resolveMix(c) {
         if (from && to) return blend(from, to, pct);
         return null;
     }
-    if (parts.length === 2 && /^[\d.]+$/.test(parts[1])) {
+    if (parts.length === 2 && /^\d*\.?\d+$/.test(parts[1])) {
         const from = rgbOf(parts[0]);
         if (from) return blend(from, [255, 255, 255], pct);
         return null;

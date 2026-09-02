@@ -7,7 +7,7 @@
 
 'use strict';
 
-import { isColorToken } from './color.js';
+import { isColorToken, isAllowedColorValue } from './color.js';
 import { FONT_SIZES, DEFAULT_STROKE } from './constants.js';
 import { parseLength } from './units.js';
 
@@ -152,11 +152,10 @@ export function parseOptions(opts) {
         if (kv) {
             const key = kv[1].toLowerCase().trim();
             const val = kv[2].trim();
-            // 颜色类值必须先过 isColorToken（或 'none'）白名单，杜绝把任意字符串
-            // 拼进 SVG 属性（audit H2）；非法值直接忽略，由调用方用默认色兜底。
-            const okColor = function (v) {
-                return v === 'none' || isColorToken(v);
-            };
+            // 颜色类值必须先过统一白名单（isAllowedColorValue：命名/hex/混合/var/rgb(a)/hsl(a)，
+            // 与 resolveColor 口径一致），杜绝把任意字符串拼进 SVG 属性（audit H2/Fix）；
+            // 最终 resolveColor 仍会严格兜底，非法值忽略并由默认色兜底。
+            const okColor = isAllowedColorValue;
             if (key === 'draw') {
                 if (okColor(val)) r.draw = val || DEFAULT_STROKE;
             } else if (key === 'fill') {
@@ -216,11 +215,16 @@ export function parseOptions(opts) {
 export function splitOpts(opts) {
     const out = [];
     let cur = '';
-    let d = 0;
+    let brace = 0;
+    let paren = 0;
     for (const ch of opts) {
-        if (ch === '{') d++;
-        else if (ch === '}') d--;
-        if (ch === ',' && d === 0) {
+        if (ch === '{') brace++;
+        else if (ch === '}') brace--;
+        else if (ch === '(') paren++;
+        else if (ch === ')') paren--;
+        // 仅在花括号与圆括号深度都为 0 时的逗号才算分隔符，
+        // 避免 var(--x, #fff) / rgba(1,2,3,0.5) 这类颜色值被误切（audit H1 关联）
+        if (ch === ',' && brace === 0 && paren === 0) {
             out.push(cur);
             cur = '';
             continue;

@@ -586,7 +586,7 @@ cat > "$OUT_TMP" <<EOF
   "uptime": "${V_UPTIME}"
 }
 EOF
-mv "$OUT_TMP" "$OUTPUT"
+mv "$OUT_TMP" "$OUTPUT" || { echo "cron.sh: 写入 $OUTPUT 失败" >&2; exit 1; }
 
 # 轻量校验（无 jq 依赖）：去掉首尾空白后以 { 开头、} 结尾即视为基本合法，
 # 异常时提示便于排查（文件常以换行收尾，故先去除空白再比对）。
