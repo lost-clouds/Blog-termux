@@ -127,6 +127,71 @@ function _onThemeToggle() {
     Theme.toggleTheme();
 }
 
+/* ---- 显示"站点已更新"提示条 ---- */
+/**
+ * 检测到新版 Service Worker 等待激活时，展示刷新提示条（audit A8）。
+ * 使用 DOM API 构建静态文本，无可信用户内容注入。
+ * @returns {void}
+ */
+function _showUpdateToast() {
+    if (document.getElementById('sw-update-toast')) return;
+    const toast = document.createElement('div');
+    toast.id = 'sw-update-toast';
+    toast.className = 'sw-update-toast';
+    toast.setAttribute('role', 'status');
+
+    const msg = document.createElement('span');
+    msg.textContent = '站点已更新';
+    const reloadBtn = document.createElement('button');
+    reloadBtn.className = 'sw-update-toast-btn';
+    reloadBtn.type = 'button';
+    reloadBtn.textContent = '刷新';
+    reloadBtn.addEventListener('click', function () {
+        window.location.reload();
+    });
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'sw-update-toast-close';
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', '关闭');
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', function () {
+        toast.remove();
+    });
+
+    toast.appendChild(msg);
+    toast.appendChild(reloadBtn);
+    toast.appendChild(closeBtn);
+    document.body.appendChild(toast);
+}
+
+/* ---- 注册 Service Worker + 更新检测 ---- */
+/**
+ * 注册 Service Worker，并在检测到新版本进入 waiting 时弹出刷新提示。
+ * @returns {void}
+ */
+function _registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker
+        .register('/sw.js')
+        .then(function (reg) {
+            reg.addEventListener('updatefound', function () {
+                const newWorker = reg.installing;
+                if (!newWorker) return;
+                newWorker.addEventListener('statechange', function () {
+                    if (
+                        newWorker.state === 'installed' &&
+                        navigator.serviceWorker.controller
+                    ) {
+                        _showUpdateToast();
+                    }
+                });
+            });
+        })
+        .catch(function (err) {
+            console.warn('Service Worker 注册失败:', err);
+        });
+}
+
 /* ---- 初始化 ---- */
 /**
  *
@@ -170,11 +235,7 @@ function _init() {
         _loadTabData(initialTab);
     }
 
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(function (err) {
-            console.warn('Service Worker 注册失败:', err);
-        });
-    }
+    _registerServiceWorker();
 
     window.addEventListener('hashchange', function () {
         const nextHash = window.location.hash.replace('#', '');

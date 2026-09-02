@@ -14,15 +14,74 @@ import { COLOR_MAP } from './constants.js';
  * @returns {boolean}
  */
 export function isColorToken(name) {
-    if (!name || name.includes('=')) return false;
-    const base = name.split('!')[0].toLowerCase();
+    if (!name || name.includes('=') || name.trim() === '') return false;
+    const parts = name.split('!');
+    const base = parts[0].trim().toLowerCase();
     if (COLOR_MAP[base] || /^#[0-9a-f]{3,8}$/i.test(base)) return true;
-    if (name.includes('!')) return true;
     return false;
 }
 
 /**
+ * 判断单个颜色分量是否为合法 CSS 颜色字面量（命名色 / hex / rgb(a) / hsl(a) / var）。
+ * 用于白名单校验，杜绝 SVG 属性注入（如 fill 值里的引号/尖括号/分号）。
+ * @param {string} c
+ * @returns {boolean}
+ */
+function isSingleColor(c) {
+    if (COLOR_MAP[c.toLowerCase()]) return true;
+    if (/^#[0-9a-f]{3,8}$/i.test(c)) return true;
+    // 仅允许纯数字/空格/逗号/% 组成的函数式颜色，并拒绝一切注入字符
+    if (/^(?:rgba?|hsla?)\([\d\s.,%]+\)$/.test(c)) return !/["'<>\\`;]/.test(c);
+    // var(--x[, fallback])：fallback 仅允许 hex，且整体不含注入字符
+    if (/^var\(--[\w-]+(?:,\s*#[0-9a-f]{3,8})?\)$/i.test(c)) return !/["'<>\\`;]/.test(c);
+    return false;
+}
+
+/**
+ * 单一颜色 → [r,g,b]，非法返回 null。
+ * @param {string} c
+ * @returns {Array<number>|null}
+ */
+function rgbOf(c) {
+    if (COLOR_MAP[c.toLowerCase()]) return rgb(COLOR_MAP[c.toLowerCase()]);
+    if (/^#[0-9a-f]{3,8}$/i.test(c)) return rgb(c);
+    return null;
+}
+
+/**
+ * 解析 TikZ 混合颜色链（red!40!blue 或 red!40）为 CSS 颜色。
+ * 所有分量都先经 rgbOf 严格校验，任一非法即整体回退。
+ * @param {string} c
+ * @returns {string|null}
+ */
+function resolveMix(c) {
+    const clamped = c.replace(/^#/g, '');
+    const parts = clamped
+        .split('!')
+        .map(function (x) {
+            return x.trim().toLowerCase();
+        })
+        .filter(Boolean);
+    const pct = parseFloat(parts[1]);
+    if (isNaN(pct)) return null;
+    if (parts.length >= 3) {
+        const from = rgbOf(parts[0]);
+        const to = rgbOf(parts[2]);
+        if (from && to) return blend(from, to, pct);
+        return null;
+    }
+    if (parts.length === 2 && /^[\d.]+$/.test(parts[1])) {
+        const from = rgbOf(parts[0]);
+        if (from) return blend(from, [255, 255, 255], pct);
+        return null;
+    }
+    return null;
+}
+
+/**
  * 解析 TikZ 颜色（含 !混合）为 CSS 值。
+ * 输出保证为"命名色映射后的 hex / 合法 hex / rgb() / var()"，
+ * 非法输入一律返回 fallback——这是 SVG 属性注入（audit H2）的最后一道防线。
  * @param {string} color
  * @param {string} fallback
  * @returns {string}
@@ -31,53 +90,22 @@ export function resolveColor(color, fallback) {
     if (!color) return fallback;
     const c = String(color).trim();
     if (c === 'none') return 'none';
-    if (/^(#|rgb|rgba|var\(|hsla)/.test(c)) return c;
     // 混合链：red!40!blue 表示 40% 从 red 到 blue 混合
-    const parts = c
-        .split('!')
-        .map(function (x) {
-            return x.trim();
-        })
-        .filter(Boolean);
-    if (parts.length >= 3) {
-        const base = parts[0];
-        const pct = parseFloat(parts[1]);
-        const target = parts[2];
-        const from = hex(base) || '#ffffff';
-        const to = hex(target) || hex(base) || '#ffffff';
-        return blend(from, to, isNaN(pct) ? 50 : pct);
-    }
-    if (parts.length === 2 && /^[\d.]+$/.test(parts[1])) {
-        const from = hex(parts[0]) || '#ffffff';
-        return blend(from, '#ffffff', parseFloat(parts[1]));
-    }
-    return hex(c) || fallback;
+    if (c.includes('!')) return resolveMix(c) || fallback;
+    if (!isSingleColor(c)) return fallback;
+    if (COLOR_MAP[c.toLowerCase()]) return COLOR_MAP[c.toLowerCase()];
+    return c;
 }
 
 /**
- * 命名色 → hex。
- * @param {string} name
- * @returns {string|null}
- */
-function hex(name) {
-    if (!name) return null;
-    const k = name.toLowerCase();
-    if (COLOR_MAP[k]) return COLOR_MAP[k];
-    if (/^#[0-9a-f]{3,8}$/i.test(k)) return k;
-    return null;
-}
-
-/**
- * 线性混合两个 hex 颜色。
- * @param {string} a
- * @param {string} b
+ * 线性混合两个 rgb 三元组（[r,g,b]）。
+ * @param {Array<number>} pa - 起点色
+ * @param {Array<number>} pb - 终点色
  * @param {number} pct - 0..100，混合到 b 的比例
  * @returns {string}
  */
-function blend(a, b, pct) {
+function blend(pa, pb, pct) {
     const t = Math.max(0, Math.min(100, pct)) / 100;
-    const pa = rgb(a),
-        pb = rgb(b);
     const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
     const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
     const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);

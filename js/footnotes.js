@@ -34,7 +34,10 @@ function _processFootnotes(raw) {
     let counter = 0;
     const usedIds = new Set();
     const fenced = [];
-    const SENTINEL = (i) => '㊤FN㊥' + i + '㊥FN㊤';
+    // 随机哨兵片段：避免与文章原文中的固定 token 撞见导致还原错乱（audit B10）
+    const seg = Math.random().toString(36).slice(2, 12);
+    const SENTINEL = (i) => '㊤FN' + seg + i + seg + 'FN㊤';
+    const FN_RE = new RegExp('㊤FN' + seg + '(\\d+)' + seg + 'FN㊤', 'g');
     // 保护围栏代码块与行内代码
     let protectedRaw = raw.replace(/```[\s\S]*?```/g, function (m) {
         const i = fenced.length;
@@ -69,7 +72,7 @@ function _processFootnotes(raw) {
 
     if (counter === 0) {
         // 无脚注时还原代码块原样返回
-        return protectedRaw.replace(/㊤FN㊥(\d+)㊥FN㊤/g, function (m, i) {
+        return protectedRaw.replace(FN_RE, function (m, i) {
             return fenced[parseInt(i, 10)];
         });
     }
@@ -91,7 +94,7 @@ function _processFootnotes(raw) {
     });
 
     // 还原围栏/行内代码
-    protectedRaw = protectedRaw.replace(/㊤FN㊥(\d+)㊥FN㊤/g, function (m, i) {
+    protectedRaw = protectedRaw.replace(FN_RE, function (m, i) {
         return fenced[parseInt(i, 10)];
     });
 

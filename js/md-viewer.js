@@ -51,7 +51,10 @@ function _extractMathBlocks(text) {
     }
 
     // Phase 0: 提取围栏代码块 → 哨兵
-    const SENTINEL = (i) => '㊤CODE㊥' + i + '㊥CODE㊤';
+    // 随机哨兵片段避免与文章原文中的固定 token 撞见导致还原错乱（audit B10）
+    const codeSeg = Math.random().toString(36).slice(2, 12);
+    const SENTINEL = (i) => '㊤CODE' + codeSeg + i + codeSeg + 'CODE㊤';
+    const CODE_RE = new RegExp('㊤CODE' + codeSeg + '(\\d+)' + codeSeg + 'CODE㊤', 'g');
     let protectedText = text.replace(/```[\s\S]*?```/g, function (match) {
         const idx = fenced.length;
         fenced.push(match);
@@ -86,7 +89,7 @@ function _extractMathBlocks(text) {
     });
 
     // Phase 4: 还原围栏/行内代码
-    result = result.replace(/㊤CODE㊥(\d+)㊥CODE㊤/g, function (match, i) {
+    result = result.replace(CODE_RE, function (match, i) {
         return fenced[parseInt(i, 10)];
     });
 
@@ -263,7 +266,8 @@ function _injectAnchors(container) {
  */
 function _hasInlineMath(text) {
     // 行内公式：非 $$ 分隔，内容不含换行与 $，两侧不是 $（避免把 $$ 的边当行内）
-    return /(^|[^$\\])\$[^$\n$]{1,80}\$([^$]|$)/.test(text);
+    // 不做长度上限，超长 $...$ 也应触发 KaTeX（audit B9）
+    return /(^|[^$\\])\$[^$\n$]+\$([^$]|$)/.test(text);
 }
 
 /**

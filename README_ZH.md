@@ -60,7 +60,7 @@ bash ~/Blog-termux/gen_index.sh ~/Blog-termux
 
 # 6. 重载 Nginx 并访问
 nginx -s reload
-# 浏览器打开 https://127.0.0.1:7443
+# 浏览器打开 http://127.0.0.1:7443
 ```
 
 ---
@@ -144,7 +144,7 @@ Blog-termux/
 │       ├── base.css            #   重置 + 排版
 │       ├── layout.css          #   页面布局
 │       ├── responsive.css      #   响应式断点
-│       ├── components/         #   9 个组件样式
+│       ├── components/         #   10 个组件样式
 │       └── themes/dark.css     #   深色模式覆盖
 │
 ├── js/                         # ES Modules（入口 + 业务 + tikz/ 子模块）

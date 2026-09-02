@@ -40,6 +40,8 @@ let _timer = null;
 let _fetchErrors = 0;
 let _fetching = false;
 let _tabActive = false;
+let _activeController = null; // 当前在途请求的 AbortController，供 _stop 主动中止（audit B6）
+let _stopRequested = false;
 
 /* 电池状态机（充电/放电/已满/未充电）→ 中文文案，模块级缓存避免每次轮询重建。 */
 const BATTERY_STATUS_MAP = {
@@ -283,7 +285,9 @@ function _reset() {
 /** 获取仪表盘数据（含请求去重 + 8s 超时）。 */ async function _fetchData() {
     if (_fetching) return;
     _fetching = true;
+    _stopRequested = false;
     const controller = new AbortController();
+    _activeController = controller;
     const timeout = setTimeout(function () {
         controller.abort();
     }, 8000);
@@ -295,6 +299,8 @@ function _reset() {
         _update(json);
     } catch (err) {
         if (err.name === 'AbortError') {
+            // 主动停止（切走/隐藏）不算错误，直接忽略
+            if (_stopRequested) return;
             console.warn('Dashboard: 请求超时');
         }
         _fetchErrors++;
@@ -314,6 +320,7 @@ function _reset() {
         }
     } finally {
         clearTimeout(timeout);
+        _activeController = null;
         _fetching = false;
     }
 }
@@ -339,6 +346,12 @@ function _stop() {
     if (_timer) {
         clearInterval(_timer);
         _timer = null;
+    }
+    // 中止在途请求，避免隐藏/离开后仍未完成并发在后台改 DOM（audit B6）
+    if (_activeController) {
+        _stopRequested = true;
+        _activeController.abort();
+        _activeController = null;
     }
 }
 

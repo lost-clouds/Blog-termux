@@ -15,14 +15,6 @@ import { mathSplit, plainText, mathToPlain, escapeHtml, unescapeHtml } from './t
  */
 export async function ensureKatex() {
     if (window.katex) return true;
-    if (typeof window.__KATEX_LOAD__ === 'function') {
-        try {
-            await window.__KATEX_LOAD__();
-            if (window.katex) return true;
-        } catch (e) {
-            /* continue */
-        }
-    }
     try {
         const scr = document.createElement('script');
         scr.src = 'lib/katex.min.js';

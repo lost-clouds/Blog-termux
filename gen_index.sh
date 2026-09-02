@@ -13,8 +13,9 @@ HTML_DIR="$ROOT/Html"
 IMG_DIR="$ROOT/Image"
 
 # ---- JSON 字符串转义 ----
+# 除反斜杠/引号/tab/换行/回车外，其余控制字符一并替换为 '?'，保证产出始终是合法 JSON（audit C9）
 json_escape() {
-    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\n/\\n/g; s/\r/\\r/g'
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\n/\\n/g; s/\r/\\r/g; s/[[:cntrl:]]/?/g'
 }
 
 # ---- 扫描目录（递归），生成 JSON 数组 ----
@@ -56,7 +57,9 @@ scan_dir() {
 
         printf '  {"name":"%s","type":"%s","size":%s,"modified":%s}' \
             "$rel" "$type" "$size" "$modified" >> "$out_tmp"
-    done < <(find -L "$base_dir" -type f -print0 2>/dev/null || true)
+    # 用 find -print0 | sort -z 保证两次生成顺序一致、可 diff（audit C8）。
+    # find -L 会跟随符号链接（详见 audit C10：路径剥离仍在 base 内，通常无害且属预期）。
+    done < <(find -L "$base_dir" -type f -print0 2>/dev/null | sort -z || true)
 
     echo "" >> "$out_tmp"
     echo "]" >> "$out_tmp"

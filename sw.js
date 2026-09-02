@@ -8,11 +8,11 @@
      / /index.html /config.json → network-first（入口保证新鲜）
      其余静态资源            → cache-first
    ============================================================ */
-const CACHE = 'blog-v10';
+const CACHE = 'blog-abbe48c3';
 const SHELL = [
     '/',
     '/index.html',
-    '/css/style.css?v=3',
+    '/css/style.css?v=abbe48c3',
     '/config.json',
     '/js/theme.js',
     '/js/utils.js',
@@ -41,12 +41,12 @@ const SHELL = [
     '/js/sanitizer.js',
     '/js/footnotes.js',
     '/js/constants.js',
-    '/js/main.js?v=3',
+    '/js/main.js?v=abbe48c3',
     '/js/app.js',
-    '/lib/marked.min.js?v=2',
-    '/lib/github-markdown.min.css?v=2',
-    '/lib/katex.min.css?v=2',
-    // KaTeX JS 由 md-viewer 懒加载（LIBS.KATEX_JS 无 ?v=），键须匹配运行时 URL
+    '/lib/marked.min.js?v=abbe48c3',
+    '/lib/github-markdown.min.css?v=abbe48c3',
+    '/lib/katex.min.css?v=abbe48c3',
+    // KaTeX JS 由 md-viewer 懒加载（LIBS.KATEX_JS 无 ?v=abbe48c3），键须匹配运行时 URL
     '/lib/katex.min.js',
     '/lib/auto-render.min.js',
     '/lib/mermaid.min.js',
@@ -54,22 +54,33 @@ const SHELL = [
 ];
 
 const NETWORK_FIRST = ['/', '/index.html', '/config.json'];
-const SWR_PREFIX = ['/Markdown/', '/api/md/', '/Html/', '/api/html/', '/Image/', '/api/images/'];
+const SWR_PREFIX = ['/Markdown/', '/api/md/', '/Html/', '/api/html/', '/Image/', '/api/images/', '/lib/fonts/'];
 
-/* ---- 安装：预缓存 App Shell（逐项容错）---- */
+/* ---- 安装：预缓存 App Shell（逐项容错，超阈值失败则放弃激活）---- */
 self.addEventListener('install', function(e) {
     e.waitUntil(
         caches.open(CACHE).then(function(cache) {
-            return Promise.allSettled(
+            return Promise.all(
                 SHELL.map(function(url) {
-                    return cache.add(url).catch(function(err) {
+                    return cache.add(url).then(function() { return null; }).catch(function(err) {
                         console.warn('SW: 预缓存失败 ' + url, err);
+                        return url;
                     });
                 })
-            );
+            ).then(function(failed) {
+                const failList = failed.filter(Boolean);
+                // 关键 SHELL 大面积失败时放弃安装，避免新 SW 激活却缺核心资源导致离线首屏崩（audit A7）
+                const threshold = Math.max(1, Math.floor(SHELL.length * 0.2));
+                if (failList.length > threshold) {
+                    throw new Error('SW: 预缓存失败过多 (' + failList.length + '/' + SHELL.length + ')');
+                }
+            });
         })
-    );
-    self.skipWaiting();
+    ).then(function() {
+        self.skipWaiting();
+    }).catch(function(err) {
+        console.warn('SW: 安装放弃（保留旧版本）', err.message);
+    });
 });
 
 /* ---- 激活：清理旧缓存 ---- */
@@ -110,9 +121,8 @@ self.addEventListener('fetch', function(e) {
         return;
     }
 
-    // 入口/配置/API → network-first
-    if (NETWORK_FIRST.indexOf(url.pathname) !== -1 ||
-        NETWORK_FIRST.some(function(p) { return p !== '/' && url.pathname.startsWith(p); })) {
+    // 入口/配置/API → network-first（精确匹配，避免 /index.html/foo 之类误命中，audit A6）
+    if (NETWORK_FIRST.indexOf(url.pathname) !== -1) {
         e.respondWith(networkFirst(e.request));
         return;
     }
@@ -122,6 +132,11 @@ self.addEventListener('fetch', function(e) {
 });
 
 /* ---- Network-First 策略 ---- */
+/**
+ * Network-first 策略：先取网络，成功则缓存副本；网络失败回退缓存。
+ * @param {Request} request - 原始请求
+ * @returns {Promise<Response>}
+ */
 function networkFirst(request) {
     return fetch(request).then(function(response) {
         if (response.ok) {
@@ -135,6 +150,11 @@ function networkFirst(request) {
 }
 
 /* ---- Cache-First 策略 ---- */
+/**
+ * Cache-first 策略：命中缓存直接返回，否则回源并缓存。
+ * @param {Request} request - 原始请求
+ * @returns {Promise<Response>}
+ */
 function cacheFirst(request) {
     return caches.match(request).then(function(cached) {
         if (cached) return cached;
@@ -149,6 +169,11 @@ function cacheFirst(request) {
 }
 
 /* ---- Stale-While-Revalidate 策略 ---- */
+/**
+ * Stale-While-Revalidate 策略：命中缓存立即返回，同时后台回源刷新缓存。
+ * @param {Request} request - 原始请求
+ * @returns {Promise<Response>}
+ */
 function swr(request) {
     return caches.open(CACHE).then(function(cache) {
         return cache.match(request).then(function(cached) {

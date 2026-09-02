@@ -27,3 +27,12 @@ AGENT.md
 **/index.json
 node_modules/
 .npmrc
+.npmrc.local
+
+# 个人文档
+Markdown/Math/
+Markdown/F.md
+report_1.md
+setup_log.md
+next_conversation_prompt.md
+

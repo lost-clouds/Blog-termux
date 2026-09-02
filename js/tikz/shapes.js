@@ -265,7 +265,8 @@ export function plotShape(rest, o, ctx) {
     let pts = '';
     let first = true;
     const scale = (o.scale || 1) * picScale(ctx);
-    // 表达式只编译一次，热循环中仅做变量替换+取值，避免每次 new Function（性能优化）
+    // 表达式只编译一次，热循环中仅做变量替换+取值：compileEval 用递归下降解析器
+    // 预编译为求值闭包，避免 plot 每采样点重解析（本引擎禁 eval/new Function，audit H1）
     const f = compileEval(exprBody);
     for (let k = 0; k <= N; k++) {
         const xv = a + ((b - a) * k) / N;

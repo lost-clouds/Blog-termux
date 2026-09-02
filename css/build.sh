@@ -7,8 +7,10 @@
 # 依赖：cat / cp（POSIX 工具集）
 set -euo pipefail
 
-SRC="css/src"
-OUT="css/style.css"
+# 定位仓库根目录：任 cwd 调用都正确（audit C12）
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$ROOT/css/src"
+OUT="$ROOT/css/style.css"
 TMP="${OUT}.tmp.$$"
 
 # 构建中途失败（如源文件缺失/被截断）时不留在已截断的 style.css：
@@ -33,6 +35,7 @@ cat \
     "$SRC/components/markdown-content.css" \
     "$SRC/components/tikz.css" \
     "$SRC/components/image-lightbox.css" \
+    "$SRC/components/toast.css" \
     "$SRC/components/bottom-nav.css" \
     "$SRC/themes/dark.css" \
     "$SRC/responsive.css" \

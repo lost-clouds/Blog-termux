@@ -1352,6 +1352,43 @@ body:not(.dark) .markdown-body .tikz-svg {
     text-overflow: ellipsis;
 }
 /**
+ * toast.css
+ * 全局轻提示条：Service Worker 更新提示（audit A8）。
+ * 依赖变量：variables.css 的 --bg-primary / --text-primary / --text-secondary / --accent / --shadow-md / --radius-*。
+ */
+.sw-update-toast {
+    position: fixed;
+    right: 16px;
+    bottom: 76px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+    font-size: 14px;
+}
+
+.sw-update-toast-btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    background: var(--accent);
+    color: var(--bg-primary);
+    cursor: pointer;
+}
+
+.sw-update-toast-close {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+}/**
  * bottom-nav.css
  * 底部导航栏（移动端）：固定底部、标签按钮、安全区域适配。
  * 依赖变量：variables.css

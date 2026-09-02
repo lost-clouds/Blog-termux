@@ -4,29 +4,42 @@ on:
   pull_request:
     paths:
       - 'js/**/*.js'
+      - 'sw.js'
       - 'css/src/**/*.css'
       - 'cron.sh'
       - 'gen_index.sh'
       - 'css/build.sh'
       - 'package.json'
+      - 'package-lock.json'
       - '.eslintrc.json'
       - '.stylelintrc.json'
       - '.prettierrc'
+  push:
+    branches:
+      - main
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 18
+          node-version: 22
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Reject tracked symlinks (H6)
+        run: |
+          if git ls-files -s | grep -E '^120000'; then
+            echo "::error::已跟踪的符号链接（mode 120000）禁止提交，请改用真实文件"
+            exit 1
+          fi
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Lint JS
         run: npm run lint:js
       - name: Lint CSS

@@ -152,14 +152,20 @@ export function parseOptions(opts) {
         if (kv) {
             const key = kv[1].toLowerCase().trim();
             const val = kv[2].trim();
+            // 颜色类值必须先过 isColorToken（或 'none'）白名单，杜绝把任意字符串
+            // 拼进 SVG 属性（audit H2）；非法值直接忽略，由调用方用默认色兜底。
+            const okColor = function (v) {
+                return v === 'none' || isColorToken(v);
+            };
             if (key === 'draw') {
-                r.draw = val || DEFAULT_STROKE;
+                if (okColor(val)) r.draw = val || DEFAULT_STROKE;
             } else if (key === 'fill') {
-                r.fill = val;
+                if (okColor(val)) r.fill = val;
             } else if (key === 'text' || key === 'font') {
                 // font=\small 或 text=color
-                if (key === 'text') r.text = val.replace(/[{}]/g, '');
-                else {
+                if (key === 'text') {
+                    if (okColor(val)) r.text = val.replace(/[{}]/g, '');
+                } else {
                     const fm = /\\?([a-zA-Z]+)/.exec(val);
                     if (fm && FONT_SIZES[fm[1]]) r.fontSize = FONT_SIZES[fm[1]];
                     if (/bfseries|textbf/.test(val)) r.fontBold = true;

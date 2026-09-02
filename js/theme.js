@@ -11,13 +11,41 @@
 
 const STORAGE_KEY = 'app-theme';
 
+/**
+ * 安全读取 localStorage：隐私/禁用存储（SecurityError）时静默降级返回 null，
+ * 由调用方回退系统偏好，绝不中断整站初始化（audit H3）。
+ * @param {string} key - 存储键
+ * @returns {string|null} 存储值，异常返回 null
+ */
+function _storageGet(key) {
+    try {
+        return window.localStorage.getItem(key);
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * 安全写入 localStorage：存储不可用时仅不持久化，不影响渲染（audit H3）。
+ * @param {string} key - 存储键
+ * @param {string} value - 写入值
+ * @returns {void}
+ */
+function _storageSet(key, value) {
+    try {
+        window.localStorage.setItem(key, value);
+    } catch (e) {
+        /* 存储不可用：不持久化，碰撞不影响渲染 */
+    }
+}
+
 /* ---- 获取存储的主题 ---- */
 /**
  * 从 localStorage 获取存储的主题，未设置时根据系统偏好返回。
  * @returns {string} "dark" | "light"
  */
 function _getStoredTheme() {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = _storageGet(STORAGE_KEY);
     if (stored === 'dark' || stored === 'light') return stored;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
@@ -45,7 +73,7 @@ function _applyTheme(theme) {
         btn.textContent = isDark ? '☀️' : '🌙';
     }
 
-    localStorage.setItem(STORAGE_KEY, theme);
+    _storageSet(STORAGE_KEY, theme);
     return theme;
 }
 

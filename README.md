@@ -60,7 +60,7 @@ bash ~/Blog-termux/gen_index.sh ~/Blog-termux
 
 # 6. Reload Nginx and open
 nginx -s reload
-# Visit https://127.0.0.1:7443
+# Visit http://127.0.0.1:7443
 ```
 
 ---
@@ -144,7 +144,7 @@ Blog-termux/
 │       ├── base.css            #   Reset + typography
 │       ├── layout.css          #   Page layout
 │       ├── responsive.css      #   Responsive breakpoints
-│       ├── components/         #   9 component stylesheets
+│       ├── components/         #   10 component stylesheets
 │       └── themes/dark.css     #   Dark mode overrides
 │
 ├── js/                         # ES Modules (entry + business + tikz/ subsystem)

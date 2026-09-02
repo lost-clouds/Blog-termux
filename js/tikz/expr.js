@@ -8,6 +8,183 @@
 
 'use strict';
 
+// 白名单函数表：表达式仅允许出现这些函数（杜绝任意 JS 执行，见 audit H1）。
+const FUNCS = {
+    cos: Math.cos,
+    sin: Math.sin,
+    tan: Math.tan,
+    abs: Math.abs,
+    sqrt: Math.sqrt,
+    exp: Math.exp,
+    ln: Math.log,
+    log: Math.log10,
+    deg: function (x) {
+        return x; // TikZ 中 deg() 仅做角度→弧度标记，本引擎角度一律按度处理，故恒等
+    },
+};
+
+/**
+ * 将表达式文本切分为词法单元。
+ * 仅识别：数字、'\\name' 变量、字母词（函数/常量）、四则与乘方运算符 ^ 及括号。
+ * 未知字符静默跳过（容错）；'r' 作为 TikZ 弧度标记被忽略（无实际作用）。
+ * @param {string} str - 表达式文本
+ * @returns {Array<Object>} 词法单元数组，以 {t:'eof'} 结尾
+ */
+function tokenize(str) {
+    const out = [];
+    const s = String(str);
+    let i = 0;
+    while (i < s.length) {
+        const ch = s[i];
+        if (ch === '\\') {
+            const wm = /^\\[a-zA-Z]+/.exec(s.slice(i));
+            if (wm) {
+                out.push({ t: 'var', name: wm[0].slice(1) });
+                i += wm[0].length;
+                continue;
+            }
+            i++;
+            continue;
+        }
+        if (/\s/.test(ch)) {
+            i++;
+            continue;
+        }
+        const nm = /^(\d+\.?\d*|\.\d+)/.exec(s.slice(i));
+        if (nm) {
+            out.push({ t: 'num', v: parseFloat(nm[0]) });
+            i += nm[0].length;
+            continue;
+        }
+        if (/[a-zA-Z]/.test(ch)) {
+            const wm = /^[a-zA-Z]+/.exec(s.slice(i));
+            // 'r' 为 TikZ 弧度记号（cos(2x r)），对求值无意义，直接丢弃
+            if (wm[0] !== 'r') out.push({ t: 'word', v: wm[0] });
+            i += wm[0].length;
+            continue;
+        }
+        if ('+-*/^()'.indexOf(ch) !== -1) {
+            out.push({ t: ch });
+            i++;
+            continue;
+        }
+        i++;
+    }
+    out.push({ t: 'eof' });
+    return out;
+}
+
+/**
+ * 将词法单元编译为求值闭包（一次解析，多次求值）。
+ * 优先级（对齐 TeX/pgfmath）：幂 ^ 高于一元负号，故 -x^2 = -(x^2)。
+ *    Expr := Term (('+'|'-') Term)*
+ *    Term := Unary (('*'|'/') Unary)*
+ *    Unary := ('-'|'+') Unary | Power
+ *    Power := Atom ('^' Unary)?          // 右结合
+ *    Atom := number | '\\name' | '(' Expr ')' | func '(' Expr ')' | pi | e | 0
+ * @param {Array<Object>} tokens - tokenize 的输出
+ * @returns {function(Object):number} 输入 vars 输出数值
+ */
+function compileTokens(tokens) {
+    let pos = 0;
+    const peek = () => tokens[pos];
+    const next = () => {
+        const t = tokens[pos];
+        if (t.t !== 'eof') pos++;
+        return t;
+    };
+    const parseExpr = () => {
+        let left = parseTerm();
+        while (peek().t === '+' || peek().t === '-') {
+            const op = next().t;
+            const right = parseTerm();
+            const L = left;
+            left =
+                op === '+'
+                    ? (v) => L(v) + right(v)
+                    : (v) => L(v) - right(v);
+        }
+        return left;
+    };
+    const parseTerm = () => {
+        let left = parseUnary();
+        while (peek().t === '*' || peek().t === '/') {
+            const op = next().t;
+            const right = parseUnary();
+            const L = left;
+            left =
+                op === '*'
+                    ? (v) => L(v) * right(v)
+                    : (v) => L(v) / right(v);
+        }
+        return left;
+    };
+    const parseUnary = () => {
+        const t = peek().t;
+        if (t === '-') {
+            next();
+            const inner = parseUnary();
+            return (v) => -inner(v);
+        }
+        if (t === '+') {
+            next();
+            return parseUnary();
+        }
+        return parsePower();
+    };
+    const parsePower = () => {
+        const base = parseAtom();
+        if (peek().t === '^') {
+            next();
+            const exp = parseUnary(); // 右结合且允许 2^-3
+            const B = base;
+            return (v) => Math.pow(B(v), exp(v));
+        }
+        return base;
+    };
+    const parseAtom = () => {
+        const t = peek();
+        if (t.t === 'num') {
+            next();
+            const val = t.v;
+            return () => val;
+        }
+        if (t.t === 'var') {
+            next();
+            const name = t.name;
+            return (v) => {
+                const x = v && v[name];
+                return x === undefined || x === null ? 0 : Number(x) || 0;
+            };
+        }
+        if (t.t === '(') {
+            next();
+            const inner = parseExpr();
+            next(); // ')'
+            return inner;
+        }
+        if (t.t === 'word') {
+            const word = t.v;
+            next();
+            if (word === 'pi') return () => Math.PI;
+            if (word === 'e') return () => Math.E;
+            const fn = FUNCS[word];
+            if (fn && peek().t === '(') {
+                next();
+                const arg = parseExpr();
+                next(); // ')'
+                const F = fn;
+                return (v) => F(arg(v));
+            }
+            // 未知词（非 pi/e、非白名单函数）按 0 容错处理，绝不执行代码
+            return () => 0;
+        }
+        // eof / 未识别的单字符：视作 0，供上层容错
+        return () => 0;
+    };
+    return parseExpr();
+}
+
 /**
  * 求值数学表达式。
  * @param {string} expr
@@ -17,34 +194,9 @@
 export function evalExpr(expr, vars) {
     const s = String(expr).trim();
     if (s === '') return 0;
-    // 替换变量 \x、\y、\ang 等为数值
-    let body = s.replace(/\\[a-zA-Z]+/g, function (v) {
-        const key = v.slice(1);
-        if (vars && vars[key] !== undefined) return String(vars[key]);
-        return '0';
-    });
-    // 短常量：pi、e
-    body = body.replace(/\bpi\b/g, String(Math.PI)).replace(/\be\b/g, String(Math.E));
-
-    // TikZ 弧度标记：cos(2*\x r) 中独立的 " r"（radian 记号）对 JS 无意义，
-    // 删掉避免 new Function 抛错（旧代码因此整块渲染失败）。
-    body = body.replace(/\s+r\b/g, '');
-
-    // 用安全函数映射替换常见函数
-    body = body
-        .replace(/cos\(/g, 'Math.cos(')
-        .replace(/sin\(/g, 'Math.sin(')
-        .replace(/tan\(/g, 'Math.tan(')
-        .replace(/abs\(/g, 'Math.abs(')
-        .replace(/sqrt\(/g, 'Math.sqrt(')
-        .replace(/exp\(/g, 'Math.exp(')
-        .replace(/ln\(/g, 'Math.log(')
-        .replace(/log\(/g, 'Math.log10(')
-        .replace(/deg\(/g, '(');
     try {
-        // 仅数值运算，捕获执行错误
-        const fn = new Function('return (' + body.replace(/\^/g, '**') + ');');
-        const v = fn();
+        const fn = compileTokens(tokenize(s));
+        const v = fn(vars || {});
         return typeof v === 'number' && isFinite(v) ? v : 0;
     } catch (e) {
         return 0;
@@ -52,32 +204,20 @@ export function evalExpr(expr, vars) {
 }
 
 /**
- * 编译数学表达式为可重复调用的求值函数（避免 plot 热循环中每样本都 new Function）。
+ * 编译数学表达式为可重复调用的求值函数（避免 plot 热循环中每样本都重解析）。
+ * 仅解析一次为求值闭包，运行时只做变量替换 + 取值。
  * @param {string} expr
  * @returns {function(Object):number} 输入 vars 输出数值
  */
 export function compileEval(expr) {
-    const s = String(expr || '').trim();
-    // 预编译一次替换（与 evalExpr 逻辑一致），运行时仅做变量替换 + 取值
-    const head = s.replace(/\\[a-zA-Z]+/g, function (v) {
-        const key = v.slice(1);
-        return '(vars["' + key + '"]||0)';
-    });
-    const body = head
-        .replace(/\bpi\b/g, String(Math.PI))
-        .replace(/\be\b/g, String(Math.E))
-        // 弧度标记 " r"：见 evalExpr 注释
-        .replace(/\s+r\b/g, '')
-        .replace(/cos\(/g, 'Math.cos(')
-        .replace(/sin\(/g, 'Math.sin(')
-        .replace(/tan\(/g, 'Math.tan(')
-        .replace(/abs\(/g, 'Math.abs(')
-        .replace(/sqrt\(/g, 'Math.sqrt(')
-        .replace(/exp\(/g, 'Math.exp(')
-        .replace(/ln\(/g, 'Math.log(')
-        .replace(/log\(/g, 'Math.log10(')
-        .replace(/deg\(/g, '(');
-    const fn = new Function('vars', 'return (' + body.replace(/\^/g, '**') + ');');
+    let fn;
+    try {
+        fn = compileTokens(tokenize(String(expr || '').trim()));
+    } catch (e) {
+        fn = function () {
+            return 0;
+        };
+    }
     return function (vars) {
         try {
             const v = fn(vars || {});

@@ -61,16 +61,18 @@ function _render() {
 
     let html = '';
     _config.services.forEach(function (group) {
+        // config 里可能缺 items 字段（误配置），兜底为空数组避免 .filter 抛 TypeError
+        const items = group.items || [];
         // 过滤该分组下的服务项
         const filtered = query
-            ? group.items.filter(function (item) {
+            ? items.filter(function (item) {
                   return (
                       item.name.toLowerCase().includes(query) ||
                       (item.subtitle && item.subtitle.toLowerCase().includes(query)) ||
                       (item.tag && item.tag.toLowerCase().includes(query))
                   );
               })
-            : group.items;
+            : items;
 
         if (filtered.length === 0) return;
 

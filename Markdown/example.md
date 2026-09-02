@@ -225,7 +225,7 @@ Nginx 配置路径：`/api/dashboard` → `dashboard.json`。
 2. 克隆项目到 `~/Blog-termux`
 3. 运行 `bash gen_index.sh .` 生成索引
 4. 配置 cron 定时采集仪表盘数据
-5. 浏览器访问 `https://127.0.0.1:7443`
+5. 浏览器访问 `http://127.0.0.1:7443`
 
 ### 7.3 任务列表（GFM）
 

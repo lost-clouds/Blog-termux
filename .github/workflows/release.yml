@@ -13,17 +13,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Lint check
         run: npm run lint
@@ -31,16 +31,25 @@ jobs:
       - name: Build CSS
         run: bash css/build.sh
 
+      - name: Sync cache versions (H5)
+        # 用内容指纹重写 sw.js 的 CACHE 与 index.html 的 ?v=，保证发布物带最新版本号
+        run: bash build.sh
+
       - name: Package (tar.gz)
         run: |
           tar -czf /tmp/Blog-termux.tar.gz \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.claude' \
+            --exclude='.npmrc' \
+            --exclude='.npmrc.local' \
             --exclude='CLAUDE.md' \
             --exclude='AGENT.md' \
             --exclude='.editorconfig' \
             --exclude='.gitignore' \
+            --exclude='.prettierrc' \
+            --exclude='.eslintrc.json' \
+            --exclude='.stylelintrc.json' \
             --exclude='*.bak' \
             --exclude='*.tmp' \
             --exclude='node_modules' \
@@ -48,43 +57,53 @@ jobs:
             --exclude='dashboard.json' \
             --exclude='css/src' \
             --exclude='example/*.conf' \
+            --exclude='report_1.md' \
             .
 
       - name: Package (zip)
         run: |
           zip -r /tmp/Blog-termux.zip . \
-            -x '.git/*' '.github/*' '.claude/*' 'CLAUDE.md' 'AGENT.md' '.editorconfig' '.gitignore' \
-            '*.bak' '*.tmp' 'node_modules/*' '**/index.json' 'dashboard.json' \
-            'css/src/*' 'example/*.conf'
+            -x '.git/*' '.github/*' '.claude/*' '.npmrc' '.npmrc.local' 'CLAUDE.md' 'AGENT.md' '.editorconfig' '.gitignore' \
+            '.prettierrc' '.eslintrc.json' '.stylelintrc.json' '*.bak' '*.tmp' 'node_modules/*' '**/index.json' 'dashboard.json' \
+            'css/src/*' 'example/*.conf' 'report_1.md'
 
       - name: Generate checksums and release body
         run: |
-          sha256sum /tmp/Blog-termux.tar.gz /tmp/Blog-termux.zip > /tmp/checksums.txt
+          (cd /tmp && sha256sum Blog-termux.tar.gz Blog-termux.zip) > /tmp/checksums.txt
           cat > /tmp/body.md << 'BODYEOF'
           ## 安装
 
           ```bash
-          curl -sSLO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Blog-termux.tar.gz
-          tar -xzf Blog-termux.tar.gz -C ~/Blog-termux
+          curl -sSfL -o Blog-termux.tar.gz https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Blog-termux.tar.gz
+          mkdir -p ~/Blog-termux && tar -xzf Blog-termux.tar.gz -C ~/Blog-termux
           ```
 
           ### 下载依赖库
 
           ```bash
           cd ~/Blog-termux/lib
-          curl -sSLO https://cdn.jsdelivr.net/npm/marked/marked.min.js
-          curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
-          curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
-          curl -sSLO https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
-          curl -sSLO https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
-          curl -sSLO https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+          curl -sSfL https://cdn.jsdelivr.net/npm/marked/marked.min.js
+          curl -sSfL https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js
+          curl -sSfL https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css
+          curl -sSfL https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js
+          curl -sSfL https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+          curl -sSfL https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
           ```
 
           ### 继续部署
 
-          参考 [README](https://github.com/${{ github.repository }}#deployment-guide) 从第 3 步开始。
+          `Blog.conf`（Nginx 配置模板）不在安装包内，请从仓库
+          [example/Blog.conf](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/example/Blog.conf) 获取；
+          其余步骤参考 [README](https://github.com/${{ github.repository }}#deployment-guide) 第 3 步起。
 
           ## 校验
+
+          在含校验和文件的目录下执行：
+
+          ```bash
+          cd /tmp
+          sha256sum -c checksums.txt
+          ```
 
           ```
           BODYEOF
@@ -92,12 +111,11 @@ jobs:
           echo '```' >> /tmp/body.md
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ github.ref_name }}
-          body_path: /tmp/body.md
-          files: |
-            /tmp/Blog-termux.tar.gz
-            /tmp/Blog-termux.zip
-            /tmp/checksums.txt
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            /tmp/Blog-termux.tar.gz /tmp/Blog-termux.zip /tmp/checksums.txt \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file /tmp/body.md

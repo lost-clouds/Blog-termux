@@ -6,9 +6,27 @@
 # 用法：cron.sh [输出路径，默认 ./dashboard.json]
 # 依赖：lscpu / cpufreq sysfs / /proc/stat / top / free / uptime / getprop / ps（无需 root）
 # 由 cron 每 30 秒调用一次
-set -u
+set -uo pipefail
+
+# 数字/日期固定用 C locale，避免非英文环境下 awk/printf/free/df/top 输出本地化
+# （如 "," 小数点）导致 clean_num 判非法或拼出坏数（audit C3）。
+export LC_ALL=C
 
 OUTPUT="${1:-./dashboard.json}"
+
+# FREE_OUT 仅在 free 命令存在时被赋值；提前置空，避免 set -u 下因 free 缺失
+# 触发 unbound variable 使整份 dashboard.json 永不更新（audit H4/C1）。
+FREE_OUT=""
+
+# 本次运行独有的临时目录 + trap 清理：cron 每 30s 并发时互不污染，异常退出也不留残渣
+# （audit C4/C5）。
+RUN_TMP="${TMPDIR:-/tmp}/cron.$$"
+OUT_TMP="${OUTPUT}.tmp.$$"
+cleanup() {
+    rm -rf "$RUN_TMP" "$OUT_TMP" 2>/dev/null || true
+}
+trap cleanup EXIT
+mkdir -p "$RUN_TMP"
 
 # ============================================================
 # 辅助函数
@@ -61,7 +79,7 @@ get_cpu_usage() {
     if command -v lscpu &>/dev/null; then
         total_usage=0
         core_count=0
-        local cluster_tmp="${TMPDIR:-/tmp}/.cpu_cluster_tmp"
+        local cluster_tmp="$RUN_TMP/.cpu_cluster_tmp"
         rm -rf "$cluster_tmp" 2>/dev/null
         mkdir -p "$cluster_tmp" 2>/dev/null
 
@@ -125,6 +143,9 @@ get_cpu_usage() {
                 key_khz=$(basename "$cfile")
                 cluster_name=$(echo "$model_names" | grep "^${key_khz}=" | cut -d= -f2)
                 [ -z "$cluster_name" ] && cluster_name="Cluster-${c_max_int}MHz"
+                # 集群名来自 lscpu Model name，可能含引号/反斜杠，须 JSON 转义
+                # （此路径绕过了末尾 clean_str，audit C2）
+                cluster_name=$(printf '%s' "$cluster_name" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
                 if [ "$first" -eq 1 ]; then first=0; else CPU_CLUSTERS_JSON="${CPU_CLUSTERS_JSON},"; fi
                 CPU_CLUSTERS_JSON="${CPU_CLUSTERS_JSON}\"${cluster_name}\":{\"cores\":${c_cores},\"usage\":${c_usage},\"freq_max\":${c_max_int},\"freq_min\":${c_min_int}}"
@@ -159,7 +180,7 @@ get_cpu_usage() {
         done < /proc/cpuinfo
     fi
 
-    local cluster_tmp="${TMPDIR:-/tmp}/.cpu_cluster_tmp"
+    local cluster_tmp="$RUN_TMP/.cpu_cluster_tmp"
     rm -rf "$cluster_tmp" 2>/dev/null
     mkdir -p "$cluster_tmp" 2>/dev/null
 
@@ -550,8 +571,9 @@ if [ "$V_SWAP_TOTAL" != "0" ] && [ -n "$V_SWAP_TOTAL" ]; then
     MEM_JSON_LINE="\"memory\": {\"used\": ${V_MEM_USED}, \"total\": ${V_MEM_TOTAL}, \"unit\": \"${V_MEM_UNIT}\", \"swap_used\": ${V_SWAP_USED}, \"swap_total\": ${V_SWAP_TOTAL}}"
 fi
 
-# 原子写入：先写临时文件再 mv（同文件系统内为原子操作），避免前端读到不完整 JSON
-cat > "${OUTPUT}.tmp" <<EOF
+# 原子写入：先写本次运行唯一的临时文件再 mv（同文件系统内为原子操作），
+# 避免前端读到不完整 JSON；trap 在上方负责清理 $OUT_TMP（audit C4/C5）。
+cat > "$OUT_TMP" <<EOF
 {
   "timestamp": "${TS}",
   "device": {"model": "${V_DEV_MODEL}", "android": "${V_ANDROID}", "kernel": "${V_KERNEL}"},
@@ -564,4 +586,12 @@ cat > "${OUTPUT}.tmp" <<EOF
   "uptime": "${V_UPTIME}"
 }
 EOF
-mv "${OUTPUT}.tmp" "$OUTPUT"
+mv "$OUT_TMP" "$OUTPUT"
+
+# 轻量校验（无 jq 依赖）：去掉首尾空白后以 { 开头、} 结尾即视为基本合法，
+# 异常时提示便于排查（文件常以换行收尾，故先去除空白再比对）。
+first=$(tr -d '[:space:]' < "$OUTPUT" | head -c1)
+last=$(tr -d '[:space:]' < "$OUTPUT" | tail -c1)
+if [ "$first" != "{" ] || [ "$last" != "}" ]; then
+    echo "cron.sh: 警告: $OUTPUT 格式异常（首={$first 尾=$last）" >&2
+fi
