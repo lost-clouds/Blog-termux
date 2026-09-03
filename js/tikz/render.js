@@ -9,9 +9,9 @@
 
 import { DEFAULT_STROKE, IGNORE_COMMANDS } from './constants.js';
 import { preprocess, expandScript, extractPreamble } from './script.js';
-import { createContext, registerCoords } from './context.js';
+import { createContext, registerCoords, pushScopeTransform, popScopeTransform } from './context.js';
 import { parsePoint } from './expr.js';
-import { parseOptions } from './options.js';
+import { parseOptions, buildTransformMatrix } from './options.js';
 import { renderNode } from './node.js';
 import { renderDraw } from './path.js';
 import { escapeHtml } from './text.js';
@@ -26,28 +26,67 @@ import { fillMathInSvg, ensureKatex } from './math.js';
 function renderStatement(stmt, ctx) {
     const { command, opts, rest } = stmt;
     if (!command) return { html: '', math: false };
+    // scope 变换语句由 script.expandScript 生成，必须在忽略命令检查之前处理
+    if (command === '__scopePush') {
+        pushScopeTransform(ctx, buildTransformMatrix(parseOptions(opts)));
+        return { html: '', math: false };
+    }
+    if (command === '__scopePop') {
+        popScopeTransform(ctx);
+        return { html: '', math: false };
+    }
     if (IGNORE_COMMANDS[command]) return { html: '', math: false };
+
+    /**
+     * 在单条语句的局部坐标变换下执行渲染，完成后恢复 scope 变换栈。
+     * rotate/xscale/yscale/xshift/yshift 是 TikZ 的坐标选项；
+     * 与 scope 变换不同，语句级 scale 不在这里重复应用。
+     * @param {string} statementOpts
+     * @param {Object} mode
+     * @param {Function} render
+     * @returns {{html:string, math:boolean}}
+     */
+    function withStatementTransform(statementOpts, mode, render) {
+        pushScopeTransform(ctx, buildTransformMatrix(parseOptions(statementOpts), mode));
+        try {
+            return render();
+        } finally {
+            popScopeTransform(ctx);
+        }
+    }
+
     switch (command) {
         case 'node':
+            // 节点级 rotate/xscale/yscale 属于节点内容变换，不是坐标变换；
+            // 不能套用坐标矩阵，否则 \node[rotate=45] at (1,0) 会绕原点移动。
+            // xshift/yshift 继续由 node 模块的样式合并逻辑处理。
             return renderNode(rest, opts, ctx);
         case 'coordinate': {
             // \coordinate 仅登记命名坐标，不产生任何绘制（避免 M0 0L0 0 退化路径）
-            registerCoords(rest, ctx, parsePoint);
-            return { html: '', math: false };
+            return withStatementTransform(opts, { includeScale: false }, function () {
+                registerCoords(rest, ctx, parsePoint);
+                return { html: '', math: false };
+            });
         }
         case 'path':
         case 'draw':
-            registerCoords(rest, ctx, parsePoint);
-            return renderDraw(rest, opts, ctx, false);
+            return withStatementTransform(opts, { includeScale: false }, function () {
+                registerCoords(rest, ctx, parsePoint);
+                return renderDraw(rest, opts, ctx, false);
+            });
         case 'fill':
-            return renderDraw(rest, opts, ctx, true, true);
+            return withStatementTransform(opts, { includeScale: false }, function () {
+                return renderDraw(rest, opts, ctx, true, true);
+            });
         case 'filldraw': {
             // filldraw：既描边又填充。填充色优先用 fill 的，其次是裸颜色（如 filldraw[blue]），
             // 再次才是默认描边色。旧代码 o.fill 为空时误用 DEFAULT_STROKE 填充，
             // 导致 filldraw[blue] 的蓝色小圆点变成“暗心蓝圈”（点成了圈）。
             const o = parseOptions(opts);
             const fillColor = o.fill || o.bareColor || DEFAULT_STROKE;
-            return renderDraw(rest, opts, ctx, true, true, fillColor);
+            return withStatementTransform(opts, { includeScale: false }, function () {
+                return renderDraw(rest, opts, ctx, true, true, fillColor);
+            });
         }
         default:
             // 未知命令安全忽略（不抛错，避免整图降级）
@@ -73,6 +112,8 @@ async function buildPicture(source) {
     ctx.options.nodeDistance = preamble.nodeDistance;
     // 整图缩放：\begin{tikzpicture}[scale=0.8] 等（旧代码丢弃 scale，导致画面偏大/偏小）
     ctx.options.scale = preamble.scale;
+    // tikzpicture 级坐标变换（xshift/yshift/rotate/xscale/yscale）
+    ctx.transform = preamble.transform;
     let body = '';
     let hasMath = false;
 

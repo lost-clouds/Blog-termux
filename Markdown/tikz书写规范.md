@@ -1,7 +1,7 @@
 # Blog-termux · TikZ 书写规范
 
 > 本规范是 **Blog-termux** 自带 TikZ→SVG 渲染引擎（`js/tikz-renderer.js`，逻辑位于
-> `js/tikz/*` 12 个模块）的**完整语法子集与写法学**，并附带大量**可直接照抄的示例代码**。
+> `js/tikz/*` 13 个模块）的**完整语法子集与写法学**，并附带大量**可直接照抄的示例代码**。
 > 它同时是本站 Math 系列（`Markdown/Math/`，80+ 个 ```tikz``` 代码块）的唯一事实标准。
 >
 > 一切书写都以**本规范**为准，而不是以完整 LaTeX/TikZ 手册为准——超出子集的语法会被
@@ -43,11 +43,10 @@ TikZ 图用 Markdown 的三反引号 `tikz` 围栏包裹，渲染管线会自动
 
 - `\begin{document}` / `\end{document}`、`\begin{tikzpicture}` / `\end{tikzpicture}` ——
   渲染前会被自动剥离。**必须一一配对**。
-- 环境方括号参数目前**仅支持整体缩放 (`scale`) 与节点间距 (`node distance`)**：
-  `\begin{tikzpicture}[scale=0.8]` 会**整图缩放**（坐标、半径、网格均按该因子换算，
-  已是修复 commit：旧版本会静默丢弃 `scale`，导致画面按原尺寸绘制、Math 系列图偏大）。
-  `\begin{tikzpicture}[node distance=1.4cm]` 设置相对定位默认间距。
-  其余参数（xshift、xscale、rotate 等）会被忽略。
+- 环境方括号参数支持**整体缩放 (`scale`)、节点间距 (`node distance`) 与坐标变换**：
+  `\begin{tikzpicture}[scale=0.8]` 会**整图缩放**（坐标、半径、网格均按该因子换算）；
+  `\begin{tikzpicture}[node distance=1.4cm]` 设置相对定位默认间距；
+  `xshift/yshift`、`rotate`、`xscale/yscale` 会作为 tikzpicture 级坐标变换应用。
 - 也可以**不写包裹环境**，直接写命令。多条命令用分号分隔即可：
 
 ```tikz
@@ -74,8 +73,9 @@ TikZ 图用 Markdown 的三反引号 `tikz` 围栏包裹，渲染管线会自动
 | `\foreach \x in {list} { ... }` | 循环（支持单层与嵌套，见 §9） |
 | `\pgfmathsetmacro{\name}{expr}` | 计算宏（foreach 内外均可，见 §10） |
 
-**不支持/会被忽略的命令**：`\usetikzlibrary{...}`、`\tikzset{...}`、`\pgfkeys{...}`、
-`\begin{scope}[...]/\end{scope}`（可包裹但 xshift/yshift 平移被忽略）。
+**不支持/会被忽略的命令**：`\usetikzlibrary{...}`、`\tikzset{...}`、`\pgfkeys{...}`。
+`\begin{scope}[xshift/yshift/rotate/xscale/yscale]` 现已支持坐标变换；变换作用于
+scope 内的点、直线、节点中心与函数图采样点。
 
 ---
 
@@ -155,6 +155,7 @@ TikZ 图用 Markdown 的三反引号 `tikz` 围栏包裹，渲染管线会自动
 | `font=...` | 字号 tiny/scriptsize/footnotesize/small/normalsize/large/Large/LARGE/huge/Huge | `font=\small` |
 | `font=...\bfseries` | 加粗 | `font=\large\bfseries` |
 | `text=<color>` | 文本颜色 | `text=blue!70!black` |
+| `color=<color>` | 通用颜色：节点文本 / draw 描边 / fill 填充按语境生效 | `color=violet!80!black` |
 | `above/below/left/right` | 锚点偏移（约 8px = 0.25 单位） | `node[above]` |
 | `scale=<n>` | 节点自身缩放 | `scale=1.2` |
 | `inner sep=<n>pt` | 内边距（pt→px；0pt 可让小红点不被撑大） | `inner sep=2pt` |
@@ -167,6 +168,7 @@ TikZ 图用 Markdown 的三反引号 `tikz` 围栏包裹，渲染管线会自动
 
 - 裸 `draw`（不带颜色）**会画框**，边框用默认描边色（修复 commit 后支持）。
 - `filldraw[<色>]` 填充与描边都用该色（修复前填充误用默认暗色 → “点成了圈/颜色不对”）。
+- 路径语义与 TikZ 一致：`\draw` 只描边、`\fill` 只填充（无描边）、`\filldraw` 填充并描边。
 
 ### 4.4 node 示例集合
 
@@ -241,14 +243,14 @@ TikZ 图用 Markdown 的三反引号 `tikz` 围栏包裹，渲染管线会自动
 ### 5.3 文本尺寸约定（Bug #2 修复）
 
 - 盒子长宽按**有效显示字符数**估算（剔除 `$`/花括号/LaTeX 命令骨架），不再按源码长度把盒子撑得过大。
-- 含数学的节点文本放在 `<foreignObject>` 中；标签最大宽度上限 **420px**，防止长内联公式把元素撑得巨大。
+- 含数学的节点文本放在 `<foreignObject>` 中；标签最大宽度上限 **1000px**，防止长内联公式把元素撑得巨大。
 - `text width=4.2cm` **会被忽略**：盒子总是自适应内容宽（要更大间距用 `inner sep=`）。
 
 ---
 
 ## 6. 颜色
 
-命名调色板：`black white gray grey red green blue orange purple brown yellow cyan teal
+命名调色板：`black white gray grey red green blue orange purple indigo brown yellow cyan teal
 pink violet olive lime magenta darkgray lightgray`。
 
 支持 TikZ 风格**混合**：`fill=blue!20!white`、`draw=red!70!black`、`fill=orange!50` 等，
@@ -279,10 +281,11 @@ pink violet olive lime magenta darkgray lightgray`。
 | 矩形 | `\draw[fill=blue!20] (a) rectangle (b);` | `(左下) rectangle (右上)` |
 | 网格 | `\draw[gray!40] (-0.5,-0.5) grid (4.5,3.5);` | `(左下) grid (右上)`，见 §8 |
 | 函数曲线 | `\draw[domain=0:4.2] plot (\x,{0.25*\x*\x});` | `plot (\x,{expr})`，`domain=a:b` |
+| 大括号装饰 | `\draw[decorate, decoration={brace, amplitude=5pt, mirror, raise=2pt}] (a) -- (b);` | 单段路径 brace；支持 `amplitude/mirror/raise` |
 
 ### 7.2 常见 draw 选项
 
-`thick very thick ultra thick dashed dotted -> <- domain=a:b smooth` 等，
+`very thin thin thick very thick ultra thick dashed dotted -> <- domain=a:b smooth` 等，
 颜色混合与调色板同 §6。
 
 ### 7.3 直线 / 折线 / 箭头示例
@@ -361,7 +364,7 @@ pink violet olive lime magenta darkgray lightgray`。
 \draw[domain=0.5:4, purple, thick] plot (\x,{1/\x});
 ```
 
-> 注：不支持 `sin(\x r)` 这种"带 `r` 的弧度标记"；角度直接按弧度传入即可。
+> 注：`r` 弧度标记会被识别并忽略，表达式仍按 TikZ 角度/弧度语义求值。
 
 ### 7.7 网格 + 曲线 + 采样点（函数图标准样式）
 
@@ -600,9 +603,9 @@ pink violet olive lime magenta darkgray lightgray`。
 2. foreach 后紧跟语句时，循环体 `}` 后补 `;`；嵌套 foreach 时内外层循环体都要加分号（§9.5）。
 3. 嵌套 foreach 可用，但务必给内层与整体循环体都补上分号。
 4. 不要在 node 文本里写裸 `%`（要用 `\%`）。
-5. 不要依赖 `\begin{scope}[xshift=...]` 的平移（会被忽略）。
+5. `\begin{scope}[xshift=...]`、`rotate=...`、`xscale/yscale` 与 `shift={(x,y)}` 均已支持；旋转矩形会输出真实旋转 polygon。
 6. 不要写 `\usetikzlibrary`（会被忽略，缺库图形不渲染）。
-7. 超长内联公式受 420px 上限约束；长公式可拆成多节点或用 `font=\small`。
+7. 超长内联公式受 1000px 上限约束；长公式可拆成多节点或用 `font=\small`。
 8. 节点文本尽量用英文/数学；中文可渲染但字体依赖主题（推荐保持 Math 站既有英文习惯）。
 
 ---

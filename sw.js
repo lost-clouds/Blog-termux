@@ -8,11 +8,11 @@
      / /index.html /config.json → network-first（入口保证新鲜）
      其余静态资源            → cache-first
    ============================================================ */
-const CACHE = 'blog-8faec8e0';
+const CACHE = 'blog-15f93381';
 const SHELL = [
     '/',
     '/index.html',
-    '/css/style.css?v=8faec8e0',
+    '/css/style.css?v=15f93381',
     '/config.json',
     '/js/theme.js',
     '/js/utils.js',
@@ -32,21 +32,23 @@ const SHELL = [
     '/js/tikz/node.js',
     '/js/tikz/options.js',
     '/js/tikz/path.js',
+    '/js/tikz/path-tokenizer.js',
     '/js/tikz/render.js',
     '/js/tikz/script.js',
     '/js/tikz/shapes.js',
+    '/js/tikz/shape-transform.js',
     '/js/tikz/styles.js',
     '/js/tikz/text.js',
     '/js/tikz/units.js',
     '/js/sanitizer.js',
     '/js/footnotes.js',
     '/js/constants.js',
-    '/js/main.js?v=8faec8e0',
+    '/js/main.js?v=15f93381',
     '/js/app.js',
-    '/lib/marked.min.js?v=8faec8e0',
-    '/lib/github-markdown.min.css?v=8faec8e0',
-    '/lib/katex.min.css?v=8faec8e0',
-    // KaTeX JS 由 md-viewer 懒加载（LIBS.KATEX_JS 无 ?v=8faec8e0），键须匹配运行时 URL
+    '/lib/marked.min.js?v=15f93381',
+    '/lib/github-markdown.min.css?v=15f93381',
+    '/lib/katex.min.css?v=15f93381',
+    // KaTeX JS 由 md-viewer 懒加载（LIBS.KATEX_JS 无 ?v=15f93381），键须匹配运行时 URL
     '/lib/katex.min.js',
     '/lib/auto-render.min.js',
     '/lib/mermaid.min.js',

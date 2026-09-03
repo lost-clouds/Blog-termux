@@ -14,6 +14,8 @@
  *   - \coordinate (name) at (x,y);
  *   - \foreach \x in {list} { ... }（展开循环体）
  *   - \pgfmathsetmacro{\name}{expr}（+ - * / 幂、cos/sin/abs/sqrt）
+ *   - \begin{scope}[xshift/yshift/shift/rotate/xscale/yscale] 坐标变换
+ *   - brace 装饰（decorate + decoration={brace,...}）
  *   - 极坐标 (a:r)；节点锚点 above/below/left/right；颜色混合 red!40!blue
  *   - 节点文本中的 $...$ 数学：自动调用 KaTeX 渲染（未加载时降级为纯文本）
  *

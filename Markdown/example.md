@@ -453,14 +453,14 @@ graph TD
 直线、箭头、圆、矩形、网格、贝塞尔曲线、函数曲线的基础用法（每个一行即可拼出一张图）：
 
 ```tikz
-\draw[blue,thick] (0,0) -- (2,1) -- (4,0);            % 折线
-\draw[red,very thick,->>] (5,0) -- (8,1);             % 箭头
-\draw[green,dashed] (0,2) circle (1);                % 圆（可带 pt）
-\draw[orange] (3,2) rectangle (6,4);                  % 矩形
-\draw[gray] (0,4) grid (4,7);                        % 网格
-\draw[purple] (0,6) .. controls (1,8) and (2,7) .. (3,6);      % 贝塞尔
-\draw[blue] (0,9) .. controls (1,10) and (2,10) .. (3,9);  % 贝塞尔模拟弧
-\draw[red,dashed,smooth,domain=-1:1] plot (\x,{\x*\x});        % 函数曲线 y=x^2
+\draw[blue,thick] (0,0) -- (2,1) -- (4,0);            % 折线（下方独立区域）
+\draw[red,very thick,->>] (0,2.5) -- (3,3.5);          % 箭头（独立区域）
+\draw[green,dashed] (5,2.5) circle (1);               % 圆（与箭头分列左右）
+\draw[orange] (7,2) rectangle (10,5);                  % 矩形（独立右侧区域）
+\draw[gray] (0,6.5) grid (4,9.5);                      % 网格（独立上方区域）
+\draw[purple] (0,7) .. controls (1,9) and (2,8) .. (3,7);    % 贝塞尔
+\draw[blue] (5,7) .. controls (6,9) and (7,9) .. (8,7);    % 贝塞尔模拟弧
+\draw[red,dashed,smooth,domain=9:11] plot (\x,{(\x-10)*(\x-10)+7});  % 函数曲线
 ```
 ### 15.7 组合示例
 
@@ -470,37 +470,38 @@ graph TD
 \coordinate (origin) at (0,0);
 \node[draw,circle,blue] (a) at (0,0) {原点};
 \foreach \x in {1,...,5} {
-  \node[circle,red] (p\x) at (\x,0) {\x};
+  \pgfmathsetmacro{\px}{1.4*\x}
+  \node[circle,red] (p\x) at (\px,0) {\x};
   \draw[->] (a) -- (p\x);
 }
-\node[rectangle,draw,green,rounded corners=4pt] (box) at (3,3) {组合图};
+\node[rectangle,draw,green,rounded corners=4pt] (box) at (3,4) {组合图};
 \draw[->,thick] (a) -- (box);
-\fill[blue!20!white] (5,0) grid (8,3);
-\draw[red,smooth,domain=0:3] plot (\x,{\x*\x/2});
+\fill[blue!20!white] (8,0) grid (11,3);
+\draw[red,smooth,domain=4:6] plot (\x,{(\x-4)*(\x-4)/2+4.5});
 ```
 ### 15.8 foreach 循环
 
 单层循环、带步长的循环、二维嵌套栅格、搭配 `\pgfmathsetmacro` 做数值计算：
 
 ```tikz
-% 单层循环：一排三个点
+% 单层循环：一排三个点，放在上方独立行 y=6
 \foreach \x in {0,2,4} {
-  \node[circle,fill=blue] at (\x,0) {};
+  \node[circle,fill=blue] at (\x,6) {};
 }
-% 带步长 {1,3,...,9}：从 1 到 9 步长 2
+% 带步长 {1,3,...,9}：从 1 到 9 步长 2，放在 y=4 独立行
 \foreach \x in {1,3,...,9} {
-  \node[text=red] at (\x,2) {\x};
+  \node[text=red] at (\x,4) {\x};
 }
-% 二维嵌套栅格
+% 二维嵌套栅格，放在 y=0..2 独立区域
 \foreach \x in {0,1,2} {
   \foreach \y in {0,1,2} {
     \fill[red!40!blue] (\x,\y) circle (2pt);
   };
 };
-% \pgfmathsetmacro 数值计算（仅 foreach 循环体内使用）
+% \pgfmathsetmacro 数值计算，放在下方独立行 y=-3
 \foreach \i in {1,...,5} {
   \pgfmathsetmacro{\y}{\i*\i}
-  \node[text=gray] at (\i,-2) {\y};   % 直接引用变量（\pgfmathprintnumber 暂不支持）
+  \node[text=gray] at (\i,-3) {\y};   % 直接引用变量（\pgfmathprintnumber 暂不支持）
 }
 ```
 > foreach 说明：循环变量可在坐标与节点文本中直接引用并自动替换为数值；
@@ -527,16 +528,14 @@ graph TD
 \usetikzlibrary{decorations}
 % 2) \tikzset / \pgfkeys 不受支持
 \tikzset{foo/.style={draw=red}}
-% 3) scope 平移/变换会被忽略
-\begin{scope}[xshift=2cm]
-  \node at (0,0) {这个节点坐标不会平移};
-\end{scope}
-% 4) 无颜色 draw 画框不显示
-\draw (0,0) circle (1);
+% 3) decorations.pathmorphing 等扩展库图形仍不支持（蛇形线会退化为直线）
+\draw[decorate, decoration={snake, amplitude=3pt}] (0,0) -- (2,0);
+% 4) xslant 等斜切变换暂不支持（会被忽略，直线保持水平）
+\draw[xslant=0.5] (0,0) -- (2,0);
 % 5) 节点文本里的裸 % 会被当作注释，需要转义为 \%
 \node at (0,0) {请用百分号 \% 而不是 %};
 ```
-> 说明：`\usetikzlibrary` 需要**独占一行**才会被引擎整行忽略；若夹在其它指令中间，它会被当作无效命令不知不觉地静默丢弃（实测不会让整块崩溃，但其库图形不会渲染）。`\tikzset`/`\pgfkeys` 同理。依赖 TikZ 扩展库的形状（如 decorations）不会渲染。建议把以上易触发问题的内容用 `%` 注释示意，避免产生不可见的空结果。
+> 说明：`\usetikzlibrary` 需要**独占一行**才会被引擎整行忽略；若夹在其它指令中间，它会被当作无效命令不知不觉地静默丢弃（实测不会让整块崩溃，但其库图形不会渲染）。`\tikzset`/`\pgfkeys` 同理。`brace` 装饰已支持；`snake` 等其它 decorations 仍会退化为直线。建议把以上易触发问题的内容用 `%` 注释示意，避免产生不可见的空结果。
 
 ### 15.11 相对定位、样式与锚点（流程框图）
 

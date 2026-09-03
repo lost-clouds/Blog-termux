@@ -5,7 +5,9 @@
  */
 .nav-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    /* 单列：每个服务分组独占一整行，避免外层 auto-fill 把分组分到窄列，
+       与组内卡片 minmax(260px) 冲突导致卡片横向溢出/互相叠压（audit A 修复） */
+    grid-template-columns: 1fr;
     gap: 1rem;
     align-items: start;
 }
@@ -49,6 +51,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    min-width: 0; /* 内容不撑破 grid 单元格，避免溢出与相邻卡片重叠（audit A 修复） */
     background: var(--glass-bg);
     backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);

@@ -20,6 +20,86 @@ export function createContext(vars) {
         last: [0, 0], // 当前笔位置
         bounds: { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
         options: { nodeDistance: 1, scale: 1 }, // tikzpicture 全局参数
+        transform: null, // 当前 scope 坐标变换矩阵（TikZ 坐标系，Y 向上）
+        scopeStack: [], // scope 变换栈：pop 时还原上一层矩阵
+    };
+}
+
+/**
+ * 2×3 仿射变换矩阵（TikZ 坐标，Y 向上）：
+ *   x' = a*x + b*y + e
+ *   y' = c*x + d*y + f
+ * 渲染层只负责 push/pop 与取点，具体矩阵由 options.buildTransformMatrix 生成。
+ */
+
+/**
+ * 将局部 TikZ 坐标变换为当前 scope 下的世界 TikZ 坐标。
+ * 命名节点引用在注册时已经是世界坐标，因此本函数只应作用于原始坐标值。
+ * @param {Object} ctx
+ * @param {number} x
+ * @param {number} y
+ * @returns {Array<number>} [x', y']
+ */
+export function transformTikzPoint(ctx, x, y) {
+    const m = ctx && ctx.transform;
+    if (!m) return [x, y];
+    return [m.a * x + m.b * y + m.e, m.c * x + m.d * y + m.f];
+}
+
+/**
+ * 把世界 TikZ 坐标反算回当前 scope 的局部 TikZ 坐标。
+ * 用于旋转/缩放 scope 内的 rectangle/circle：端点经 parsePoint 后已是世界坐标，
+ * 需要先反算局部角点，再逐点正变换，才能画出正确的旋转多边形/椭圆。
+ * @param {Object} ctx
+ * @param {number} x
+ * @param {number} y
+ * @returns {Array<number>} [localX, localY]
+ */
+export function localTikzPoint(ctx, x, y) {
+    const m = ctx && ctx.transform;
+    if (!m) return [x, y];
+    const det = m.a * m.d - m.b * m.c;
+    if (Math.abs(det) < 1e-9) return [x, y];
+    const dx = x - m.e;
+    const dy = y - m.f;
+    return [(m.d * dx - m.b * dy) / det, (-m.c * dx + m.a * dy) / det];
+}
+
+/**
+ * 进入一个 scope：把新矩阵与当前矩阵复合后压栈。
+ * @param {Object} ctx
+ * @param {Object} matrix - {a,b,c,d,e,f}
+ */
+export function pushScopeTransform(ctx, matrix) {
+    if (!ctx || !matrix) return;
+    const cur = ctx.transform;
+    ctx.scopeStack.push(cur);
+    ctx.transform = cur ? composeTransform(cur, matrix) : matrix;
+}
+
+/**
+ * 离开 scope：还原上一层矩阵。
+ * @param {Object} ctx
+ */
+export function popScopeTransform(ctx) {
+    if (!ctx) return;
+    ctx.transform = ctx.scopeStack.length ? ctx.scopeStack.pop() : null;
+}
+
+/**
+ * 矩阵复合：先 inner 后 outer。
+ * @param {Object} outer
+ * @param {Object} inner
+ * @returns {Object}
+ */
+function composeTransform(outer, inner) {
+    return {
+        a: outer.a * inner.a + outer.b * inner.c,
+        b: outer.a * inner.b + outer.b * inner.d,
+        c: outer.c * inner.a + outer.d * inner.c,
+        d: outer.c * inner.b + outer.d * inner.d,
+        e: outer.a * inner.e + outer.b * inner.f + outer.e,
+        f: outer.c * inner.e + outer.d * inner.f + outer.f,
     };
 }
 

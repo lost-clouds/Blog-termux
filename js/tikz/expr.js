@@ -8,6 +8,8 @@
 
 'use strict';
 
+import { transformTikzPoint } from './context.js';
+
 // 白名单函数表：表达式仅允许出现这些函数（杜绝任意 JS 执行，见 audit H1）。
 const FUNCS = {
     cos: Math.cos,
@@ -262,16 +264,17 @@ export function parsePoint(inner, ctx) {
     if (polar) {
         const ang = (evalExpr(polar[1], ctx.vars) * Math.PI) / 180;
         const r = evalExpr(polar[2], ctx.vars);
-        return [r * Math.cos(ang), r * Math.sin(ang)];
+        return transformTikzPoint(ctx, r * Math.cos(ang), r * Math.sin(ang));
     }
     // (x,y) 笛卡尔，支持 {expr} 占位
     const parts = t.split(',');
     if (parts.length >= 2) {
         const x = evalCoord(parts[0], ctx.vars);
         const y = evalCoord(parts[1], ctx.vars);
-        return [x, y];
+        return transformTikzPoint(ctx, x, y);
     }
-    return [0, 0];
+    // 无法识别时按原点容错；原点同样要经过当前 scope 变换
+    return transformTikzPoint(ctx, 0, 0);
 }
 
 /**

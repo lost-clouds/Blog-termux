@@ -8,7 +8,7 @@
 'use strict';
 
 import { isColorToken, isAllowedColorValue } from './color.js';
-import { FONT_SIZES, DEFAULT_STROKE } from './constants.js';
+import { FONT_SIZES, DEFAULT_STROKE, PX_PER_UNIT } from './constants.js';
 import { parseLength } from './units.js';
 
 /**
@@ -24,15 +24,27 @@ export function parseOptions(opts) {
         thick: false,
         veryThick: false,
         ultraThick: false,
+        thin: false,
+        veryThin: false,
         dashed: false,
         dotted: false,
+        decorate: false,
+        decoration: null,
+        brace: false,
+        braceAmplitude: null,
+        braceMirror: false,
+        braceRaise: 0,
         arrow: false,
         arrowBack: false,
         circle: false,
         rectangle: false,
         rounded: false,
         scale: 1,
+        rotate: 0,
+        xscale: 1,
+        yscale: 1,
         anchor: 'center',
+        anchorDist: null,
         fontSize: 14,
         fontBold: false,
         innerSep: 4,
@@ -58,6 +70,14 @@ export function parseOptions(opts) {
             r.thick = true;
             continue;
         }
+        if (p === 'thin') {
+            r.thin = true;
+            continue;
+        }
+        if (p === 'very thin') {
+            r.veryThin = true;
+            continue;
+        }
         if (p === 'very thick') {
             r.veryThick = true;
             continue;
@@ -68,6 +88,15 @@ export function parseOptions(opts) {
         }
         if (p === 'dashed') {
             r.dashed = true;
+            continue;
+        }
+        if (p === 'decorate') {
+            r.decorate = true;
+            continue;
+        }
+        if (p === 'brace') {
+            r.decorate = true;
+            r.brace = true;
             continue;
         }
         if (p === 'dotted') {
@@ -169,8 +198,21 @@ export function parseOptions(opts) {
                     if (fm && FONT_SIZES[fm[1]]) r.fontSize = FONT_SIZES[fm[1]];
                     if (/bfseries|textbf/.test(val)) r.fontBold = true;
                 }
+            } else if (key === 'color') {
+                // TikZ 通用颜色：\draw[color=red] 着色描边；\fill[color=red] 着色填充；
+                // \node[color=red] 着色文本。统一写入 bareColor，由各渲染分支按语境消费。
+                if (okColor(val)) r.bareColor = val;
             } else if (key === 'scale') {
                 r.scale = parseFloat(val) || 1;
+            } else if (key === 'rotate') {
+                const deg = parseFloat(val);
+                r.rotate = isFinite(deg) ? deg : 0;
+            } else if (key === 'xscale') {
+                const sx = parseFloat(val);
+                r.xscale = isFinite(sx) && sx !== 0 ? sx : 1;
+            } else if (key === 'yscale') {
+                const sy = parseFloat(val);
+                r.yscale = isFinite(sy) && sy !== 0 ? sy : 1;
             } else if (key === 'step') {
                 r.step = parseFloat(val);
                 if (r.step <= 0) r.step = null;
@@ -182,17 +224,54 @@ export function parseOptions(opts) {
                 if (isFinite(pp)) r.pos = pp;
             } else if (key === 'rounded corners') {
                 r.rounded = true;
+            } else if (key === 'decoration') {
+                // decoration={brace, amplitude=5pt, mirror, raise=2pt}
+                const body = val.replace(/^\{/, '').replace(/\}$/, '');
+                r.decorate = true;
+                r.decoration = body.trim();
+                if (/\bbrace\b/.test(body)) {
+                    r.brace = true;
+                    const amp = /\bamplitude\s*=\s*([^,}]+)/.exec(body);
+                    if (amp) r.braceAmplitude = parseLength(amp[1]);
+                    r.braceMirror = /\bmirror\b/.test(body);
+                    const raise = /\braise\s*=\s*([^,}]+)/.exec(body);
+                    if (raise) r.braceRaise = parseLength(raise[1]);
+                }
             } else if (key === 'line width') {
                 const lw = parseFloat(val);
                 if (lw) r.thick = lw > 1.5;
             } else if (key === 'inner sep') {
-                // inner sep=Xpt → 内边距像素；0pt → 0，避免小圆点被撑大
-                const ip = parseFloat(val);
-                r.innerSep = isFinite(ip) && ip >= 0 ? Math.max(0, (ip * 96) / 72) : 4;
+                // 内边距：pt 直接给像素；带 cm/mm/in 等长度后缀时按 1 单位 = 32px 换算。
+                // 0pt 允许显式归零，避免空节点小圆点被默认内边距撑大。
+                const unitM = /^-?[\d.]+\s*[a-zA-Z]+$/.exec(val);
+                if (unitM) {
+                    const ip = parseLength(val);
+                    r.innerSep = isFinite(ip) && ip >= 0 ? Math.max(0, ip * PX_PER_UNIT) : 4;
+                } else {
+                    const ip = parseFloat(val);
+                    r.innerSep = isFinite(ip) && ip >= 0 ? Math.max(0, (ip * 96) / 72) : 4;
+                }
+            } else if (key === 'shift') {
+                // shift={(x,y)}：坐标平移。大括号内是 TikZ 坐标，裸数字按
+                // TikZ 单位（cm）解释；这是 scope 平移最常用的写法。
+                const sm = /^\{\s*\(?\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)?\s*\}$/.exec(val);
+                if (sm) {
+                    r.xshift = parseFloat(sm[1]) || 0;
+                    r.yshift = parseFloat(sm[2]) || 0;
+                }
             } else if (key === 'xshift') {
                 r.xshift = parseLength(val);
             } else if (key === 'yshift') {
                 r.yshift = parseLength(val);
+            } else if (key === 'above' || key === 'below' || key === 'left' || key === 'right') {
+                // 带距离的锚点：above=0.4cm / below=2pt（相对节点自身的偏移距离）。
+                // 旧实现无此 case，node[midway, below=0.4cm] 被静默忽略，
+                // 标签落在路径中点上、压在线上（F.md 的"频率分解"）。
+                const dist = parseLength(val);
+                if (dist > 0) {
+                    r.anchor = key;
+                    r.anchorDist = Math.round(dist * PX_PER_UNIT);
+                }
             } else if (key === 'minimum width') {
                 const v = parseLength(val);
                 r.minWidth = v > 0 ? v : null;
@@ -236,6 +315,39 @@ export function splitOpts(opts) {
 }
 
 /**
+ * 由 parseOptions 结果生成坐标变换矩阵（TikZ 坐标，Y 向上）。
+ * 变换顺序：x/y scale → rotate → xshift/yshift。
+ *
+ * 两种调用语境：
+ *  - scope：includeScale 默认 true，TikZ scope 的 scale 同时缩放坐标。
+ *  - 单条 draw/node 语句：includeScale=false，因为渲染器已经单独消费 o.scale
+ *    （路径采样缩放 / 节点内容缩放），再次并入会造成双重缩放。
+ *  - node 语句：includeShift=false，节点 xshift/yshift 继续由 node 模块的
+ *    样式合并逻辑处理，避免与样式内 xshift 重复叠加。
+ * @param {Object} o
+ * @param {{includeScale?:boolean, includeShift?:boolean}} [mode]
+ * @returns {{a:number,b:number,c:number,d:number,e:number,f:number}}
+ */
+export function buildTransformMatrix(o, mode) {
+    const includeScale = !mode || mode.includeScale !== false;
+    const includeShift = !mode || mode.includeShift !== false;
+    const rot = ((o.rotate || 0) * Math.PI) / 180;
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+    const base = includeScale ? o.scale || 1 : 1;
+    const sx = (isFinite(o.xscale) ? o.xscale : 1) * base;
+    const sy = (isFinite(o.yscale) ? o.yscale : 1) * base;
+    return {
+        a: cos * sx,
+        b: -sin * sx,
+        c: sin * sy,
+        d: cos * sy,
+        e: includeShift ? o.xshift || 0 : 0,
+        f: includeShift ? o.yshift || 0 : 0,
+    };
+}
+
+/**
  * 解析线宽。
  * @param {Object} o
  * @returns {number}
@@ -244,6 +356,8 @@ export function lineWidth(o) {
     if (o.ultraThick) return 3.2;
     if (o.veryThick) return 2.6;
     if (o.thick) return 2.0;
+    if (o.veryThin) return 0.5;
+    if (o.thin) return 0.8;
     return 1.2;
 }
 

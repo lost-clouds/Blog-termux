@@ -20,6 +20,7 @@ export const COLOR_MAP = {
     blue: '#1e88e5',
     orange: '#fb8c00',
     purple: '#8e24aa',
+    indigo: '#3f51b5',
     brown: '#6d4c41',
     yellow: '#fdd835',
     cyan: '#00acc1',
@@ -39,13 +40,14 @@ export const DEFAULT_STROKE = 'var(--text-primary, #1a1a2e)';
 export const DEFAULT_NODE_FILL = 'rgba(120,120,120,0.08)';
 
 // 常用但我方无法表达时长的忽略命令（安全跳过）
-export const IGNORE_COMMANDS = { usetikzlibrary: true, pgfkeys: true, tikzset: true, scope: true };
+export const IGNORE_COMMANDS = { usetikzlibrary: true, pgfkeys: true, tikzset: true };
 
-// 节点文本中的数学片段分隔（$$\$$...\$$ 或 $...$ 或 \(...\)）
-// 注意：KaTeX.renderToString 只接受**去掉分隔符的裸 LaTeX**，因此渲染前
-// 必须用 _mathSplit 把整段文本切成“纯文本 / 数学”片段，再逐个渲染。
-export const MATH_RUN_RE = /\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\\([\s\S]*?\\\)/g;
-export const MATH_SPLIT = /\$|\\\(/;
+// 数学分隔符的识别与切分统一放在 tikz/text.js 的 mathSplit() 中实现。
+// 这里刻意不再导出“裸正则”：正则无法同时正确处理以下三种情况——
+//   1) `\\` 表示节点内换行，不能被误判为行内数学起点 `\(`；
+//   2) `\$` 表示字面美元符，不应开启数学模式；
+//   3) `$$...$$`、`$...$`、`\(...\)` 三种数学片段共存。
+// 因此采用显式扫描器，避免正则状态污染与跨调用 lastIndex 副作用。
 
 // TikZ 字号 → px（用于 font=small 等选项）
 export const FONT_SIZES = {

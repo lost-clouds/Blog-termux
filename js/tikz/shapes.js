@@ -12,8 +12,15 @@ import { PX_PER_UNIT, DEFAULT_STROKE } from './constants.js';
 import { resolveColor } from './color.js';
 import { lineWidth, dash } from './options.js';
 import { evalExpr, compileEval, parsePoint } from './expr.js';
-import { expandBounds, picScale } from './context.js';
+import { expandBounds, picScale, transformTikzPoint } from './context.js';
 import { parseLength } from './units.js';
+import {
+    isRotatedTransform,
+    isRawCoordText,
+    rotatedRectSvgPoints,
+    isCirclePreservingTransform,
+    affineCircleSvgPoints,
+} from './shape-transform.js';
 
 /**
  * 圆形：\(cx,cy) circle (r)。
@@ -22,9 +29,10 @@ import { parseLength } from './units.js';
  * @param {Object} ctx
  * @param {boolean} filled
  * @param {?string} fillOpt
+ * @param {?string} strokeColor - 可选描边色覆盖；\fill 专用时传 'none'
  * @returns {{html:string, math:boolean}}
  */
-export function circleShape(rest, o, ctx, filled, fillOpt) {
+export function circleShape(rest, o, ctx, filled, fillOpt, strokeColor) {
     const m = rest.match(/\(([^)]*)\)\s*circle\s*\(([^)]*)\)/i);
     if (!m) return { html: '', math: false };
     const c = parsePoint(m[1], ctx);
@@ -32,34 +40,45 @@ export function circleShape(rest, o, ctx, filled, fillOpt) {
     // 半径单位：数字视为 TikZ 单位（如 circle (2)）；带单位后缀（2pt/0.5cm）走 parseLength。
     // 旧代码用 evalExpr 解析 "2.5pt" 会得到 0，导致所有小圆点塌缩为 r=1（点成了圈/大小异常）。
     const rr = radiusOf(m[2], ctx);
-    const cx = c[0] * sc * PX_PER_UNIT;
-    const cy = -c[1] * sc * PX_PER_UNIT; // TikZ Y 向上 → SVG Y 向下
-    const cr = Math.max(rr * sc * PX_PER_UNIT, 1);
-    expandBounds(ctx, cx - cr, cy - cr, cx + cr, cy + cr);
-    const stroke = resolveColor(o.draw || o.bareColor, DEFAULT_STROKE);
+    const t = ctx && ctx.transform;
+    const stroke = resolveColor(
+        strokeColor !== undefined ? strokeColor : o.draw || o.bareColor,
+        DEFAULT_STROKE
+    );
     const fc = resolveColor(
         fillOpt || (filled && o.bareColor ? o.bareColor : null),
         filled ? DEFAULT_STROKE : 'none'
     );
     const sw = lineWidth(o);
     const dsh = dash(o);
+
+    if (isCirclePreservingTransform(ctx)) {
+        // 保圆变换：圆心已由 parsePoint 变换，半径只乘线性缩放因子
+        const worldR = rr * (t ? Math.hypot(t.a, t.c) : 1);
+        const cx = c[0] * sc * PX_PER_UNIT;
+        const cy = -c[1] * sc * PX_PER_UNIT; // TikZ Y 向上 → SVG Y 向下
+        const cr = Math.max(worldR * sc * PX_PER_UNIT, 1);
+        expandBounds(ctx, cx - cr, cy - cr, cx + cr, cy + cr);
+        return {
+            html:
+                '<circle cx="' + cx + '" cy="' + cy + '" r="' + cr + '" fill="' + fc +
+                '" stroke="' + stroke + '" stroke-width="' + sw + '"' +
+                (dsh ? ' stroke-dasharray="' + dsh + '"' : '') + ' />',
+            math: false,
+        };
+    }
+
+    // 非保圆仿射：反算局部圆心，采样局部圆后逐点正变换，输出封闭 path。
+    const pts = affineCircleSvgPoints(ctx, c, rr, sc);
+    for (const p of pts) {
+        const xy = p.slice(1).split(' ');
+        expandBounds(ctx, parseFloat(xy[0]), parseFloat(xy[1]));
+    }
     return {
         html:
-            '<circle cx="' +
-            cx +
-            '" cy="' +
-            cy +
-            '" r="' +
-            cr +
-            '" fill="' +
-            fc +
-            '" stroke="' +
-            stroke +
-            '" stroke-width="' +
-            sw +
-            '"' +
-            (dsh ? ' stroke-dasharray="' + dsh + '"' : '') +
-            ' />',
+            '<path d="' + pts.join('') + 'Z" fill="' + fc + '" stroke="' + stroke +
+            '" stroke-width="' + sw + '"' +
+            (dsh ? ' stroke-dasharray="' + dsh + '"' : '') + ' />',
         math: false,
     };
 }
@@ -84,14 +103,50 @@ function radiusOf(s, ctx) {
  * @param {Object} o
  * @param {Object} ctx
  * @param {boolean} filled
+ * @param {?string} strokeColor - 可选描边色覆盖；\fill 专用时传 'none'
  * @returns {{html:string, math:boolean}}
  */
-export function rectangleShape(rest, o, ctx, filled) {
+export function rectangleShape(rest, o, ctx, filled, strokeColor) {
     const m = rest.match(/\(([^)]*)\)\s*rectangle\s*\(([^)]*)\)/i);
     if (!m) return { html: '', math: false };
     const a = parsePoint(m[1], ctx);
     const b = parsePoint(m[2], ctx);
     const sc = (o.scale || 1) * picScale(ctx);
+    const stroke = resolveColor(
+        strokeColor !== undefined ? strokeColor : o.draw || o.bareColor,
+        DEFAULT_STROKE
+    );
+    const fc = resolveColor(
+        o.fill || (filled && o.bareColor ? o.bareColor : null),
+        filled ? DEFAULT_STROKE : 'none'
+    );
+    const sw = lineWidth(o);
+    const dsh = dash(o);
+
+    // scope/语句旋转时，两个对角端点变换后不再是矩形的对角点；
+    // 由 shape-transform 反算局部角点并输出真实旋转 polygon。
+    if (isRotatedTransform(ctx) && isRawCoordText(m[1]) && isRawCoordText(m[2])) {
+        const pts = rotatedRectSvgPoints(ctx, a, b, sc).map(function (p) {
+            expandBounds(ctx, p[0], p[1]);
+            return p[0] + ',' + p[1];
+        });
+        return {
+            html:
+                '<polygon points="' +
+                pts.join(' ') +
+                '" fill="' +
+                fc +
+                '" stroke="' +
+                stroke +
+                '" stroke-width="' +
+                sw +
+                '" stroke-linejoin="round"' +
+                (dsh ? ' stroke-dasharray="' + dsh + '"' : '') +
+                ' />',
+            math: false,
+        };
+    }
+
     const x1 = a[0] * sc * PX_PER_UNIT,
         y1 = -a[1] * sc * PX_PER_UNIT;
     const x2 = b[0] * sc * PX_PER_UNIT,
@@ -102,13 +157,6 @@ export function rectangleShape(rest, o, ctx, filled) {
         h = Math.abs(y2 - y1);
     expandBounds(ctx, rx, ry, rx + w, ry + h);
     const rad = o.rounded ? 6 : 0;
-    const stroke = resolveColor(o.draw || o.bareColor, DEFAULT_STROKE);
-    const fc = resolveColor(
-        o.fill || (filled && o.bareColor ? o.bareColor : null),
-        filled ? DEFAULT_STROKE : 'none'
-    );
-    const sw = lineWidth(o);
-    const dsh = dash(o);
     return {
         html:
             '<rect x="' +
@@ -273,8 +321,9 @@ export function plotShape(rest, o, ctx) {
         const vars = Object.assign({}, ctx.vars);
         vars[varName] = xv;
         const yv = f(vars);
-        const X = xv * scale * PX_PER_UNIT;
-        const Y = -yv * scale * PX_PER_UNIT; // Y 向上 → 取负
+        const wp = transformTikzPoint(ctx, xv, yv); // 应用当前 scope 变换
+        const X = wp[0] * scale * PX_PER_UNIT;
+        const Y = -wp[1] * scale * PX_PER_UNIT; // Y 向上 → 取负
         expandBounds(ctx, X, Y);
         pts += (first ? '' : 'L') + X + ' ' + Y;
         first = false;
@@ -308,7 +357,10 @@ export function arrowHead(from, to, color) {
     if (len < 1e-6) return '';
     const ux = dx / len,
         uy = dy / len;
-    const size = 9;
+    // 自适应箭头大小：相邻节点边框间距可能小于默认 9px（如 15.7 中
+    // 原点圆边到数字 1 圆边仅 2.5px），固定大箭头会把短线段完全盖住。
+    // 长度越短箭头越小，但最小保留 2.5px 保证仍可辨识。
+    const size = Math.min(9, Math.max(2.5, len * 0.7));
     const bx = to[0] - ux * size,
         by = to[1] - uy * size;
     const nx = -uy * (size * 0.38),

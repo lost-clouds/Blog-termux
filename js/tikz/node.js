@@ -10,12 +10,12 @@
 
 'use strict';
 
-import { PX_PER_UNIT, DEFAULT_STROKE, DEFAULT_NODE_FILL, MATH_SPLIT } from './constants.js';
+import { PX_PER_UNIT, DEFAULT_STROKE, DEFAULT_NODE_FILL } from './constants.js';
 import { resolveColor } from './color.js';
 import { parseOptions, splitOpts } from './options.js';
 import { parsePoint } from './expr.js';
-import { expandBounds, registerBox, picScale } from './context.js';
-import { contentLen, plainText, escapeHtml } from './text.js';
+import { expandBounds, registerBox, picScale, transformTikzPoint } from './context.js';
+import { displayWidth, hasMathText, lineCount, normalizeText, plainText, escapeHtml } from './text.js';
 import { parseLength } from './units.js';
 
 /**
@@ -26,14 +26,22 @@ import { parseLength } from './units.js';
  * @returns {{html:string, math:boolean}}
  */
 export function renderNode(rest, opts, ctx) {
-    // 解析 {text}（可能含嵌套花括号）+ (name) + at 位置
+    // 解析 {text}（可能含嵌套花括号）+ (name) + at 位置；文本先做换行规范化
     const parsed = parseNodeHeader(rest);
+    const text = normalizeText(parsed.text);
     let pt = null;
+    const relative = parsed.at === null && opts && hasRelativePos(opts, ctx);
     // 相对定位：below=of X → 以自身半宽高 + 参考盒计算
-    if (parsed.at === null && opts && hasRelativePos(opts, ctx)) {
-        pt = resolveRelative(parsed.text, opts, ctx);
+    if (relative) {
+        pt = resolveRelative(text, opts, ctx);
+        // scope 变换同样作用于相对定位结果（平移/旋转 scope 内的流程图）
+        pt = transformTikzPoint(ctx, pt[0], pt[1]);
+    } else if (parsed.at !== null) {
+        // parsePoint 内部已应用当前 scope 变换
+        pt = parsePoint(parsed.at, ctx);
     } else {
-        pt = parsed.at !== null ? parsePoint(parsed.at, ctx) : [0, 0];
+        // 无 at 的节点默认位于原点；原点也属于局部坐标，需要经过 scope 变换
+        pt = transformTikzPoint(ctx, 0, 0);
     }
     // 应用 xshift/yshift（仅相对定位时由 resolveRelative 内部叠加，这里兜底绝对值）
     if (parsed.at !== null) {
@@ -43,20 +51,16 @@ export function renderNode(rest, opts, ctx) {
     }
 
     const o = mergeNodeOptions(opts, ctx);
-    const hasMath = MATH_SPLIT.test(parsed.text);
-
     // 计算自身几何盒（半宽高，TikZ 单位），并注册供后续相对定位/锚点使用。
     // 盒子 px 尺寸不随整图 scale 缩放（TikZ 语义：scale 缩放坐标体系而非文字），
     // 因此换算回 TikZ 单位时要除以 picScale，保证 below=of 等相对偏移与像素一致。
-    const dims = nodeDims(parsed.text, o, hasMath);
-    const ps = picScale(ctx);
-    const halfW = dims.w / (2 * PX_PER_UNIT * ps);
-    const halfH = dims.h / (2 * PX_PER_UNIT * ps);
-    if (parsed.name) registerBox(ctx, parsed.name, pt[0], pt[1], halfW, halfH);
+    // 圆形节点使用“实际绘制半径”作为盒半径，使边框偏移 / 锚点与圆边对齐。
+    const box = nodeBoxDims(text, o, ctx);
+    if (parsed.name) registerBox(ctx, parsed.name, pt[0], pt[1], box.hw, box.hh);
     else ctx.named[''] = [pt[0], pt[1]];
 
-    const html = nodeSvg(pt, o, parsed.text, hasMath, ctx, dims);
-    return { html: html, math: hasMath };
+    const html = nodeSvg(pt, o, text, box.hasMath, ctx, box.dims);
+    return { html: html, math: box.hasMath };
 }
 
 /**
@@ -69,9 +73,10 @@ export function renderNode(rest, opts, ctx) {
  */
 export function renderNodeLabel(pt, opts, text, ctx) {
     const o = mergeNodeOptions(opts, ctx);
-    const hasMath = MATH_SPLIT.test(text);
-    const dims = nodeDims(text, o, hasMath);
-    return { html: nodeSvg(pt, o, text, hasMath, ctx, dims), math: hasMath };
+    const t = normalizeText(text);
+    const hasMath = hasMathText(t);
+    const dims = nodeDims(t, o, hasMath);
+    return { html: nodeSvg(pt, o, t, hasMath, ctx, dims), math: hasMath };
 }
 
 /**
@@ -141,6 +146,31 @@ function hasRelativePos(opts, ctx) {
 }
 
 /**
+ * 统一计算节点的显示尺寸与盒半宽高（TikZ 单位）。
+ * 圆形节点与矩形节点的盒模型都从同一入口生成，避免相对定位、路径边框偏移、
+ * 锚点引用三处各自计算而出现半径/半宽不一致的问题。
+ * @param {string} text
+ * @param {Object} o
+ * @param {Object} ctx
+ * @returns {{dims:Object, hw:number, hh:number, hasMath:boolean}}
+ */
+function nodeBoxDims(text, o, ctx) {
+    const hasMath = hasMathText(text);
+    const dims = nodeDims(text, o, hasMath);
+    const ps = picScale(ctx);
+    if (o.circle) {
+        const r = circleRadiusPx(o, dims);
+        return { dims: dims, hw: r / (PX_PER_UNIT * ps), hh: r / (PX_PER_UNIT * ps), hasMath: hasMath };
+    }
+    return {
+        dims: dims,
+        hw: dims.w / (2 * PX_PER_UNIT * ps),
+        hh: dims.h / (2 * PX_PER_UNIT * ps),
+        hasMath: hasMath,
+    };
+}
+
+/**
  * 计算相对定位坐标：以参考节点盒的对应边为基准，加上 node distance 与自身半尺寸。
  * Y 向上：below = -Y，above = +Y，right = +X，left = -X。
  * @param {string} text - 自身文本，用于 nodeDims 计算自身尺寸以便相对定位
@@ -152,10 +182,9 @@ function resolveRelative(text, opts, ctx) {
     const o = mergeNodeOptions(opts, ctx);
     const ref = ctx.boxes && ctx.boxes[o.posRef];
     if (!ref) return [0, 0];
-    const dims = nodeDims(text, o, MATH_SPLIT.test(text));
-    const ps = picScale(ctx);
-    const hw = dims.w / (2 * PX_PER_UNIT * ps);
-    const hh = dims.h / (2 * PX_PER_UNIT * ps);
+    const box = nodeBoxDims(text, o, ctx);
+    const hw = box.hw;
+    const hh = box.hh;
     const nd = o.posDist != null ? o.posDist : ctx.options.nodeDistance;
     // 参考盒的边坐标（TikZ 单位）
     let x = ref.x,
@@ -189,6 +218,20 @@ function nodeDims(text, o, hasMath) {
 }
 
 /**
+ * 计算圆形节点的绘制半径（px）。圆形节点与其几何盒共享此公式，
+ * 保证"绘制半径 == 盒半宽"，使边框偏移 / 锚点与圆边严格一致。
+ * +1 的余量保证圆恰好包住文本；旧值 +2 会把相邻圆（间距 1 单位 = 32px）
+ * 撑到共边甚至叠加（example.md 15.7 的圆圈链）。
+ * @param {Object} o - parseOptions 结果
+ * @param {{w:number,h:number}} dims - nodeDims 结果
+ * @returns {number}
+ */
+function circleRadiusPx(o, dims) {
+    const innerSep = o.innerSep || 4;
+    return Math.max(innerSep + 1, Math.max(dims.w, dims.h) / 2 + 1);
+}
+
+/**
  * 找出从 idx 开始（指向 {）的配对右花括号下标。
  * @param {string} s
  * @param {number} idx
@@ -219,7 +262,8 @@ function matchBrace(s, idx) {
 function nodeSvg(pt, o, text, hasMath, ctx, dims) {
     const px = pt[0] * o.scale * picScale(ctx) * PX_PER_UNIT;
     const py = -pt[1] * o.scale * picScale(ctx) * PX_PER_UNIT; // TikZ Y 向上 → SVG Y 向下
-    const off = anchorOffset(o.anchor, 8);
+    // 锚点偏移：优先用带距离的锚点（below=0.4cm → o.anchorDist），默认 8px
+    const off = anchorOffset(o.anchor, o.anchorDist != null ? o.anchorDist : 8);
     const cx = px + off[0];
     const cy = py + off[1];
 
@@ -227,7 +271,6 @@ function nodeSvg(pt, o, text, hasMath, ctx, dims) {
     const textColor = resolveColor(o.text || o.bareColor, DEFAULT_STROKE);
     const fs = o.fontSize;
     const fontWeight = o.fontBold ? 'bold' : 'normal';
-    const innerSep = o.innerSep || 4;
     const tw = dims.w,
         th = dims.h;
 
@@ -237,7 +280,8 @@ function nodeSvg(pt, o, text, hasMath, ctx, dims) {
     expandBounds(ctx, cx - tw / 2 - 1, cy - th / 2 - 1, cx + tw / 2 + 1, cy + th / 2 + 1);
 
     if (o.circle && wantBox) {
-        const r = Math.max(innerSep + 4, Math.max(tw, th) / 2 + 2);
+        // 半径与盒模型共用 circleRadiusPx，保证绘制圆边 == 盒半宽（audit：元素叠加/大小异常）
+        const r = circleRadiusPx(o, dims);
         expandBounds(ctx, cx - r - 2, cy - r - 2, cx + r + 2, cy + r + 2);
         shape =
             '<circle cx="' +
@@ -294,29 +338,35 @@ function anchorOffset(anchor, d) {
 }
 
 /**
- * 估算文本宽度（基于有效显示长度），字符宽度系数 ~0.62 em。
+ * 估算文本宽度（px）：纯文本 0.62em/字符（CJK 加权 1.4），
+ * 数学片段 0.55em/字符 + 0.3em 余量，多行取最长行（见 text.displayWidth）。
+ * 空文本宽度为 0（节点只剩内边距，避免空节点被撑成 31px 大圆点）。
+ * 旧实现的"全文 ×1.8 + 2em"会把含 ASCII 公式（a^2+b^2=c^2）的节点
+ * 估得过宽，导致相邻数学节点横向重叠（example.md 15.9 两框合并）。
  * @param {string} text
  * @param {number} fs
  * @returns {number}
  */
 function textWidth(text, fs) {
-    return Math.max(fs * 2, Math.ceil(fs * 0.62 * contentLen(text)));
+    return displayWidth(text, fs);
 }
 
 /**
- * 估算文本高度：普通文本 1.35em；含数学 1.6em。
+ * 估算文本高度：每行 1em；含数学再补 1em（分式/根号/上下标可达 2em）。
+ * 空文本高度为 0（与 textWidth 同理）。
  * @param {string} text
  * @param {number} fs
  * @param {boolean} hasMath
  * @returns {number}
  */
 function textHeight(text, fs, hasMath) {
-    const h = hasMath ? fs * 1.6 : fs * 1.35;
-    return Math.max(Math.ceil(h), fs + 4);
+    const lines = lineCount(text);
+    if (lines === 0) return 0;
+    return Math.ceil(fs * (lines + (hasMath ? 1 : 0)));
 }
 
 /**
- * 生成节点文本 SVG：普通文本用 <text>，含数学用 <foreignObject> 占位。
+ * 生成节点文本 SVG：普通文本用 <text>（多行用 <tspan>），含数学用 <foreignObject> 占位。
  * @param {number} cx
  * @param {number} cy
  * @param {string} text
@@ -331,8 +381,11 @@ function textHeight(text, fs, hasMath) {
 function labelSvg(cx, cy, text, fs, color, fontWeight, hasMath, tw, th) {
     if (!text) return '';
     if (hasMath) {
-        const w = Math.min(Math.max(tw + 8, fs * 2.5), 420);
-        const h = Math.max(th, fs + 4) + 4;
+        // 宽高按渲染余量放宽（tw 已含数学放大），去 overflow:hidden，
+        // 防 KaTeX 实际内容被 foreignObject 裁剪/与相邻元素互相遮挡（audit B 修复）。
+        // line-height 用 1.4（不用 th 固定值），多行数学/文本才不会被挤压成一行。
+        const w = Math.min(Math.max(tw + 16, fs * 4), 1000);
+        const h = Math.max(th + 6, fs * 2.4);
         return (
             '<foreignObject x="' +
             (cx - w / 2) +
@@ -344,15 +397,45 @@ function labelSvg(cx, cy, text, fs, color, fontWeight, hasMath, tw, th) {
             h +
             '"><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-math" data-math="' +
             escapeHtml(text) +
-            '" style="text-align:center;line-height:' +
-            h +
-            'px;font-size:' +
+            '" style="text-align:center;line-height:1.4;font-size:' +
             fs +
             'px;color:' +
             color +
             ';font-weight:' +
             fontWeight +
-            ';overflow:hidden"></div></foreignObject>'
+            '"></div></foreignObject>'
+        );
+    }
+    // 多行：拆分为 tspan，逐行下移 1em（`\\\\` 已在 renderNode 规范化为 \n）
+    const lines = text.split('\n');
+    if (lines.length > 1) {
+        const lh = fs; // 行高 1em
+        const startY = cy - ((lines.length - 1) * lh) / 2;
+        let body = '';
+        for (let i = 0; i < lines.length; i++) {
+            body +=
+                '<tspan x="' +
+                cx +
+                '"' +
+                (i > 0 ? ' dy="' + lh + '"' : '') +
+                '>' +
+                escapeHtml(plainText(lines[i])) +
+                '</tspan>';
+        }
+        return (
+            '<text x="' +
+            cx +
+            '" y="' +
+            startY +
+            '" text-anchor="middle" dominant-baseline="central" font-size="' +
+            fs +
+            '" font-family="sans-serif" font-weight="' +
+            fontWeight +
+            '" fill="' +
+            color +
+            '">' +
+            body +
+            '</text>'
         );
     }
     return (
